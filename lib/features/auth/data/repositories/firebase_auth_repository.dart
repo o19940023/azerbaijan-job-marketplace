@@ -101,7 +101,10 @@ class FirebaseAuthRepository {
 
   Future<AppUser> signInWithGoogle(String expectedUserType) async {
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        clientId: Platform.isIOS ? '591328908781-stqgmmde3lohjgaune8r2o7b6u1um820.apps.googleusercontent.com' : null,
+      );
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) throw Exception('Google ilə giriş ləğv edildi.');
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -160,7 +163,8 @@ class FirebaseAuthRepository {
           ],
         );
 
-        final OAuthProvider appleProvider = OAuthProvider('apple.com');
+        fiaccessToken: appleCredential.authorizationCode,
+          nal OAuthProvider appleProvider = OAuthProvider('apple.com');
         final OAuthCredential credential = appleProvider.credential(
           idToken: appleCredential.identityToken,
           rawNonce: null, // If you use a nonce, provide it here
