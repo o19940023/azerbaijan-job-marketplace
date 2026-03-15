@@ -65,11 +65,12 @@
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
-			<key>CFBundleURLName</key>
-			<string>com.is.tap</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>com.googleusercontent.apps.591328908781-stqgmmde3lohjgaune8r2o7b6u1um820</string>
+				<string>com.is.tap</string>
 			</array>
 		</dict>
 	</array>
