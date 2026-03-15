@@ -62,6 +62,14 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
+      - name: Remove alpha channel from iOS icons
+        script: |
+          # Install ImageMagick if not available
+          brew install imagemagick || true
+          
+          # Remove alpha channel from all iOS app icons
+          find ios/Runner/Assets.xcassets/AppIcon.appiconset -name "*.png" -exec magick mogrify -alpha off -background white -flatten {} \;
+          
       - name: Set up code signing settings on Xcode project
         script: |
           cd ios
