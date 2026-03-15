@@ -48,6 +48,8 @@
 	<string>Yaxınlıqdakı işləri göstərmək üçün məkan məlumatı lazımdır</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Yaxınlıqdakı işləri göstərmək üçün məkan məlumatı lazımdır</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Yaxınlıqdakı işləri göstərmək üçün məkan məlumatı lazımdır</string>
 	<!-- Microphone Permission for AI Voice -->
 	<key>NSMicrophoneUsageDescription</key>
 	<string>AI ilə səsli danışmaq üçün mikrofon icazəsi lazımdır</string>
