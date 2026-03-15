@@ -1,0 +1,318 @@
+# Implementation Plan
+
+- [x] 1. Bug condition exploration test yaz
+  - **Property 1: Fault Condition** - İş İlanı CRUD Operasyonları Kalıcı Storage Kullanmıyor
+  - **KRİTİK**: Bu test FIX YAPILMADAN ÖNCE yazılmalı ve UNFIXED code'da BAŞARISIZ olmalı
+  - **AMAÇ**: Bug'ın var olduğunu gösteren counterexample'ları ortaya çıkar
+  - **Scoped PBT Yaklaşımı**: Deterministic bug için property'yi concrete failing case'lere scope et
+  - Test implementation: CRUD operasyonlarının (CREATE, READ, UPDATE, DELETE) Hive storage kullanmadığını doğrula
+  - Test assertions (Expected Behavior Properties'den):
+    - createJob() çağrıldığında veri Hive'a yazılmalı
+    - getEmployerJobs() Hive'dan okumalı (sadece MockData değil)
+    - updateJob() Hive'da güncellemeli
+    - deleteJob() Hive'dan silmeli
+    - App restart sonrası veriler korunmalı
+  - UNFIXED code'da testi çalıştır
+  - **BEKLENİLEN SONUÇ**: Test BAŞARISIZ olmalı (bu doğru - bug'ın var olduğunu kanıtlar)
+  - Counterexample'ları dokümante et:
+    - createJob() Hive'a yazmıyor
+    - getEmployerJobs() sadece MockData döndürüyor
+    - updateJob() ve deleteJob() Hive'ı güncellemiyor
+    - Restart sonrası veriler kaybolmuş
+  - Task'ı complete olarak işaretle (test yazıldı, çalıştırıldı, failure dokümante edildi)
+  - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
+
+- [ ] 2. Preservation property testleri yaz (FIX YAPILMADAN ÖNCE)
+  - **Property 2: Preservation** - İlan Dışı Fonksiyonalite Korunmalı
+  - **ÖNEMLİ**: Observation-first metodolojisini takip et
+  - UNFIXED code'da non-buggy inputlar için davranışı gözlemle:
+    - İlan detay görüntüleme nasıl çalışıyor?
+    - Filtreleme (kategori, şehir, mesafe) nasıl çalışıyor?
+    - Başvuru sistemi nasıl çalışıyor?
+    - Harita görüntüleme nasıl çalışıyor?
+    - MockData.jobs verileri nasıl görüntüleniyor?
+  - Gözlemlenen davranış pattern'lerini capture eden property-based testler yaz:
+    - Job detail görüntüleme aynı şekilde çalışmalı
+    - Filtreleme mantığı değişmemeli
+    - Başvuru sistemi aynı şekilde çalışmalı
+    - Harita fonksiyonalitesi korunmalı
+    - MockData.jobs verileri kaybolmamalı
+  - Property-based testing birçok test case otomatik generate eder (güçlü garantiler)
+  - UNFIXED code'da testleri çalıştır
+  - **BEKLENİLEN SONUÇ**: Testler BAŞARILI olmalı (baseline davranışı doğrular)
+  - Task'ı complete olarak işaretle (testler yazıldı, çalıştırıldı, unfixed code'da passing)
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+
+- [-] 3. İş ilanı kalıcı storage fix'i
+
+  - [-] 3.1 Hive setup ve initialization
+    - `lib/main.dart` dosyasını güncelle
+    - `main()` fonksiyonunda `WidgetsFlutterBinding.ensureInitialized()` ekle
+    - `await Hive.initFlutter()` çağrısı ekle
+    - `Hive.registerAdapter(JobPostingAdapter())` ile TypeAdapter'ı register et
+    - `await Hive.openBox<JobPosting>('jobs')` ile jobs box'ını aç
+    - İlk çalıştırmada MockData.jobs'u Hive'a migrate et (box boşsa)
+    - _Bug_Condition: isBugCondition(operation) - CRUD operasyonları Hive storage kullanmıyor_
+    - _Expected_Behavior: usesHiveStorage(operation) AND dataPersisted(operation)_
+    - _Preservation: MockData.jobs Hive'a migrate edilmeli, kaybolmamalı_
+    - _Requirements: 2.1, 2.2, 3.5_
+
+  - [ ] 3.2 JobPosting TypeAdapter oluştur
+    - `lib/features/jobs/data/models/job_model.dart` dosyasını oluştur veya güncelle
+    - JobPosting class'ını HiveObject'ten extend et
+    - `@HiveType(typeId: 0)` annotation'ı ekle
+    - Her field için `@HiveField(index)` annotation'ları ekle (id, title, description, company, location, salary, category, employerId, createdAt, vb.)
+    - `toEntity()` method'u implement et (JobPosting model → JobPosting entity)
+    - `fromEntity()` factory method'u implement et (JobPosting entity → JobPosting model)
+    - `flutter packages pub run build_runner build` komutu ile TypeAdapter generate et
+    - _Bug_Condition: TypeAdapter yok, Hive custom object'leri serialize edemiyor_
+    - _Expected_Behavior: JobPosting Hive'da saklanabilir ve okunabilir_
+    - _Preservation: JobPosting entity yapısı değişmemeli_
+    - _Requirements: 2.1, 2.2_
+
+  - [ ] 3.3 JobLocalDataSource implementation
+    - `lib/features/jobs/data/datasources/job_local_datasource.dart` dosyasını oluştur
+    - `JobLocalDataSource` abstract class tanımla:
+      - `Future<void> createJob(JobPosting job)`
+      - `Future<List<JobPosting>> getJobs()`
+      - `Future<JobPosting?> getJobById(String id)`
+      - `Future<List<JobPosting>> getJobsByEmployerId(String employerId)`
+      - `Future<void> updateJob(JobPosting job)`
+      - `Future<void> deleteJob(String id)`
+    - `JobLocalDataSourceImpl` class'ı implement et
+    - Constructor'da `Box<JobPosting> jobsBox` inject et
+    - Her method'u Hive box operations ile implement et:
+      - `createJob`: `jobsBox.put(job.id, job)`
+      - `getJobs`: `jobsBox.values.toList()`
+      - `getJobById`: `jobsBox.get(id)`
+      - `getJobsByEmployerId`: `jobsBox.values.where((job) => job.employerId == employerId).toList()`
+      - `updateJob`: `jobsBox.put(job.id, job)`
+      - `deleteJob`: `jobsBox.delete(id)`
+    - Error handling ekle (try-catch blocks)
+    - _Bug_Condition: Local datasource yok, Hive ile CRUD operasyonları yapılamıyor_
+    - _Expected_Behavior: CRUD operasyonları Hive üzerinden çalışıyor_
+    - _Preservation: N/A (yeni component)_
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
+
+  - [ ] 3.4 JobRepositoryImpl implementation
+    - `lib/features/jobs/data/repositories/job_repository_impl.dart` dosyasını oluştur veya güncelle
+    - `lib/features/jobs/domain/repositories/job_repository.dart` interface'ini kontrol et (yoksa oluştur)
+    - `JobRepository` interface tanımla (domain layer):
+      - `Future<void> createJob(JobPosting job)`
+      - `Future<List<JobPosting>> getAllJobs()`
+      - `Future<List<JobPosting>> getEmployerJobs(String employerId)`
+      - `Future<JobPosting?> getJobById(String id)`
+      - `Future<void> updateJob(JobPosting job)`
+      - `Future<void> deleteJob(String id)`
+    - `JobRepositoryImpl` class'ı implement et (data layer)
+    - Constructor'da `JobLocalDataSource localDataSource` inject et
+    - Her method'u local datasource'a delegate et
+    - Error handling ve logging ekle
+    - _Bug_Condition: Repository local datasource kullanmıyor, mock data döndürüyor_
+    - _Expected_Behavior: Repository CRUD operasyonlarını local datasource'a delegate ediyor_
+    - _Preservation: Repository interface değişmemeli_
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
+
+  - [ ] 3.5 Use case'leri implement et
+    - **CreateJob Use Case**:
+      - `lib/features/jobs/domain/usecases/create_job.dart` oluştur
+      - `CreateJob` class tanımla
+      - Constructor'da `JobRepository repository` inject et
+      - `Future<void> call(JobPosting job)` method'u implement et
+      - Repository'nin `createJob()` method'unu çağır
+      - Validation ekle (required fields check)
+    - **GetEmployerJobs Use Case**:
+      - `lib/features/jobs/domain/usecases/get_employer_jobs.dart` oluştur
+      - `GetEmployerJobs` class tanımla
+      - Constructor'da `JobRepository repository` inject et
+      - `Future<List<JobPosting>> call(String employerId)` method'u implement et
+      - Repository'nin `getEmployerJobs()` method'unu çağır
+    - **GetAllJobs Use Case**:
+      - `lib/features/jobs/domain/usecases/get_all_jobs.dart` oluştur
+      - `GetAllJobs` class tanımla
+      - Constructor'da `JobRepository repository` inject et
+      - `Future<List<JobPosting>> call()` method'u implement et
+      - Repository'nin `getAllJobs()` method'unu çağır
+    - **UpdateJob Use Case**:
+      - `lib/features/jobs/domain/usecases/update_job.dart` oluştur
+      - `UpdateJob` class tanımla
+      - Constructor'da `JobRepository repository` inject et
+      - `Future<void> call(JobPosting job)` method'u implement et
+      - Repository'nin `updateJob()` method'unu çağır
+    - **DeleteJob Use Case**:
+      - `lib/features/jobs/domain/usecases/delete_job.dart` oluştur
+      - `DeleteJob` class tanımla
+      - Constructor'da `JobRepository repository` inject et
+      - `Future<void> call(String jobId)` method'u implement et
+      - Repository'nin `deleteJob()` method'unu çağır
+    - _Bug_Condition: Use case'ler yok veya repository'yi çağırmıyor_
+    - _Expected_Behavior: Use case'ler repository üzerinden CRUD operasyonlarını gerçekleştiriyor_
+    - _Preservation: Business logic değişmemeli_
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
+
+  - [ ] 3.6 JobBloc/Cubit state management
+    - `lib/features/jobs/presentation/bloc/job_bloc.dart` veya `job_cubit.dart` oluştur
+    - State class'ları tanımla:
+      - `JobInitial`: İlk durum
+      - `JobLoading`: İşlem devam ediyor
+      - `JobLoaded`: İlanlar yüklendi (List<JobPosting> jobs)
+      - `JobError`: Hata oluştu (String message)
+      - `JobOperationSuccess`: CRUD operasyonu başarılı (String message)
+    - Event class'ları tanımla (Bloc kullanıyorsa):
+      - `CreateJobEvent(JobPosting job)`
+      - `LoadEmployerJobsEvent(String employerId)`
+      - `LoadAllJobsEvent()`
+      - `UpdateJobEvent(JobPosting job)`
+      - `DeleteJobEvent(String jobId)`
+    - JobBloc/Cubit class'ı oluştur
+    - Constructor'da use case'leri inject et:
+      - `CreateJob createJob`
+      - `GetEmployerJobs getEmployerJobs`
+      - `GetAllJobs getAllJobs`
+      - `UpdateJob updateJob`
+      - `DeleteJob deleteJob`
+    - Her event/method için handler implement et:
+      - Loading state emit et
+      - Use case'i çağır
+      - Success: JobLoaded veya JobOperationSuccess emit et
+      - Error: JobError emit et
+    - _Bug_Condition: State management use case'leri çağırmıyor_
+    - _Expected_Behavior: Bloc/Cubit use case'ler üzerinden CRUD operasyonlarını yönetiyor_
+    - _Preservation: State management pattern değişmemeli_
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
+
+  - [ ] 3.7 CreateJobScreen integration
+    - `lib/features/jobs/presentation/pages/create_job_screen.dart` dosyasını güncelle
+    - BlocProvider ekle (JobBloc/Cubit için)
+    - Form validation logic'i koru
+    - "Kaydet" butonunda:
+      - Form validate et
+      - JobPosting entity oluştur (form data'dan)
+      - `context.read<JobBloc>().add(CreateJobEvent(job))` veya `context.read<JobCubit>().createJob(job)` çağır
+    - BlocListener ekle:
+      - JobOperationSuccess: Success message göster, geri dön
+      - JobError: Error message göster
+    - BlocBuilder ekle:
+      - JobLoading: Loading indicator göster
+    - _Bug_Condition: CreateJobScreen use case çağırmıyor, veriler kaydedilmiyor_
+    - _Expected_Behavior: İlan oluşturulduğunda Hive'a kaydediliyor_
+    - _Preservation: UI/UX değişmemeli, form validation aynı kalmalı_
+    - _Requirements: 2.1, 2.6_
+
+  - [ ] 3.8 EmployerHome integration
+    - `lib/features/jobs/presentation/pages/employer_home.dart` dosyasını güncelle
+    - BlocProvider ekle (JobBloc/Cubit için)
+    - `initState()` içinde:
+      - Current user'ın employerId'sini al
+      - `context.read<JobBloc>().add(LoadEmployerJobsEvent(employerId))` çağır
+    - BlocBuilder ekle:
+      - JobInitial/JobLoading: Loading indicator göster
+      - JobLoaded: İlan listesini render et (state.jobs)
+      - JobError: Error message göster
+    - Pull-to-refresh ekle (RefreshIndicator):
+      - `LoadEmployerJobsEvent` tekrar dispatch et
+    - İlan silme fonksiyonalitesi ekle:
+      - Delete butonunda `DeleteJobEvent` dispatch et
+      - BlocListener ile success/error handle et
+    - _Bug_Condition: EmployerHome sadece MockData gösteriyor, Hive'dan okuma yok_
+    - _Expected_Behavior: EmployerHome Hive'dan employer'ın ilanlarını gösteriyor_
+    - _Preservation: UI layout değişmemeli, navigation aynı kalmalı_
+    - _Requirements: 2.2, 2.3, 2.5_
+
+  - [ ] 3.9 JobSeekerHome integration
+    - `lib/features/jobs/presentation/pages/job_seeker_home.dart` dosyasını güncelle
+    - BlocProvider ekle (JobBloc/Cubit için)
+    - `initState()` içinde:
+      - `context.read<JobBloc>().add(LoadAllJobsEvent())` çağır
+    - BlocBuilder ekle:
+      - JobInitial/JobLoading: Loading indicator göster
+      - JobLoaded: İlan listesini render et (state.jobs)
+      - JobError: Error message göster
+    - Mevcut filtreleme mantığını koru:
+      - Kategori filtreleme
+      - Şehir filtreleme
+      - Mesafe filtreleme
+      - Filtreleme state.jobs üzerinde çalışmalı (Hive + MockData)
+    - Pull-to-refresh ekle (RefreshIndicator):
+      - `LoadAllJobsEvent` tekrar dispatch et
+    - _Bug_Condition: JobSeekerHome sadece MockData gösteriyor, Hive'dan okuma yok_
+    - _Expected_Behavior: JobSeekerHome Hive'dan tüm ilanları gösteriyor (MockData + real data)_
+    - _Preservation: Filtreleme mantığı, UI layout, navigation değişmemeli_
+    - _Requirements: 2.2, 3.1, 3.2_
+
+  - [ ] 3.10 MockData migration logic
+    - `lib/main.dart` dosyasında migration logic'i implement et
+    - Hive jobs box'ı açıldıktan sonra:
+      - Box boş mu kontrol et (`jobsBox.isEmpty`)
+      - Boşsa MockData.jobs'daki tüm ilanları Hive'a ekle
+      - Her ilan için `jobsBox.put(job.id, job)` çağır
+    - Migration log ekle (debug için)
+    - _Bug_Condition: MockData.jobs kaybolabilir, migrate edilmiyor_
+    - _Expected_Behavior: İlk çalıştırmada MockData.jobs Hive'a migrate ediliyor_
+    - _Preservation: MockData.jobs verileri kaybolmamalı_
+    - _Requirements: 3.5_
+
+  - [ ] 3.11 Dependency injection setup
+    - `lib/injection_container.dart` dosyasını oluştur veya güncelle (get_it kullanıyorsa)
+    - Dependencies register et:
+      - `sl.registerLazySingleton(() => Hive.box<JobPosting>('jobs'))`
+      - `sl.registerLazySingleton<JobLocalDataSource>(() => JobLocalDataSourceImpl(sl()))`
+      - `sl.registerLazySingleton<JobRepository>(() => JobRepositoryImpl(sl()))`
+      - `sl.registerLazySingleton(() => CreateJob(sl()))`
+      - `sl.registerLazySingleton(() => GetEmployerJobs(sl()))`
+      - `sl.registerLazySingleton(() => GetAllJobs(sl()))`
+      - `sl.registerLazySingleton(() => UpdateJob(sl()))`
+      - `sl.registerLazySingleton(() => DeleteJob(sl()))`
+      - `sl.registerFactory(() => JobBloc(createJob: sl(), getEmployerJobs: sl(), getAllJobs: sl(), updateJob: sl(), deleteJob: sl()))`
+    - `main.dart`'da `await initializeDependencies()` çağır
+    - _Bug_Condition: Dependencies manuel oluşturuluyor, test edilemiyor_
+    - _Expected_Behavior: Dependency injection ile loose coupling_
+    - _Preservation: N/A (yeni component)_
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
+
+  - [ ] 3.12 Bug condition exploration testini tekrar çalıştır
+    - **Property 1: Expected Behavior** - İş İlanı CRUD Operasyonları Kalıcı Storage Kullanmalı
+    - **ÖNEMLİ**: Task 1'deki AYNI testi çalıştır - yeni test yazma
+    - Task 1'deki test expected behavior'ı encode ediyor
+    - Bu test başarılı olduğunda, expected behavior'ın sağlandığını doğrular
+    - FIXED code'da bug condition exploration testini çalıştır
+    - **BEKLENİLEN SONUÇ**: Test BAŞARILI olmalı (bug fix edildi)
+    - Verify:
+      - createJob() Hive'a yazıyor
+      - getEmployerJobs() Hive'dan okuyor
+      - updateJob() Hive'da güncelliyor
+      - deleteJob() Hive'dan siliyor
+      - App restart sonrası veriler korunuyor
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
+
+  - [ ] 3.13 Preservation testlerini tekrar çalıştır
+    - **Property 2: Preservation** - İlan Dışı Fonksiyonalite Korunmalı
+    - **ÖNEMLİ**: Task 2'deki AYNI testleri çalıştır - yeni test yazma
+    - FIXED code'da preservation property testlerini çalıştır
+    - **BEKLENİLEN SONUÇ**: Testler BAŞARILI olmalı (regression yok)
+    - Verify:
+      - İlan detay görüntüleme aynı şekilde çalışıyor
+      - Filtreleme mantığı değişmemiş
+      - Başvuru sistemi aynı şekilde çalışıyor
+      - Harita fonksiyonalitesi korunmuş
+      - MockData.jobs verileri Hive'a migrate edilmiş ve erişilebilir
+    - Tüm testlerin fix sonrası hala başarılı olduğunu doğrula (regression yok)
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+
+- [ ] 4. Checkpoint - Tüm testlerin başarılı olduğundan emin ol
+  - Unit testleri çalıştır (JobLocalDataSource, JobRepositoryImpl, Use Cases, Bloc/Cubit)
+  - Property-based testleri çalıştır (CRUD operations, preservation)
+  - Integration testleri çalıştır (full flow: create → view → update → delete → restart)
+  - Manuel test:
+    - İşveren olarak giriş yap
+    - Yeni ilan oluştur
+    - EmployerHome'da ilanın göründüğünü doğrula
+    - Uygulamayı kapat ve tekrar aç
+    - İlanın hala orada olduğunu doğrula
+    - İlanı güncelle ve değişikliklerin kaydedildiğini doğrula
+    - İlanı sil ve silindiğini doğrula
+    - İş arayan olarak giriş yap
+    - JobSeekerHome'da tüm ilanları gör (MockData + real data)
+    - Filtreleme yap ve doğru çalıştığını doğrula
+    - İlan detayına git ve başvur
+  - Sorular çıkarsa kullanıcıya sor

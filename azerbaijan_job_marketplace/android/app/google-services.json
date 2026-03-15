@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "591328908781",
+    "project_id": "jobmarketplaceaz",
+    "storage_bucket": "jobmarketplaceaz.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:591328908781:android:aac75d23b8ff8b4b4043e4",
+        "android_client_info": {
+          "package_name": "com.is.tap"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "591328908781-mlfkghnnhrqhnenj63en1g5aug6vn01v.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.is.tap",
+            "certificate_hash": "806669a3cdf6c9ae5efcdfd6bf8ffc044bad7650"
+          }
+        },
+        {
+          "client_id": "591328908781-v2k9fui8ilk85msu5cfu1o3695ikr07h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC6UIsSBd5sKdHavLk8U372cdmkkw1mbog"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "591328908781-v2k9fui8ilk85msu5cfu1o3695ikr07h.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "591328908781-988c2vih76590glr6shiet7v1eug0tiu.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.azerbaijanJobMarketplace"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

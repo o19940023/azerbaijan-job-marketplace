@@ -1,0 +1,42 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "jobmarketplaceaz",
+          "appId": "1:591328908781:android:aac75d23b8ff8b4b4043e4",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "jobmarketplaceaz",
+          "configurations": {
+            "android": "1:591328908781:android:aac75d23b8ff8b4b4043e4",
+            "ios": "1:591328908781:ios:77b0d940c052c4934043e4",
+            "macos": "1:591328908781:ios:4cc71be1603302a14043e4",
+            "web": "1:591328908781:web:ddc036782df1ffd84043e4",
+            "windows": "1:591328908781:web:75b6dc8ddc2f3ea34043e4"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ]
+}

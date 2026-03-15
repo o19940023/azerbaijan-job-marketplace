@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="az">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İşTap - Qaydalar və Şərtlər</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .links-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .link-card {
+            display: block;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #1F2937;
+            border: 1px solid #E5E7EB;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s;
+        }
+
+        .link-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-color: #2F6BFF;
+        }
+
+        .link-card h3 {
+            margin: 0 0 5px 0;
+            color: #2F6BFF;
+        }
+
+        .link-card p {
+            margin: 0;
+            color: #6B7280;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="container">
+            <h1>İşTap</h1>
+            <p>Qaydalar, Şərtlər və Kömək mərkəzi</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <h2>Sənədlər</h2>
+        <p>İşTap tətbiqinin hüquqi sənədlərinə və dəstək kanalına aşağıdakı linklərdən daxil ola bilərsiniz:</p>
+
+        <div class="links-container">
+            <a href="privacy.html" class="link-card">
+                <h3>Məxfilik Siyasəti (Privacy Policy)</h3>
+                <p>Məlumatlarınızın necə toplandığı və qorunduğu barədə öyrənin.</p>
+            </a>
+
+            <a href="terms.html" class="link-card">
+                <h3>İstifadəçi Şərtləri (EULA)</h3>
+                <p>Tətbiqdən istifadə qaydaları və icazəsiz məzmun siyasəti (Zero Tolerance).</p>
+            </a>
+
+            <a href="support.html" class="link-card">
+                <h3>Dəstək və Kömək (Support)</h3>
+                <p>Şikayətlər, əlaqə vasitələri və hesabın silinməsi qaydaları.</p>
+            </a>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 İşTap. Bütün hüquqlar qorunur.</p>
+        </div>
+    </footer>
+</body>
+
+</html>

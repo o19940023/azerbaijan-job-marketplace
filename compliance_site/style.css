@@ -1,0 +1,160 @@
+body {
+    font-family: 'Inter', sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #F8FAFC;
+    color: #1F2937;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.header {
+    background-color: #2F6BFF;
+    color: white;
+    padding: 40px 0;
+    text-align: center;
+}
+
+.header h1 {
+    margin: 0 0 10px 0;
+    font-size: 32px;
+}
+
+.header p {
+    margin: 0;
+    font-size: 16px;
+    opacity: 0.9;
+}
+
+.tabs {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: -25px;
+}
+
+.tab-btn {
+    background-color: white;
+    border: 1px solid #E5E7EB;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    color: #4B5563;
+    transition: all 0.3s;
+}
+
+.tab-btn:hover {
+    background-color: #F3F4F6;
+}
+
+.tab-btn.active {
+    background-color: #2F6BFF;
+    color: white;
+    border-color: #2F6BFF;
+}
+
+main {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    margin-top: 20px;
+    margin-bottom: 40px;
+    padding: 40px;
+}
+
+h2 {
+    color: #111827;
+    border-bottom: 2px solid #E5E7EB;
+    padding-bottom: 10px;
+    margin-top: 0;
+}
+
+h3 {
+    color: #374151;
+    margin-top: 30px;
+    margin-bottom: 10px;
+}
+
+ul {
+    padding-left: 20px;
+}
+
+li {
+    margin-bottom: 8px;
+}
+
+.last-updated {
+    font-style: italic;
+    color: #6B7280;
+    font-size: 14px;
+}
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.4s;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.support-card {
+    background-color: #F3F4F6;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.support-item {
+    margin-bottom: 10px;
+}
+
+.support-item:last-child {
+    margin-bottom: 0;
+}
+
+a {
+    color: #2F6BFF;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    color: #6B7280;
+    font-size: 14px;
+}
+
+@media (max-width: 600px) {
+    .tabs {
+        flex-direction: column;
+        align-items: center;
+        margin-top: 20px;
+    }
+    
+    .tab-btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    main {
+        padding: 20px;
+    }
+}

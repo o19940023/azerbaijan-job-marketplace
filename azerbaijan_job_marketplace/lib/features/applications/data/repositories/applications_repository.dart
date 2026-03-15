@@ -1,0 +1,99 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/application_model.dart';
+import '../../../jobs/data/models/job_model.dart';
+
+class ApplicationsRepository {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // İş başvurusu oluştur
+  Future<void> submitApplication({
+    required String jobId,
+    required String employerId,
+    required String applicantId,
+  }) async {
+    final newAppRef = _firestore.collection('applications').doc();
+
+    final application = ApplicationModel(
+      id: newAppRef.id,
+      jobId: jobId,
+      employerId: employerId,
+      applicantId: applicantId,
+      status: 'pending',
+      appliedAt: DateTime.now(),
+    );
+
+    // Başvuruyu kaydet and Elanın başvuru sayısını artır (transaction ile)
+    await _firestore.runTransaction((transaction) async {
+      transaction.set(newAppRef, application.toMap());
+
+      final jobRef = _firestore.collection('jobs').doc(jobId);
+      transaction.update(jobRef, {
+        'applicationCount': FieldValue.increment(1),
+      });
+    });
+  }
+
+  // İş arayanın yaptığı başvuruları getir
+  Stream<List<ApplicationModel>> getApplicantApplications(String applicantId) {
+    return _firestore
+        .collection('applications')
+        .where('applicantId', isEqualTo: applicantId)
+        .snapshots()
+        .map((snapshot) {
+          final apps = snapshot.docs
+              .map((doc) => ApplicationModel.fromMap(doc.data(), doc.id))
+              .toList();
+          apps.sort((a, b) => b.appliedAt.compareTo(a.appliedAt));
+          return apps;
+        });
+  }
+
+  // İşverenin elanına gelen başvuruları getir
+  Stream<List<ApplicationModel>> getJobApplications(String jobId) {
+    return _firestore
+        .collection('applications')
+        .where('jobId', isEqualTo: jobId)
+        .snapshots()
+        .map((snapshot) {
+          final apps = snapshot.docs
+              .map((doc) => ApplicationModel.fromMap(doc.data(), doc.id))
+              .toList();
+          apps.sort((a, b) => b.appliedAt.compareTo(a.appliedAt));
+          return apps;
+        });
+  }
+
+  // İşverenin tüm elanlarına gelen başvuruları getir (Genel Müraciətlər sekmesi üçün)
+  Stream<List<ApplicationModel>> getEmployerApplications(String employerId) {
+    return _firestore
+        .collection('applications')
+        .where('employerId', isEqualTo: employerId)
+        .snapshots()
+        .map((snapshot) {
+          final apps = snapshot.docs
+              .map((doc) => ApplicationModel.fromMap(doc.data(), doc.id))
+              .toList();
+          apps.sort((a, b) => b.appliedAt.compareTo(a.appliedAt));
+          return apps;
+        });
+  }
+
+  // Başvuru durumunu güncelle
+  Future<void> updateApplicationStatus(String applicationId, String status) async {
+    await _firestore.collection('applications').doc(applicationId).update({
+      'status': status,
+    });
+  }
+
+  // İş arayanın bu elana daha önce başvurup başvurmadığını kontrol et
+  Future<bool> hasAppliedToJob(String applicantId, String jobId) async {
+    final querySnapshot = await _firestore
+        .collection('applications')
+        .where('applicantId', isEqualTo: applicantId)
+        .where('jobId', isEqualTo: jobId)
+        .limit(1)
+        .get();
+        
+    return querySnapshot.docs.isNotEmpty;
+  }
+}
