@@ -414,7 +414,35 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
 
     return SafeArea(
       child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('jobs').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('jobs')
+            .snapshots()
+            .distinct((prev, next) {
+              // Əgər sənəd sayı dəyişibsə, yeniləmə lazımdır
+              if (prev.docs.length != next.docs.length) return false;
+              
+              // Hər bir sənədi yoxla
+              for (int i = 0; i < prev.docs.length; i++) {
+                final prevData = prev.docs[i].data() as Map<String, dynamic>;
+                final nextData = next.docs[i].data() as Map<String, dynamic>;
+                
+                // viewCount və applicationCount-u çıxaraq müqayisə et
+                final prevFiltered = Map<String, dynamic>.from(prevData)
+                  ..remove('viewCount')
+                  ..remove('applicationCount');
+                final nextFiltered = Map<String, dynamic>.from(nextData)
+                  ..remove('viewCount')
+                  ..remove('applicationCount');
+                
+                // Əgər başqa bir şey dəyişibsə, yeniləmə lazımdır
+                if (prevFiltered.toString() != nextFiltered.toString()) {
+                  return false;
+                }
+              }
+              
+              // Yalnız viewCount/applicationCount dəyişibsə, yeniləmə lazım deyil
+              return true;
+            }),
         builder: (context, snapshot) {
           if (snapshot.hasError) return const Center(child: Text('Xəta baş verdi'));
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());

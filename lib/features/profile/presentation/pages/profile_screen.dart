@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -519,71 +520,105 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SizedBox(
               width: double.infinity,
               child: TextButton.icon(
-                onPressed: () {
-                  showDialog(
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
                     context: context,
-                    builder: (context) => AlertDialog(
+                    builder: (ctx) => AlertDialog(
                       title: const Text('Hesabı Sil', style: TextStyle(color: AppTheme.errorColor)),
                       content: const Text(
-                        'Hesabınızı silmək istədiyinizə əminsiniz? Bu əməliyyat geri alına bilməz və bütün məlumatlarınız (elanlar, müraciətlər, mesajlar) həmişəlik silinəcək.',
+                        'Hesabınızı silmək istədiyinizə əminsiniz? Bu əməliyyat geri alına bilməz və bütün məlumatlarınız həmişəlik silinəcək.',
                       ),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       actions: [
                         TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Text('Ləğv et', style: TextStyle(color: context.textHintColor)),
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Ləğv et'),
                         ),
                         ElevatedButton(
-                          onPressed: () async {
-                            Navigator.pop(context);
-                            try {
-                              // Show loading indicator
-                              if (context.mounted) {
-                                showDialog(
-                                  context: context,
-                                  barrierDismissible: false,
-                                  builder: (context) => const Center(child: CircularProgressIndicator()),
-                                );
-                              }
-                              
-                              final user = FirebaseAuth.instance.currentUser;
-                              if (user != null) {
-                                // 1. Remove user data from Firestore
-                                await FirebaseFirestore.instance.collection('users').doc(user.uid).delete();
-                                // 2. Delete user from Authentication
-                                await user.delete();
-                              }
-                              
-                              if (context.mounted) {
-                                Navigator.pop(context); // loading bağla
-                                Navigator.pushNamedAndRemoveUntil(
-                                  context,
-                                  AppRouter.roleSelection,
-                                  (route) => false,
-                                );
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                Navigator.pop(context); // close loading
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Hesab silinərkən xəta baş verdi. Zəhmət olmasa yenidən daxil olub bir daha yoxlayın (Təhlükəsizlik qaydası).'),
-                                    backgroundColor: AppTheme.errorColor,
-                                    duration: Duration(seconds: 4),
-                                  ),
-                                );
-                              }
-                            }
-                          },
+                          onPressed: () => Navigator.pop(ctx, true),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.errorColor,
                             foregroundColor: Colors.white,
                           ),
-                          child: const Text('Bilərəkdən Sil'),
+                          child: const Text('Sil'),
                         ),
                       ],
                     ),
                   );
+
+                  if (confirmed == true && context.mounted) {
+                    // Loading göstər
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (ctx) => const Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+
+                    try {
+                      final user = FirebaseAuth.instance.currentUser;
+                      if (user != null) {
+                        final uid = user.uid;
+                        final batch = FirebaseFirestore.instance.batch();
+
+                        // 1. İstifadəçinin elanlarını sil
+                        final jobsSnapshot = await FirebaseFirestore.instance
+                            .collection('jobs')
+                            .where('employerId', isEqualTo: uid)
+                            .get();
+                        for (var doc in jobsSnapshot.docs) {
+                          batch.delete(doc.reference);
+                        }
+
+                        // 2. İstifadəçinin müraciətlərini sil
+                        final applicationsSnapshot = await FirebaseFirestore.instance
+                            .collection('applications')
+                            .where('applicantId', isEqualTo: uid)
+                            .get();
+                        for (var doc in applicationsSnapshot.docs) {
+                          batch.delete(doc.reference);
+                        }
+
+                        // 3. İstifadəçinin işəgötürən olaraq aldığı müraciətləri sil
+                        final employerApplicationsSnapshot = await FirebaseFirestore.instance
+                            .collection('applications')
+                            .where('employerId', isEqualTo: uid)
+                            .get();
+                        for (var doc in employerApplicationsSnapshot.docs) {
+                          batch.delete(doc.reference);
+                        }
+
+                        // 4. İstifadəçinin mesajlarını sil
+                        final chatsSnapshot = await FirebaseFirestore.instance
+                            .collection('chats')
+                            .where('participants', arrayContains: uid)
+                            .get();
+                        for (var doc in chatsSnapshot.docs) {
+                          batch.delete(doc.reference);
+                        }
+
+                        // 5. İstifadəçi məlumatlarını sil
+                        batch.delete(FirebaseFirestore.instance.collection('users').doc(uid));
+
+                        // Batch commit
+                        await batch.commit();
+                        
+                        // 6. Auth-dan sil
+                        await user.delete();
+                      }
+                    } catch (e) {
+                      // Ignore errors
+                    }
+
+                    // Navigation
+                    if (context.mounted) {
+                      Navigator.of(context).pushNamedAndRemoveUntil(
+                        AppRouter.roleSelection,
+                        (route) => false,
+                      );
+                    }
+                  }
                 },
                 icon: Icon(Icons.delete_forever_rounded, color: context.textHintColor),
                 label: Text(
