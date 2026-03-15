@@ -54,5 +54,9 @@
 	<!-- Speech Recognition Permission -->
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Səsinizi tanımaq üçün icazə lazımdır</string>
+	
+	<!-- App Transport Security & Encryption -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
