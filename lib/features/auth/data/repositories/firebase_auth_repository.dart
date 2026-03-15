@@ -1,4 +1,8 @@
+import 'dart:convert';
 import 'dart:io' show Platform;
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -147,26 +151,31 @@ class FirebaseAuthRepository {
           fullName = user.displayName!;
         } else if (userCredential.additionalUserInfo?.profile != null) {
            final profile = userCredential.additionalUserInfo!.profile!;
-           print('APPLE RAW PROFILE: \$profile');
+           print('APPLE RAW PROFILE: $profile');
            if (profile.containsKey('name')) {
              fullName = profile['name'] as String;
            } else if (profile.containsKey('firstName') || profile.containsKey('lastName')) {
-             fullName = '\${profile["firstName"] ?? ""} \${profile["lastName"] ?? ""}'.trim();
+             fullName = '${profile["firstName"] ?? ""} ${profile["lastName"] ?? ""}'.trim();
            }
         }
       } else {
         // iOS üçün native Apple pəncərəsini istifadə edirik
+        final rawNonce = _generateNonce();
+        final nonce = _sha256ofString(rawNonce);
+
         final AuthorizationCredentialAppleID appleCredential = await SignInWithApple.getAppleIDCredential(
           scopes: [
             AppleIDAuthorizationScopes.email,
             AppleIDAuthorizationScopes.fullName,
           ],
+          nonce: nonce,
         );
 
         final OAuthProvider appleProvider = OAuthProvider('apple.com');
         final OAuthCredential credential = appleProvider.credential(
           idToken: appleCredential.identityToken,
           accessToken: appleCredential.authorizationCode,
+          rawNonce: rawNonce,
         );
 
         userCredential = await _auth.signInWithCredential(credential);
@@ -202,6 +211,21 @@ class FirebaseAuthRepository {
     } catch (e) {
       throw Exception('Apple Auth xətası: $e');
     }
+  }
+
+  /// Generates a cryptographically secure random nonce, to be included in a
+  /// credential request.
+  String _generateNonce([int length = 32]) {
+    const charset = '01234567839abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    final random = Random.secure();
+    return List.generate(length, (_) => charset[random.nextInt(charset.length)]).join();
+  }
+
+  /// Returns the sha256 hash of [input] in hex form.
+  String _sha256ofString(String input) {
+    final bytes = utf8.encode(input);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
   }
 
   Future<AppUser> _handleSocialUserDoc({
