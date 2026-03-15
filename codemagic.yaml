@@ -14,25 +14,22 @@ workflows:
     scripts:
       - name: Set up local.properties
         script: |
-          echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/azerbaijan_job_marketplace/android/local.properties"
+          echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
       - name: Get Flutter packages
         script: |
-          cd azerbaijan_job_marketplace
           flutter packages pub get
       - name: Flutter analyze
         script: |
-          cd azerbaijan_job_marketplace
           flutter analyze
       - name: Build AAB with environment variables
         script: |
-          cd azerbaijan_job_marketplace
           flutter build appbundle --release \
             --dart-define=AZURE_TTS_API_KEY=$AZURE_TTS_API_KEY \
             --dart-define=GITHUB_API_KEY=$GITHUB_API_KEY
     artifacts:
-      - azerbaijan_job_marketplace/build/**/outputs/**/*.aab
-      - azerbaijan_job_marketplace/build/**/outputs/**/mapping.txt
-      - azerbaijan_job_marketplace/flutter_drive.log
+      - build/**/outputs/**/*.aab
+      - build/**/outputs/**/mapping.txt
+      - flutter_drive.log
     publishing:
       email:
         recipients:
@@ -67,27 +64,25 @@ workflows:
     scripts:
       - name: Set up code signing settings on Xcode project
         script: |
-          cd azerbaijan_job_marketplace/ios
+          cd ios
           xcode-project use-profiles
       - name: Get Flutter packages
         script: |
-          cd azerbaijan_job_marketplace
           flutter packages pub get
       - name: Install pods
         script: |
-          cd azerbaijan_job_marketplace/ios
+          cd ios
           pod install
       - name: Flutter build ipa
         script: |
-          cd azerbaijan_job_marketplace
           flutter build ipa --release \
             --dart-define=AZURE_TTS_API_KEY=$AZURE_TTS_API_KEY \
             --dart-define=GITHUB_API_KEY=$GITHUB_API_KEY \
             --export-options-plist=/Users/builder/export_options.plist
     artifacts:
-      - azerbaijan_job_marketplace/build/ios/ipa/*.ipa
+      - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-      - azerbaijan_job_marketplace/flutter_drive.log
+      - flutter_drive.log
     publishing:
       email:
         recipients:

@@ -1,56 +1,136 @@
-# Azerbaijan Job Marketplace
+# İşTap - Azərbaycan İş Bazarı
 
-A Flutter-based job marketplace application for Azerbaijan with AI assistant features.
+Azerbaycan pazarına özel, mavi yakalı işçiler ve işverenler için iş bulma ve işe alım platformu.
 
-## Features
+## 🚀 Özellikler
 
-- 🤖 AI Assistant with Azure TTS (Azerbaijani voice)
-- 🎤 Voice recognition for Azerbaijani language
-- 💼 Job posting and search
-- 👤 User authentication (Job Seeker / Employer)
-- 📱 Modern UI with professional animations
-- 🌐 Firebase backend integration
+- ✅ Kullanıcı kaydı ve kimlik doğrulama
+- ✅ İş arayan ve işveren profilleri
+- ✅ İş ilanı oluşturma ve yönetimi
+- ✅ İş arama ve filtreleme
+- ✅ Başvuru yönetimi
+- ✅ Anlık mesajlaşma
+- ✅ Hizmet pazarı
+- ✅ Konum tabanlı arama
+- ✅ Bildirim sistemi
+- ✅ Azerbaycan Türkçesi desteği
 
-## Setup
+## 📱 Teknoloji Stack
 
-### Prerequisites
+- **Framework**: Flutter 3.x
+- **Dil**: Dart 3.x
+- **State Management**: BLoC Pattern
+- **Mimari**: Clean Architecture
+- **Networking**: Dio
+- **Local Storage**: Hive, Shared Preferences, Secure Storage
+- **Real-time**: Socket.IO
+- **Maps**: Google Maps
+- **Firebase**: Cloud Messaging, Crashlytics
 
-- Flutter SDK (latest stable version)
-- Firebase account
-- Azure Cognitive Services account (for TTS)
-- GitHub API key (for AI features)
+## 🏗️ Proje Yapısı
 
-### Environment Variables
-
-1. Copy `.env.example` to `.env`
-2. Fill in your API keys:
-   - `AZURE_TTS_API_KEY`: Your Azure Cognitive Services API key
-   - `AZURE_TTS_REGION`: Your Azure region (default: eastus)
-   - `GITHUB_API_KEY`: Your GitHub API key for AI models
-
-### Build Commands
-
-**Android (AAB for Play Store):**
-```bash
-flutter build appbundle --release --dart-define=AZURE_TTS_API_KEY=your_key --dart-define=GITHUB_API_KEY=your_key
+```
+lib/
+├── core/                    # Temel altyapı
+│   ├── constants/          # Sabitler
+│   ├── errors/             # Hata yönetimi
+│   ├── network/            # Network katmanı
+│   ├── theme/              # Tema ve stil
+│   ├── utils/              # Yardımcı fonksiyonlar
+│   └── widgets/            # Ortak widget'lar
+├── features/               # Özellikler (Clean Architecture)
+│   ├── auth/              # Kimlik doğrulama
+│   │   ├── data/          # Veri katmanı
+│   │   ├── domain/        # İş mantığı katmanı
+│   │   └── presentation/  # UI katmanı
+│   ├── profile/           # Profil yönetimi
+│   ├── jobs/              # İş ilanları
+│   ├── applications/      # Başvurular
+│   ├── messaging/         # Mesajlaşma
+│   ├── services/          # Hizmet pazarı
+│   ├── reviews/           # Değerlendirmeler
+│   ├── notifications/     # Bildirimler
+│   ├── analytics/         # Analitik
+│   └── moderation/        # İçerik moderasyonu
+├── injection_container.dart # Dependency Injection
+└── main.dart               # Uygulama giriş noktası
 ```
 
-**Android (APK for testing):**
+## 🛠️ Kurulum
+
+### Gereksinimler
+
+- Flutter SDK (3.x veya üzeri)
+- Dart SDK (3.x veya üzeri)
+- Android Studio / VS Code
+- Android SDK (Android için)
+- Xcode (iOS için)
+
+### Adımlar
+
+1. Projeyi klonlayın:
 ```bash
-flutter build apk --release --dart-define=AZURE_TTS_API_KEY=your_key --dart-define=GITHUB_API_KEY=your_key
+git clone <repository-url>
+cd azerbaijan_job_marketplace
 ```
 
-**iOS:**
+2. Bağımlılıkları yükleyin:
 ```bash
-flutter build ios --release --dart-define=AZURE_TTS_API_KEY=your_key --dart-define=GITHUB_API_KEY=your_key
+flutter pub get
 ```
 
-## Codemagic CI/CD
+3. Uygulamayı çalıştırın:
+```bash
+flutter run
+```
 
-This project is configured for Codemagic. Add your environment variables in Codemagic settings:
-- `AZURE_TTS_API_KEY`
-- `GITHUB_API_KEY`
+## 📝 Geliştirme
 
-## License
+### Kod Oluşturma
 
-All rights reserved.
+JSON serialization ve diğer kod oluşturma işlemleri için:
+
+```bash
+flutter pub run build_runner build --delete-conflicting-outputs
+```
+
+### Test
+
+```bash
+# Tüm testleri çalıştır
+flutter test
+
+# Coverage raporu
+flutter test --coverage
+```
+
+### Build
+
+```bash
+# Android APK
+flutter build apk --release
+
+# Android App Bundle
+flutter build appbundle --release
+
+# iOS
+flutter build ios --release
+```
+
+## 🌍 Yerelleştirme
+
+Uygulama Azerbaycan Türkçesi dilinde geliştirilmiştir. Gelecekte Rusça ve İngilizce dil desteği eklenecektir.
+
+## 📄 Lisans
+
+Bu proje özel bir projedir ve telif hakkı koruması altındadır.
+
+## 👥 Ekip
+
+- Geliştirici: [İsim]
+- Tasarımcı: [İsim]
+- Proje Yöneticisi: [İsim]
+
+## 📞 İletişim
+
+Sorularınız için: [email@example.com]
