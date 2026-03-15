@@ -60,5 +60,18 @@
 	<!-- App Transport Security & Encryption -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	
+	<!-- Google Sign In URL Scheme -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.is.tap</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.591328908781-stqgmmde3lohjgaune8r2o7b6u1um820</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
