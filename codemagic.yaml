@@ -62,13 +62,20 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
-      - name: Remove alpha channel from iOS icons
+      - name: Regenerate iOS icons without alpha channel
         script: |
-          # Install ImageMagick if not available
-          brew install imagemagick || true
+          # Install ImageMagick
+          brew install imagemagick
           
-          # Remove alpha channel from all iOS app icons
-          find ios/Runner/Assets.xcassets/AppIcon.appiconset -name "*.png" -exec magick mogrify -alpha off -background white -flatten {} \;
+          # Create a version of the logo without alpha channel
+          magick assets/icons/Logo.png -alpha off -background white -flatten assets/icons/Logo_no_alpha.png
+          
+          # Update pubspec.yaml to use the new icon
+          sed -i '' 's|image_path: "assets/icons/Logo.png"|image_path: "assets/icons/Logo_no_alpha.png"|g' pubspec.yaml
+          
+          # Regenerate icons
+          flutter pub get
+          flutter pub run flutter_launcher_icons
           
       - name: Set up code signing settings on Xcode project
         script: |
