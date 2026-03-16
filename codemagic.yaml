@@ -58,7 +58,7 @@ workflows:
         BUNDLE_ID: "com.is.tap"
         XCODE_WORKSPACE: "Runner.xcworkspace"
         XCODE_SCHEME: "Runner"
-      flutter: stable
+      flutter: 3.29.0
       xcode: latest
       cocoapods: default
     scripts:
