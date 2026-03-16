@@ -44,7 +44,7 @@ workflows:
 
   ios-workflow:
     name: iOS Workflow
-    max_build_duration: 120
+    max_build_duration: 180
     instance_type: mac_mini_m1
     integrations:
       app_store_connect: codemagic
@@ -94,6 +94,26 @@ workflows:
             --dart-define=AZURE_TTS_API_KEY=$AZURE_TTS_API_KEY \
             --dart-define=GITHUB_API_KEY=$GITHUB_API_KEY \
             --export-options-plist=/Users/builder/export_options.plist
+      - name: Upload dSYMs to Firebase Crashlytics
+        script: |
+          if [ ! -f "ios/Runner/GoogleService-Info.plist" ]; then
+            echo "GoogleService-Info.plist not found, skipping Crashlytics dSYM upload."
+            exit 0
+          fi
+          if [ ! -f "ios/Pods/FirebaseCrashlytics/upload-symbols" ]; then
+            echo "FirebaseCrashlytics upload-symbols not found, skipping dSYM upload."
+            exit 0
+          fi
+          if [ ! -d "build/ios/archive/Runner.xcarchive/dSYMs" ]; then
+            echo "dSYM directory not found, skipping upload."
+            exit 0
+          fi
+          find build/ios/archive/Runner.xcarchive/dSYMs -name "*.dSYM" -print0 | while IFS= read -r -d '' dsym; do
+            ios/Pods/FirebaseCrashlytics/upload-symbols \
+              -gsp ios/Runner/GoogleService-Info.plist \
+              -p ios \
+              "$dsym"
+          done
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
@@ -108,6 +128,4 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
-        beta_groups:
-          - App Beta Testers
         submit_to_app_store: false
