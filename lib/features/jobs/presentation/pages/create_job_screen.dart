@@ -12,7 +12,9 @@ import 'package:latlong2/latlong.dart';
 import '../../../map/presentation/pages/map_picker_screen.dart';
 
 class CreateJobScreen extends StatefulWidget {
-  const CreateJobScreen({super.key});
+  final JobModel? existingJob;
+
+  const CreateJobScreen({super.key, this.existingJob});
 
   @override
   State<CreateJobScreen> createState() => _CreateJobScreenState();
@@ -42,6 +44,32 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
   bool _isUploadingLogo = false;
   String _selectedEducation = 'Vacib deyil';
   String _selectedExperience = 'Təcrübəsiz';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingJob != null) {
+      final job = widget.existingJob!;
+      _titleController.text = job.title;
+      _descriptionController.text = job.description;
+      _salaryMinController.text = job.salaryMin.toString();
+      if (job.salaryMax != null) {
+        _salaryMaxController.text = job.salaryMax.toString();
+      }
+      _workingHoursController.text = job.workingHours ?? '';
+      _selectedCategory = job.categoryId;
+      _selectedJobType = job.jobType;
+      _selectedSalaryPeriod = job.salaryPeriod;
+      _selectedCity = job.city;
+      _selectedLocation = LatLng(job.latitude, job.longitude);
+      _requirements.addAll(job.requirements);
+      _selectedBenefits.addAll(job.benefits);
+      _isUrgent = job.isUrgent;
+      _companyLogoUrl = job.companyLogo;
+      _selectedEducation = job.educationLevel ?? 'Vacib deyil';
+      _selectedExperience = job.experienceLevel ?? 'Təcrübəsiz';
+    }
+  }
 
   @override
   void dispose() {
@@ -90,10 +118,11 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
 
       if (!mounted) return;
 
+      final jobId = widget.existingJob?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
       final newJob = JobModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: jobId,
         title: _titleController.text,
-        companyName: companyName, // Dynamic company name instead of Mocked one
+        companyName: companyName,
         city: _selectedCity,
         district: '',
         salaryMin: double.tryParse(_salaryMinController.text) ?? 0,
@@ -107,18 +136,20 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
         benefits: List.from(_selectedBenefits),
         categoryId: _selectedCategory,
         employerId: currentUser.uid,
-        isActive: true,
+        isActive: true, // or preserve widget.existingJob?.isActive ?? true
         latitude: _selectedLocation!.latitude,
         longitude: _selectedLocation!.longitude,
         contactPhone: phone,
-        createdAt: DateTime.now(),
-        expiresAt: DateTime.now().add(const Duration(days: 45)),
+        createdAt: widget.existingJob?.createdAt ?? DateTime.now(),
+        expiresAt: widget.existingJob?.expiresAt ?? DateTime.now().add(const Duration(days: 45)),
         companyLogo: _companyLogoUrl,
         educationLevel: _selectedEducation,
         experienceLevel: _selectedExperience,
+        viewCount: widget.existingJob?.viewCount ?? 0,
+        applicationCount: widget.existingJob?.applicationCount ?? 0,
       );
 
-      await FirebaseFirestore.instance.collection('jobs').doc(newJob.id).set(newJob.toMap());
+      await FirebaseFirestore.instance.collection('jobs').doc(jobId).set(newJob.toMap());
 
       setState(() => _isSubmitting = false);
       showDialog(
@@ -132,9 +163,11 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
             color: AppTheme.successColor,
             size: 60,
           ),
-          title: const Text('Elan yerləşdirildi! 🎉'),
-          content: const Text(
-            'Elanınız uğurla yerləşdirildi.\n45 gün ərzində aktiv qalacaq.',
+          title: Text(widget.existingJob != null ? 'Elan redaktə edildi! 🎉' : 'Elan yerləşdirildi! 🎉'),
+          content: Text(
+            widget.existingJob != null 
+              ? 'Elanınız uğurla yeniləndi.' 
+              : 'Elanınız uğurla yerləşdirildi.\n45 gün ərzində aktiv qalacaq.',
             textAlign: TextAlign.center,
           ),
           actions: [
@@ -143,18 +176,22 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.pop(ctx);
-                  _formKey.currentState!.reset();
-                  _titleController.clear();
-                  _descriptionController.clear();
-                  _salaryMinController.clear();
-                  _salaryMaxController.clear();
-                  _workingHoursController.clear();
-                  _requirementController.clear();
-                  _selectedBenefits.clear();
-                  _requirements.clear();
-                  _selectedLocation = null;
-                  _selectedExperience = 'Təcrübəsiz';
-                  _selectedEducation = 'Vacib deyil';
+                  if (widget.existingJob != null) {
+                    Navigator.pop(context); // Go back to detail screen
+                  } else {
+                    _formKey.currentState!.reset();
+                    _titleController.clear();
+                    _descriptionController.clear();
+                    _salaryMinController.clear();
+                    _salaryMaxController.clear();
+                    _workingHoursController.clear();
+                    _requirementController.clear();
+                    _selectedBenefits.clear();
+                    _requirements.clear();
+                    _selectedLocation = null;
+                    _selectedExperience = 'Təcrübəsiz';
+                    _selectedEducation = 'Vacib deyil';
+                  }
                 },
                 child: const Text('Tamam'),
               ),
@@ -167,7 +204,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
+    final content = SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -176,7 +213,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Yeni Elan ver',
+                widget.existingJob != null ? 'Elanı Redaktə et' : 'Yeni Elan ver',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
@@ -185,13 +222,14 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                '1 dəqiqədə pulsuz Elan yerləşdir',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: context.textSecondaryColor,
+              if (widget.existingJob == null)
+                Text(
+                  '1 dəqiqədə pulsuz Elan yerləşdir',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: context.textSecondaryColor,
+                  ),
                 ),
-              ),
               const SizedBox(height: 24),
 
               // Job Title
@@ -644,9 +682,9 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                                 AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text(
-                          'Elanı yerləşdir',
-                          style: TextStyle(
+                      : Text(
+                          widget.existingJob != null ? 'Yadda Saxla' : 'Elanı yerləşdir',
+                          style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
                             color: Colors.white,
@@ -660,6 +698,20 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
         ),
       ),
     );
+
+    // When editing, wrap in Scaffold (navigated directly, not as a tab)
+    if (widget.existingJob != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Elanı Redaktə et'),
+          centerTitle: true,
+        ),
+        body: content,
+      );
+    }
+
+    // When creating (used as a tab), return without Scaffold
+    return content;
   }
 
   void _addRequirement() {

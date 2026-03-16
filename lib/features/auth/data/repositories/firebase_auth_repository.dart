@@ -44,6 +44,13 @@ class FirebaseAuthRepository {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Təsdiqləmə xətası');
 
+    if (!user.emailVerified) {
+      // Yenidən link göndəririk ki, bəlkə əvvəlkini itirib
+      await user.sendEmailVerification();
+      await _auth.signOut();
+      throw Exception('E-poçt ünvanınız təsdiqlənməyib. E-poçtunuza yeni təsdiq linki göndərildi. Zəhmət olmasa təsdiqləyib daxil olun.');
+    }
+
     // Fetch user type from Firestore
     final doc = await _firestore.collection('users').doc(user.uid).get();
     if (!doc.exists) {
@@ -71,7 +78,7 @@ class FirebaseAuthRepository {
     return _currentUser!;
   }
 
-  Future<AppUser> register({
+  Future<void> register({
     required String email,
     required String password,
     required String userType,
@@ -91,16 +98,8 @@ class FirebaseAuthRepository {
       'createdAt': FieldValue.serverTimestamp(),
     });
 
-    _currentUser = AppUser(
-      id: user.uid,
-      email: user.email ?? email,
-      userType: userType,
-    );
-
-    // Save FCM token for push notifications
-    await _saveFcmToken(user.uid);
-
-    return _currentUser!;
+    await user.sendEmailVerification();
+    await _auth.signOut();
   }
 
   Future<AppUser> signInWithGoogle(String expectedUserType) async {

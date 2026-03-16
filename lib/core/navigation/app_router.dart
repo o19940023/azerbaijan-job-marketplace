@@ -4,6 +4,7 @@ import '../../features/onboarding/presentation/pages/role_selection_screen.dart'
 import '../../features/auth/presentation/pages/auth_choice_screen.dart';
 import '../../features/auth/presentation/pages/login_screen.dart';
 import '../../features/auth/presentation/pages/register_screen.dart';
+import '../../features/auth/presentation/pages/forgot_password_screen.dart';
 import '../../features/home/presentation/pages/job_seeker_home.dart';
 import '../../features/home/presentation/pages/employer_home.dart';
 import '../../features/jobs/presentation/pages/job_detail_screen.dart';
@@ -20,6 +21,7 @@ class AppRouter {
   static const String authChoice = '/auth/choice';
   static const String login = '/auth/login';
   static const String register = '/auth/register';
+  static const String forgotPassword = '/auth/forgot-password';
   static const String jobSeekerHome = '/job-seeker/home';
   static const String employerHome = '/employer/home';
   static const String employerSetup = '/employer/setup';
@@ -44,6 +46,8 @@ class AppRouter {
       case register:
         final userType = settings.arguments as String? ?? 'job_seeker';
         return _buildRoute(RegisterScreen(userType: userType));
+      case forgotPassword:
+        return _buildRoute(const ForgotPasswordScreen());
       case jobSeekerHome:
         return _buildRoute(const JobSeekerHome());
       case employerHome:

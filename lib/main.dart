@@ -73,6 +73,11 @@ class _AzerbaijanJobMarketplaceAppState extends State<AzerbaijanJobMarketplaceAp
                 content: Text('${notification.title}: ${notification.body}'),
                 duration: const Duration(seconds: 4),
                 behavior: SnackBarBehavior.floating,
+                action: SnackBarAction(
+                  label: 'Bax',
+                  textColor: Colors.white,
+                  onPressed: () => _handleNotificationClick(message),
+                ),
               ),
             );
           }
@@ -82,9 +87,42 @@ class _AzerbaijanJobMarketplaceAppState extends State<AzerbaijanJobMarketplaceAp
 
     // Handle notification taps when app was in background and user taps
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint('Notification tapped: ${message.data}');
-      // Can navigate to specific screen based on message.data
+      debugPrint('Notification tapped (background): ${message.data}');
+      _handleNotificationClick(message);
     });
+
+    // Handle notification taps when app was terminated
+    FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
+      if (message != null) {
+        debugPrint('Notification tapped (terminated): ${message.data}');
+        // Wait for the first frame so navigator is ready
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _handleNotificationClick(message);
+        });
+      }
+    });
+  }
+
+  void _handleNotificationClick(RemoteMessage message) {
+    if (navigatorKey.currentState == null) return;
+
+    final data = message.data;
+    final action = data['action'] ?? data['type'];
+
+    if (action == 'chat' || data.containsKey('chatId')) {
+      final chatId = data['chatId'];
+      if (chatId != null) {
+        navigatorKey.currentState!.pushNamed(
+          AppRouter.chatDetail,
+          arguments: {
+            'chatId': chatId,
+            'name': data['senderName'] ?? data['name'] ?? 'Söhbət',
+            'otherUserId': data['senderId'] ?? data['otherUserId'] ?? '',
+          },
+        );
+      }
+    }
+    // Future handling for job_detail or other screens can be added here
   }
 
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();

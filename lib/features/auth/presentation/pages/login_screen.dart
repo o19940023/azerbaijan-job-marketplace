@@ -207,7 +207,23 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       ),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.pushNamed(context, AppRouter.forgotPassword);
+                      },
+                      child: Text(
+                        'Şifrəmi unutdum?',
+                        style: TextStyle(
+                          color: context.textPrimaryColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   TweenAnimationBuilder<double>(
                     duration: const Duration(milliseconds: 800),
                     curve: Curves.easeOutCubic,

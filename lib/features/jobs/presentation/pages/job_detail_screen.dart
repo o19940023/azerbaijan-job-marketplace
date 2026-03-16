@@ -11,6 +11,8 @@ import '../../../chat/data/repositories/chat_repository.dart';
 import '../../../chat/presentation/pages/chat_detail_screen.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:share_plus/share_plus.dart';
+import 'create_job_screen.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final JobModel job;
@@ -166,12 +168,26 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             ),
             actions: [
               IconButton(
-                onPressed: () {},
+                onPressed: () {
+                  final shareText = '''
+${job.title} - ${job.companyName}
+
+Maaş: ${job.salaryText}
+Şəhər: ${job.city}
+İş növü: ${_getJobTypeLabel(job.jobType)}
+
+Daha ətraflı məlumat üçün Azərbaycan İş Bazar (
+İş Tap AI: İş Elanları & CV
+) tətbiqini yükləyin!
+''';
+                  Share.share(shareText, subject: job.title);
+                },
                 icon: const Icon(Icons.share_rounded),
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.white.withOpacity(0.2),
                 ),
               ),
+              if (!isEmployerView) _BookmarkButton(jobId: job.id),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert_rounded),
                 style: IconButton.styleFrom(
@@ -572,9 +588,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 height: 52,
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Redaktə səhifəsi tezliklə hazır olacaq!'),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CreateJobScreen(existingJob: job),
                       ),
                     );
                   },
@@ -1097,6 +1114,90 @@ class _StatItem extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _BookmarkButton extends StatefulWidget {
+  final String jobId;
+  const _BookmarkButton({required this.jobId});
+
+  @override
+  State<_BookmarkButton> createState() => _BookmarkButtonState();
+}
+
+class _BookmarkButtonState extends State<_BookmarkButton> {
+  bool _isSaved = false;
+  final _currentUser = FirebaseAuth.instance.currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSavedStatus();
+  }
+
+  Future<void> _checkSavedStatus() async {
+    if (_currentUser == null) return;
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(_currentUser.uid).get();
+      if (userDoc.exists) {
+        final data = userDoc.data()!;
+        final savedJobs = List<String>.from(data['savedJobs'] ?? []);
+        if (mounted) {
+          setState(() {
+            _isSaved = savedJobs.contains(widget.jobId);
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleSaved() async {
+    if (_currentUser == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Yadda saxlamaq üçün daxil olmalısınız.')),
+        );
+      }
+      return;
+    }
+
+    final newStatus = !_isSaved;
+    setState(() => _isSaved = newStatus);
+
+    try {
+      final userRef = FirebaseFirestore.instance.collection('users').doc(_currentUser.uid);
+      if (newStatus) {
+        await userRef.set({
+          'savedJobs': FieldValue.arrayUnion([widget.jobId])
+        }, SetOptions(merge: true));
+      } else {
+        await userRef.set({
+          'savedJobs': FieldValue.arrayRemove([widget.jobId])
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      // Revert if API call fails
+      setState(() => _isSaved = !_isSaved);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Xəta baş verdi.')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: _toggleSaved,
+      icon: Icon(
+        _isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+        color: _isSaved ? AppTheme.primaryColor : Colors.white,
+      ),
+      style: IconButton.styleFrom(
+        backgroundColor: Colors.white.withOpacity(0.2),
+      ),
     );
   }
 }

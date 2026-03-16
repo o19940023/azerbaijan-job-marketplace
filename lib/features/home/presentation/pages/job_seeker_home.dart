@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
@@ -42,6 +43,57 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
   String? _filterEducation;
   String? _filterCity;
   String? _filterExperience;
+
+  // Search history & focus
+  List<String> _searchHistory = [];
+  final FocusNode _searchFocusNode = FocusNode();
+
+  // Cached jobs (one-time fetch, no auto-refresh)
+  List<JobModel>? _cachedJobs;
+  bool _isLoadingJobs = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSearchHistory();
+    _fetchJobs();
+  }
+
+  Future<void> _fetchJobs() async {
+    if (!mounted) return;
+    setState(() => _isLoadingJobs = true);
+    try {
+      final snapshot = await FirebaseFirestore.instance.collection('jobs').get();
+      if (!mounted) return;
+      setState(() {
+        _cachedJobs = snapshot.docs
+            .map((d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+            .toList();
+        _isLoadingJobs = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingJobs = false);
+      }
+    }
+  }
+
+  Future<void> _loadSearchHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _searchHistory = prefs.getStringList('searchHistory') ?? [];
+    });
+  }
+
+  Future<void> _saveSearchTerm(String term) async {
+    if (term.trim().isEmpty) return;
+    _searchHistory.remove(term);
+    _searchHistory.insert(0, term);
+    if (_searchHistory.length > 10) _searchHistory = _searchHistory.sublist(0, 10);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('searchHistory', _searchHistory);
+    setState(() {});
+  }
 
   Future<void> _handleLocationSort() async {
     bool serviceEnabled;
@@ -311,6 +363,7 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -412,66 +465,32 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
   Widget _buildHomePage() {
     final currentUser = FirebaseAuth.instance.currentUser;
 
+    if (_cachedJobs == null && _isLoadingJobs) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return SafeArea(
-      child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('jobs')
-            .snapshots()
-            .distinct((prev, next) {
-              // Əgər sənəd sayı dəyişibsə, yeniləmə lazımdır
-              if (prev.docs.length != next.docs.length) return false;
-              
-              // Hər bir sənədi yoxla
-              for (int i = 0; i < prev.docs.length; i++) {
-                final prevData = prev.docs[i].data() as Map<String, dynamic>;
-                final nextData = next.docs[i].data() as Map<String, dynamic>;
-                
-                // viewCount və applicationCount-u çıxaraq müqayisə et
-                final prevFiltered = Map<String, dynamic>.from(prevData)
-                  ..remove('viewCount')
-                  ..remove('applicationCount');
-                final nextFiltered = Map<String, dynamic>.from(nextData)
-                  ..remove('viewCount')
-                  ..remove('applicationCount');
-                
-                // Əgər başqa bir şey dəyişibsə, yeniləmə lazımdır
-                if (prevFiltered.toString() != nextFiltered.toString()) {
-                  return false;
-                }
+      child: RefreshIndicator(
+        onRefresh: _fetchJobs,
+        color: AppTheme.primaryColor,
+        child: FutureBuilder<DocumentSnapshot>(
+          future: currentUser != null 
+              ? FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get()
+              : Future.value(null),
+          builder: (context, userSnapshot) {
+            // Extract blocked users array
+            List<String> blockedUsers = [];
+            if (userSnapshot.hasData && userSnapshot.data != null && userSnapshot.data!.exists) {
+              final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+              if (userData != null && userData.containsKey('blockedUsers')) {
+                blockedUsers = List<String>.from(userData['blockedUsers'] ?? []);
               }
-              
-              // Yalnız viewCount/applicationCount dəyişibsə, yeniləmə lazım deyil
-              return true;
-            }),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) return const Center(child: Text('Xəta baş verdi'));
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+            }
 
-          var allJobsDocs = snapshot.data!.docs;
-
-          return FutureBuilder<DocumentSnapshot>(
-            future: currentUser != null 
-                ? FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get()
-                : Future.value(null),
-            builder: (context, userSnapshot) {
-              if (userSnapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              // Extract blocked users array
-              List<String> blockedUsers = [];
-              if (userSnapshot.hasData && userSnapshot.data != null && userSnapshot.data!.exists) {
-                final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
-                if (userData != null && userData.containsKey('blockedUsers')) {
-                  blockedUsers = List<String>.from(userData['blockedUsers'] ?? []);
-                }
-              }
-
-              var jobs = allJobsDocs
-                  .map((d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
-                  // Filter out blocked users
-                  .where((j) => !blockedUsers.contains(j.employerId))
-                  .toList();
+            var jobs = (_cachedJobs ?? [])
+                // Filter out blocked users
+                .where((j) => !blockedUsers.contains(j.employerId))
+                .toList();
               
               if (_selectedCategory != null) {
                 jobs = jobs.where((j) => j.categoryId == _selectedCategory).toList();
@@ -600,7 +619,13 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                           ),
                           child: TextField(
                             controller: _searchController,
+                            focusNode: _searchFocusNode,
                             onChanged: (_) => setState(() {}),
+                            onSubmitted: (val) {
+                              _saveSearchTerm(val);
+                              _searchFocusNode.unfocus();
+                            },
+                            textInputAction: TextInputAction.search,
                             decoration: InputDecoration(
                               hintText: 'Vəzifə, şirkət və ya şəhər...',
                               hintStyle: TextStyle(
@@ -655,6 +680,97 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                         ),
                       ),
                     ],
+                  ),
+                  ListenableBuilder(
+                    listenable: _searchFocusNode,
+                    builder: (context, _) {
+                      if (_searchFocusNode.hasFocus && _searchHistory.isNotEmpty && _searchController.text.isEmpty) {
+                        return Container(
+                          margin: const EdgeInsets.only(top: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: context.scaffoldBackgroundColor,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Son axtarışlar',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: context.textPrimaryColor,
+                                    ),
+                                  ),
+                                  if (_searchHistory.isNotEmpty)
+                                    InkWell(
+                                      onTap: () async {
+                                        final prefs = await SharedPreferences.getInstance();
+                                        await prefs.remove('searchHistory');
+                                        setState(() => _searchHistory.clear());
+                                      },
+                                      child: const Text(
+                                        'Təmizlə',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppTheme.errorColor,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: _searchHistory.map((term) {
+                                  return InkWell(
+                                    onTap: () {
+                                      _searchController.text = term;
+                                      _saveSearchTerm(term);
+                                      _searchFocusNode.unfocus();
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: context.inputFillColor,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.history, size: 14, color: context.textSecondaryColor),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            term,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: context.textPrimaryColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
                   ),
                 ],
               ),
@@ -815,9 +931,8 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
             ],
           );
-            },
-          );
-        },
+          },
+        ),
       ),
     );
   }

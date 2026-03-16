@@ -80,16 +80,26 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
       );
       
       if (mounted) {
-        if (widget.userType == 'employer') {
-          Navigator.pushNamedAndRemoveUntil(context, AppRouter.employerSetup, (route) => false);
-        } else {
-          Navigator.pushNamedAndRemoveUntil(context, AppRouter.jobSeekerHome, (route) => false);
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Hesabınız uğurla yaradıldı! E-poçtunuza təsdiq linki göndərildi. Zəhmət olmasa təsdiqləyib daxil olun.'),
+            backgroundColor: AppTheme.successColor,
+            duration: Duration(seconds: 5),
+          ),
+        );
+        Navigator.pushReplacementNamed(
+          context, 
+          AppRouter.login,
+          arguments: widget.userType,
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Xəta: ${e.toString().replaceAll('Exception: ', '').replaceAll(RegExp(r'\[.*?\]\s*'), '')}')),
+          SnackBar(
+            content: Text('Xəta: ${e.toString().replaceAll('Exception: ', '').replaceAll(RegExp(r'\[.*?\]\s*'), '')}'),
+            backgroundColor: AppTheme.errorColor,
+          ),
         );
       }
     } finally {
