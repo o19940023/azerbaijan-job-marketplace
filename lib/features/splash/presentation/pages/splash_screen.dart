@@ -54,50 +54,69 @@ class _SplashScreenState extends State<SplashScreen>
 
     _logoController.forward().then((_) {
       _textController.forward();
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted) {
+          _checkAuthAndNavigate();
+        }
+      });
     });
-
-    Future.delayed(const Duration(milliseconds: 2500), () {
-      if (mounted) {
-        _checkAuthAndNavigate();
-      }
-    });
-  }
+  } }
 
   Future<void> _checkAuthAndNavigate() async {
-    final user = FirebaseAuth.instance.currentUser;
-    
-    if (user != null) {
-      // İstifadəçi artıq giriş edib — Firestore-dan userType-ı öyrən
-      try {
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        
-        if (doc.exists) {
-          final userType = doc.data()?['userType'] as String? ?? '';
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      
+      if (user != null) {
+        // İstifadəçi artıq giriş edib — Firestore-dan userType-ı öyrən
+        try {
+          // Timeout əlavə edirik ki, əgər Firestore cavab verməsə sonsuz gözləməsin
+          final doc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get()
+              .timeout(const Duration(seconds: 5));
           
-          // FCM token-i yenilə
-          try {
-            final token = await FirebaseMessaging.instance.getToken();
-            if (token != null) {
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user.uid)
-                  .update({'fcmToken': token});
-            }
-          } catch (_) {}
+          if (doc.exists && mounted) {
+            final data = doc.data();
+            final userType = data?['userType'] as String? ?? '';
+            
+            // FCM token-i arxa planda yenilə (await etməyə ehtiyac yoxdur)
+            FirebaseMessaging.instance.getToken().then((token) {
+              if (token != null) {
+                FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user.uid)
+                    .update({'fcmToken': token})
+                    .catchError((_) {});
+              }
+            }).catchError((_) {});
 
-          if (mounted) {
             if (userType == 'employer') {
               Navigator.pushReplacementNamed(context, AppRouter.employerHome);
             } else {
               Navigator.pushReplacementNamed(context, AppRouter.jobSeekerHome);
             }
+            return;
           }
-          return;
+        } catch (e) {
+          debugPrint('Firestore error or timeout: $e');
+          // Xəta baş versə belə, istifadəçi giriş edibsə Home-a yönləndirməyə çalış
+          // Default olaraq jobSeekerHome
+          if (mounted) {
+             Navigator.pushReplacementNamed(context, AppRouter.jobSeekerHome);
+             return;
+          }
         }
-      } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint('Auth check error: $e');
+    }
+    
+    // Əgər heç bir şərt ödənməzsə (user null və ya xəta), onboarding-ə get
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, AppRouter.roleSelection);
+    }
+  }
     }
     
     // Giriş edilməyib — normal axın

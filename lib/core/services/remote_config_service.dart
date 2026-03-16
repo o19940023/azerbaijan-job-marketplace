@@ -45,10 +45,53 @@ class RemoteConfigService {
   }
 
   // Getters
-  String get openRouterApiKey => _remoteConfig.getString(_keyOpenRouterApiKey);
-  String getAiModelId() => _remoteConfig.getString(_keyAiModelId);
-  String getAiModelName() => _remoteConfig.getString(_keyAiModelName);
-  String getAiBaseUrl() => _remoteConfig.getString(_keyAiBaseUrl);
-  String getAzureTtsApiKey() => _remoteConfig.getString(_keyAzureTtsApiKey);
-  String getAzureTtsRegion() => _remoteConfig.getString(_keyAzureTtsRegion);
+  String get openRouterApiKey {
+    try {
+      return _remoteConfig.getString(_keyOpenRouterApiKey);
+    } catch (e) {
+      debugPrint('Error getting $_keyOpenRouterApiKey: $e');
+      return '';
+    }
+  }
+  
+  String getAiModelId() {
+    try {
+      return _remoteConfig.getString(_keyAiModelId);
+    } catch (e) {
+      debugPrint('Error getting $_keyAiModelId: $e');
+      return 'google/gemini-flash-1.5-8b'; // Fallback
+    }
+  }
+
+  String getAiModelName() {
+    try {
+      return _remoteConfig.getString(_keyAiModelName);
+    } catch (e) {
+      return 'Google Gemini 3 Flash';
+    }
+  }
+
+  String getAiBaseUrl() {
+    try {
+      return _remoteConfig.getString(_keyAiBaseUrl);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  String getAzureTtsApiKey() {
+    try {
+      return _remoteConfig.getString(_keyAzureTtsApiKey);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  String getAzureTtsRegion() {
+    try {
+      return _remoteConfig.getString(_keyAzureTtsRegion);
+    } catch (e) {
+      return 'eastus';
+    }
+  }
 }

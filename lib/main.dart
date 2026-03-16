@@ -17,18 +17,26 @@ void main() async {
     await dotenv.load(fileName: ".env");
     debugPrint('Environment variables loaded successfully');
   } catch (e) {
-    debugPrint('Failed to load environment variables: $e');
+    debugPrint('Failed to load environment variables (expected in release if using remote config): $e');
   }
   
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint('Firebase initialized successfully');
 
-  // Initialize Remote Config Service
-  await RemoteConfigService().initialize();
+    // Initialize Remote Config Service
+    await RemoteConfigService().initialize();
+    debugPrint('Remote Config initialized');
 
-  // Initialize Notification Service
-  await NotificationService().initialize();
+    // Initialize Notification Service
+    await NotificationService().initialize();
+    debugPrint('Notification Service initialized');
+  } catch (e) {
+    debugPrint('Critical initialization error: $e');
+    // Continue running app even if services fail, to avoid white screen
+  }
 
   final prefs = await SharedPreferences.getInstance();
 
