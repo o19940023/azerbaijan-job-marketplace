@@ -1,0 +1,39 @@
+{
+  "parameters": {
+    "openrouter_api_key": {
+      "defaultValue": {
+        "value": ""
+      },
+      "description": "API Key for OpenRouter AI service (if empty, uses .env)",
+      "valueType": "STRING"
+    },
+    "ai_model_id": {
+      "defaultValue": {
+        "value": "llama-3.3-70b-versatile"
+      },
+      "description": "ID of the AI model to use (e.g., llama-3.3-70b-versatile, openai/gpt-4o-mini)",
+      "valueType": "STRING"
+    },
+    "ai_model_name": {
+      "defaultValue": {
+        "value": "Llama 3.3 70B (Groq)"
+      },
+      "description": "Display name of the AI model shown in the app",
+      "valueType": "STRING"
+    },
+    "azure_tts_api_key": {
+      "defaultValue": {
+        "value": ""
+      },
+      "description": "API Key for Azure Text-to-Speech service (if empty, uses .env)",
+      "valueType": "STRING"
+    },
+    "azure_tts_region": {
+      "defaultValue": {
+        "value": "eastus"
+      },
+      "description": "Region for Azure Text-to-Speech service (e.g., eastus)",
+      "valueType": "STRING"
+    }
+  }
+}

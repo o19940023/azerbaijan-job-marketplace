@@ -57,11 +57,20 @@ class _SplashScreenState extends State<SplashScreen>
 
     _logoController.forward().then((_) {
       _textController.forward();
+      // Wait a bit before checking navigation logic
       Future.delayed(const Duration(milliseconds: 1500), () async {
         if (mounted) {
-          final isUpdateRequired = await _checkVersion();
-          if (!isUpdateRequired && mounted) {
-            _checkAuthAndNavigate();
+          try {
+            final isUpdateRequired = await _checkVersion();
+            if (!isUpdateRequired && mounted) {
+              await _checkAuthAndNavigate();
+            }
+          } catch (e) {
+             debugPrint('Critical error in splash navigation: $e');
+             // Fallback to role selection if everything fails
+             if (mounted) {
+               Navigator.pushReplacementNamed(context, AppRouter.roleSelection);
+             }
           }
         }
       });
@@ -134,15 +143,17 @@ class _SplashScreenState extends State<SplashScreen>
             final userType = data?['userType'] as String? ?? '';
             
             // FCM token-i arxa planda yenilə (await etməyə ehtiyac yoxdur)
-            FirebaseMessaging.instance.getToken().then((token) {
-              if (token != null) {
-                FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(user.uid)
-                    .update({'fcmToken': token})
-                    .catchError((_) {});
-              }
-            }).catchError((_) {});
+            try {
+              FirebaseMessaging.instance.getToken().then((token) {
+                if (token != null) {
+                  FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user.uid)
+                      .update({'fcmToken': token})
+                      .catchError((_) {});
+                }
+              }).catchError((_) {});
+            } catch (_) {}
 
             if (userType == 'employer') {
               Navigator.pushReplacementNamed(context, AppRouter.employerHome);
@@ -181,79 +192,35 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(gradient: AppTheme.darkGradient),
+      backgroundColor: AppTheme.primaryColor,
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Animated Logo
             ScaleTransition(
               scale: _logoScale,
               child: FadeTransition(
                 opacity: _logoOpacity,
-                child: Container(
-                  width: 140,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(35),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.5),
-                        blurRadius: 40,
-                        spreadRadius: 5,
-                        offset: const Offset(0, 15),
-                      ),
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(35),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Image.asset(
-                        'assets/icons/Logo.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
+                child: Image.asset(
+                  'assets/icons/Logo.png',
+                  width: 150,
+                  height: 150,
                 ),
               ),
             ),
-            const SizedBox(height: 30),
-            // Animated Text
+            const SizedBox(height: 24),
             SlideTransition(
               position: _textSlide,
               child: FadeTransition(
                 opacity: _textOpacity,
-                child: Column(
-                  children: [
-                    const Text(
-                      'İşTap',
-                      style: TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -1,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Azərbaycanın İş Bazarı',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white.withValues(alpha: 0.7),
-                        letterSpacing: 2,
-                        fontWeight: FontWeight.w300,
-                      ),
-                    ),
-                  ],
+                child: const Text(
+                  'İşTap',
+                  style: TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1.5,
+                  ),
                 ),
               ),
             ),

@@ -46,7 +46,7 @@ async function sendPushToUser(userId, title, body, data = {}) {
 }
 
 exports.onNewChatMessage = onDocumentCreated("chats/{chatId}/messages/{messageId}", async (event) => {
-  const message = event.data?.data();
+  const message = event.data && event.data.data();
   if (!message) return;
 
   const chatId = event.params.chatId;
@@ -71,7 +71,7 @@ exports.onNewChatMessage = onDocumentCreated("chats/{chatId}/messages/{messageId
 });
 
 exports.onApplicationCreated = onDocumentCreated("applications/{applicationId}", async (event) => {
-  const app = event.data?.data();
+  const app = event.data && event.data.data();
   if (!app || !app.employerId) return;
 
   let applicantName = "Bir namizəd";
@@ -102,8 +102,8 @@ exports.onApplicationCreated = onDocumentCreated("applications/{applicationId}",
 // ---- STATUS DƏYİŞİKLİYİ: İş axtarana bildiriş ----
 
 exports.onApplicationStatusChanged = onDocumentUpdated("applications/{applicationId}", async (event) => {
-  const before = event.data?.before?.data();
-  const after = event.data?.after?.data();
+  const before = event.data && event.data.before.data();
+  const after = event.data && event.data.after.data();
   if (!before || !after) return;
 
   if (before.status === after.status) return;

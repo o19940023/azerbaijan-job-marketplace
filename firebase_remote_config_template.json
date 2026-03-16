@@ -8,15 +8,63 @@
     },
     "ai_model_id": {
       "defaultValue": {
-        "value": "google/gemini-flash-1.5-8b"
+        "value": "llama-3.3-70b-versatile"
       },
-      "description": "ID of the AI model to use (e.g., google/gemini-flash-1.5-8b, openai/gpt-4o-mini)"
+      "description": "ID of the AI model to use (e.g., llama-3.3-70b-versatile, openai/gpt-4o-mini)"
     },
     "ai_model_name": {
       "defaultValue": {
-        "value": "Google Gemini 3 Flash"
+        "value": "Llama 3.3 70B (Groq)"
       },
       "description": "Display name of the AI model shown in the app"
+    },
+    "ai_api_base_url": {
+      "defaultValue": {
+        "value": ""
+      },
+      "description": "Base URL for AI API (optional override)"
+    },
+    "azure_tts_api_key": {
+      "defaultValue": {
+        "value": ""
+      },
+      "description": "API Key for Azure Text-to-Speech service (if empty, uses .env)"
+    },
+    "azure_tts_region": {
+      "defaultValue": {
+        "value": "eastus"
+      },
+      "description": "Region for Azure Text-to-Speech service (e.g., eastus)"
+    },
+    "github_api_key": {
+      "defaultValue": {
+        "value": ""
+      },
+      "description": "GitHub API Key for AI service (if empty, uses .env)"
+    },
+    "min_app_version": {
+      "defaultValue": {
+        "value": "1.0.0"
+      },
+      "description": "Minimum required app version for force update"
+    },
+    "latest_app_version": {
+      "defaultValue": {
+        "value": "1.0.0"
+      },
+      "description": "Latest available app version for optional update notification"
+    },
+    "android_store_url": {
+      "defaultValue": {
+        "value": "https://play.google.com/store/apps/details?id=com.is.tap"
+      },
+      "description": "Google Play Store URL for update redirection"
+    },
+    "ios_store_url": {
+      "defaultValue": {
+        "value": "https://apps.apple.com/app/id6742566101"
+      },
+      "description": "App Store URL for update redirection"
     }
   }
 }

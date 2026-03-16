@@ -62,6 +62,20 @@ class AiAssistantCubit extends Cubit<AiAssistantState> {
 
   VoiceService get voiceService => _voiceService;
 
+  /// Söhbəti sıfırla
+  Future<void> resetConversation() async {
+    await _voiceService.stopSpeaking();
+    await _voiceService.stopListening();
+    
+    _aiService.resetChat();
+    _hasGreeted = false;
+    
+    emit(const AiAssistantState());
+    
+    // Yenidən salamla
+    greet();
+  }
+
   /// AI popup ilk açılanda salamlama mesajı
   Future<void> greet() async {
     if (_hasGreeted) return;
@@ -168,8 +182,9 @@ class AiAssistantCubit extends Cubit<AiAssistantState> {
       // Wait then return to idle
       await _waitForSpeechDone();
       emit(state.copyWith(status: AiAssistantStatus.idle));
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('AiAssistantCubit: Error in _processUserInput: $e');
+      debugPrint('Stack trace: $stackTrace');
       final errorMsg = 'Bağışlayın, bir xəta baş verdi. Zəhmət olmasa yenidən cəhd edin.';
       final updatedMessages = List<AiMessage>.from(state.messages)
         ..add(AiMessage(text: errorMsg, isUser: false));
@@ -296,18 +311,5 @@ class AiAssistantCubit extends Cubit<AiAssistantState> {
       await Future.delayed(const Duration(milliseconds: 500));
       maxWait--;
     }
-  }
-
-  /// Söhbəti sıfırla
-  void resetConversation() {
-    _aiService.resetChat();
-    _hasGreeted = false;
-    emit(const AiAssistantState());
-  }
-
-  @override
-  Future<void> close() {
-    _voiceService.dispose();
-    return super.close();
   }
 }
