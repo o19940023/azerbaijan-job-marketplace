@@ -117,13 +117,6 @@ class _SplashScreenState extends State<SplashScreen>
       Navigator.pushReplacementNamed(context, AppRouter.roleSelection);
     }
   }
-    }
-    
-    // Giriş edilməyib — normal axın
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, AppRouter.roleSelection);
-    }
-  }
 
   @override
   void dispose() {
@@ -143,47 +136,42 @@ class _SplashScreenState extends State<SplashScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Animated Logo
-            AnimatedBuilder(
-              animation: _logoController,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _logoScale.value,
-                  child: Opacity(
-                    opacity: _logoOpacity.value,
-                    child: Container(
-                      width: 140,
-                      height: 140,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(35),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.5),
-                            blurRadius: 40,
-                            spreadRadius: 5,
-                            offset: const Offset(0, 15),
-                          ),
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
+            ScaleTransition(
+              scale: _logoScale,
+              child: FadeTransition(
+                opacity: _logoOpacity,
+                child: Container(
+                  width: 140,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(35),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.5),
+                        blurRadius: 40,
+                        spreadRadius: 5,
+                        offset: const Offset(0, 15),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(35),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Image.asset(
-                            'assets/icons/Logo.png',
-                            fit: BoxFit.contain,
-                          ),
-                        ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(35),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Image.asset(
+                        'assets/icons/Logo.png',
+                        fit: BoxFit.contain,
                       ),
                     ),
                   ),
-                );
-              },
+                ),
+              ),
             ),
             const SizedBox(height: 30),
             // Animated Text
