@@ -82,44 +82,125 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
         },
         builder: (context, state) {
           final cubit = context.read<AiAssistantCubit>();
-          return Container(
-            height: MediaQuery.of(context).size.height * 0.75,
-            decoration: BoxDecoration(
-              color: context.scaffoldBackgroundColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 20,
-                  spreadRadius: 5,
+          return Stack(
+            children: [
+              Container(
+                height: MediaQuery.of(context).size.height * 0.75,
+                decoration: BoxDecoration(
+                  color: context.scaffoldBackgroundColor,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Handle bar
-                const SizedBox(height: 12),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: context.dividerColor,
-                    borderRadius: BorderRadius.circular(2),
+                child: Column(
+                  children: [
+                    // Handle bar
+                    const SizedBox(height: 12),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: context.dividerColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+
+                    // Header
+                    _buildHeader(context, cubit, state),
+
+                    // Messages
+                    Expanded(
+                      child: _buildMessages(context, state),
+                    ),
+
+                    // Input area
+                    _buildInputArea(context, cubit, state),
+                  ],
+                ),
+              ),
+              
+              // iOS-style notification
+              if (state.showProfileUpdatedNotification)
+                Positioned(
+                  top: 60,
+                  left: 16,
+                  right: 16,
+                  child: TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeOutCubic,
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    builder: (context, value, child) {
+                      return Transform.translate(
+                        offset: Offset(0, -30 * (1 - value)),
+                        child: Opacity(
+                          opacity: value,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.successColor,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.successColor.withValues(alpha: 0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.check_circle_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Profil Yeniləndi',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'AI tərəfindən uğurla yeniləndi',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-
-                // Header
-                _buildHeader(context, cubit, state),
-
-                // Messages
-                Expanded(
-                  child: _buildMessages(context, state),
-                ),
-
-                // Input area
-                _buildInputArea(context, cubit, state),
-              ],
-            ),
+            ],
           );
         },
       ),
@@ -445,6 +526,29 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                     ],
                   ),
                 ),
+                // Match percentage badge
+                if (job.matchPercentage != null && job.matchPercentage! > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getMatchColor(job.matchPercentage!).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _getMatchColor(job.matchPercentage!).withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      '%${job.matchPercentage}',
+                      style: TextStyle(
+                        color: _getMatchColor(job.matchPercentage!),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(width: 8),
                 Icon(Icons.chevron_right_rounded, color: context.textSecondaryColor, size: 20),
               ],
@@ -767,6 +871,19 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
         return AppTheme.accentColor;
       case AiAssistantStatus.speaking:
         return AppTheme.primaryColor;
+    }
+  }
+
+  /// Eşleşme yüzdesine göre renk döndür
+  Color _getMatchColor(int percentage) {
+    if (percentage >= 80) {
+      return const Color(0xFF10B981); // Yeşil - Mükemmel eşleşme
+    } else if (percentage >= 60) {
+      return const Color(0xFF3B82F6); // Mavi - İyi eşleşme
+    } else if (percentage >= 40) {
+      return const Color(0xFFF59E0B); // Turuncu - Orta eşleşme
+    } else {
+      return const Color(0xFFEF4444); // Kırmızı - Düşük eşleşme
     }
   }
 }

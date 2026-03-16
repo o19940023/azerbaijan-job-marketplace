@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
@@ -73,22 +74,47 @@ class AiProfileService {
     }
   }
 
-  /// Profil məlumatlarını AI üçün hazır mətn formatına çevirir
+  /// Profil məlumatlarını AI üçün JSON formatında hazırlayır
   Future<String> getProfileSummary() async {
     final data = await getUserProfile();
-    if (data == null) return 'Profil məlumatı tapılmadı.';
+    if (data == null) return '{}';
 
-    final parts = <String>[];
-    if (data['fullName'] != null) parts.add('Ad: ${data['fullName']}');
-    if (data['bio'] != null) parts.add('Haqqında: ${data['bio']}');
-    if (data['experience'] != null) parts.add('Təcrübə: ${data['experience']}');
-    if (data['education'] != null) parts.add('Təhsil: ${data['education']}');
-    if (data['skills'] != null) parts.add('Bacarıqlar: ${data['skills']}');
-    if (data['gender'] != null) parts.add('Cinsiyyət: ${data['gender']}');
-    if (data['city'] != null) parts.add('Şəhər: ${data['city']}');
-    if (data['phone'] != null) parts.add('Telefon: ${data['phone']}');
+    // Create a clean JSON object with only relevant fields
+    final profileJson = <String, dynamic>{};
+    
+    if (data['fullName'] != null && data['fullName'].toString().isNotEmpty) {
+      profileJson['fullName'] = data['fullName'];
+    }
+    if (data['bio'] != null && data['bio'].toString().isNotEmpty) {
+      profileJson['bio'] = data['bio'];
+    }
+    if (data['experience'] != null && data['experience'].toString().isNotEmpty) {
+      profileJson['experience'] = data['experience'];
+    }
+    if (data['education'] != null && data['education'].toString().isNotEmpty) {
+      profileJson['education'] = data['education'];
+    }
+    if (data['skills'] != null && data['skills'].toString().isNotEmpty) {
+      profileJson['skills'] = data['skills'];
+    }
+    if (data['gender'] != null && data['gender'].toString().isNotEmpty) {
+      profileJson['gender'] = data['gender'];
+    }
+    if (data['city'] != null && data['city'].toString().isNotEmpty) {
+      profileJson['city'] = data['city'];
+    }
+    if (data['phone'] != null && data['phone'].toString().isNotEmpty) {
+      profileJson['phone'] = data['phone'];
+    }
+    if (data['birthDate'] != null) {
+      try {
+        final timestamp = data['birthDate'] as Timestamp;
+        final date = timestamp.toDate();
+        profileJson['birthDate'] = DateFormat('dd.MM.yyyy').format(date);
+      } catch (_) {}
+    }
 
-    if (parts.isEmpty) return 'Profil boşdur, heç bir məlumat daxil edilməyib.';
-    return parts.join('\n');
+    // Return as JSON string
+    return jsonEncode(profileJson);
   }
 }

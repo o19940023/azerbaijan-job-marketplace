@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/glass_container.dart';
 import '../../../../core/constants/job_categories.dart';
 import '../../../map/presentation/pages/map_view_screen.dart';
 import '../../../../features/applications/data/repositories/applications_repository.dart';
@@ -157,113 +159,208 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         slivers: [
           // App Bar
           SliverAppBar(
-            expandedHeight: 200,
+            expandedHeight: 280,
             pinned: true,
             backgroundColor: category.color,
-            leading: IconButton(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back_ios_rounded),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.white.withOpacity(0.2),
+            leading: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: GlassContainer(
+                blur: 10,
+                opacity: 0.2,
+                borderRadius: BorderRadius.circular(12),
+                child: IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
+                  color: Colors.white,
+                  padding: EdgeInsets.zero,
+                ),
               ),
             ),
             actions: [
-              IconButton(
-                onPressed: () {
-                  final shareText = '''
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                child: GlassContainer(
+                  blur: 10,
+                  opacity: 0.2,
+                  borderRadius: BorderRadius.circular(12),
+                  child: IconButton(
+                    onPressed: () {
+                      final shareText = '''
 ${job.title} - ${job.companyName}
 
 Maaş: ${job.salaryText}
 Şəhər: ${job.city}
 İş növü: ${_getJobTypeLabel(job.jobType)}
 
-Daha ətraflı məlumat üçün Azərbaycan İş Bazar (
-İş Tap AI: İş Elanları & CV
-) tətbiqini yükləyin!
+Daha ətraflı məlumat üçün Azərbaycan İş Bazarı (İş Tap AI) tətbiqini yükləyin!
 ''';
-                  Share.share(shareText, subject: job.title);
-                },
-                icon: const Icon(Icons.share_rounded),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.2),
+                      Share.share(shareText, subject: job.title);
+                    },
+                    icon: const Icon(Icons.share_rounded, size: 20),
+                    color: Colors.white,
+                  ),
                 ),
               ),
-              if (!isEmployerView) _BookmarkButton(jobId: job.id),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert_rounded),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.2),
+              if (!isEmployerView) Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                child: GlassContainer(
+                  blur: 10,
+                  opacity: 0.2,
+                  borderRadius: BorderRadius.circular(12),
+                  child: _BookmarkButton(jobId: job.id),
                 ),
-                onSelected: (value) {
-                  if (value == 'report') {
-                    _showReportDialog();
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'report',
-                    child: Row(
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 4, right: 12, top: 8, bottom: 8),
+                child: GlassContainer(
+                  blur: 10,
+                  opacity: 0.2,
+                  borderRadius: BorderRadius.circular(12),
+                  child: PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert_rounded, size: 20),
+                    color: Colors.white,
+                    onSelected: (value) {
+                      if (value == 'report') {
+                        _showReportDialog();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'report',
+                        child: Row(
+                          children: [
+                            Icon(Icons.report_problem_rounded, color: AppTheme.errorColor, size: 20),
+                            SizedBox(width: 8),
+                            Text('Şikayət Et', style: TextStyle(color: AppTheme.errorColor)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              background: Stack(
+                children: [
+                  // Gradient Background
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          category.color,
+                          category.color.withValues(alpha: 0.6),
+                          AppTheme.primaryColor.withValues(alpha: 0.8),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                  ),
+                  // Mesh Pattern Overlay
+                  Positioned(
+                    top: -100,
+                    right: -100,
+                    child: Container(
+                      width: 300,
+                      height: 300,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            Colors.white.withValues(alpha: 0.2),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -50,
+                    left: -50,
+                    child: Container(
+                      width: 200,
+                      height: 200,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            Colors.black.withValues(alpha: 0.1),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Content
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.report_problem_rounded, color: AppTheme.errorColor, size: 20),
-                        SizedBox(width: 8),
-                        Text('Şikayət Et', style: TextStyle(color: AppTheme.errorColor)),
+                        const SizedBox(height: 60),
+                        Hero(
+                          tag: 'job_logo_${job.id}',
+                          child: Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(24),
+                              child: job.companyLogo != null && job.companyLogo!.isNotEmpty
+                                  ? Image.network(job.companyLogo!, fit: BoxFit.cover)
+                                  : Icon(category.icon, color: category.color, size: 40),
+                            ),
+                          ),
+                        ).animate().scale(duration: 500.ms, curve: Curves.easeOutBack),
+                        const SizedBox(height: 16),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            job.title,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: -0.5,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black26,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, end: 0),
+                        const SizedBox(height: 8),
+                        GlassContainer(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          borderRadius: BorderRadius.circular(20),
+                          opacity: 0.15,
+                          child: Text(
+                            job.companyName,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ).animate().fadeIn(delay: 300.ms),
                       ],
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(width: 8),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      category.color,
-                      category.color.withOpacity(0.8),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 40),
-                      Container(
-                        width: 70,
-                        height: 70,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Icon(
-                          category.icon,
-                          color: Colors.white,
-                          size: 35,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        job.title,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        job.companyName,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
             ),
           ),
@@ -279,8 +376,9 @@ Daha ətraflı məlumat üçün Azərbaycan İş Bazar (
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: context.cardColor,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(24),
                     boxShadow: AppTheme.cardShadow,
+                    border: Border.all(color: context.dividerColor.withValues(alpha: 0.5)),
                   ),
                   child: Column(
                     children: [
@@ -301,30 +399,29 @@ Daha ətraflı məlumat üçün Azərbaycan İş Bazar (
                           ),
                         ],
                       ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Divider(height: 1, color: context.dividerColor),
-                      ),
+                      const SizedBox(height: 16),
+                      Divider(color: context.dividerColor.withValues(alpha: 0.5), height: 1),
+                      const SizedBox(height: 16),
                       Row(
                         children: [
                           _QuickInfo(
-                            icon: Icons.school_rounded,
-                            title: 'Təhsil',
-                            value: job.educationLevel ?? 'Vacib deyil',
+                            icon: Icons.location_on_rounded,
+                            title: 'Şəhər',
+                            value: job.city,
                             color: AppTheme.accentColor,
                           ),
                           _VerticalDivider(),
                           _QuickInfo(
-                            icon: Icons.work_history_rounded,
+                            icon: Icons.work_rounded,
                             title: 'Təcrübə',
                             value: job.experienceLevel ?? 'Təcrübəsiz',
-                            color: Colors.orange,
+                            color: AppTheme.infoColor,
                           ),
                         ],
                       ),
                     ],
                   ),
-                ),
+                ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
 
                 // Urgent badge
                 if (job.isUrgent)

@@ -4,36 +4,31 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_cubit.dart';
 import 'core/navigation/app_router.dart';
+import 'core/services/notification_service.dart';
 
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
-
-// Background message handler – must be top-level function
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // Android automatically shows the notification from the 'notification' payload.
-  // No extra code is needed here for displaying.
-  debugPrint('Background message received: ${message.messageId}');
-}
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'core/services/remote_config_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await dotenv.load(fileName: ".env");
+    debugPrint('Environment variables loaded successfully');
+  } catch (e) {
+    debugPrint('Failed to load environment variables: $e');
+  }
+  
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Register the background handler
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // Initialize Remote Config Service
+  await RemoteConfigService().initialize();
 
-  // Request notification permission (especially needed for iOS)
-  final messaging = FirebaseMessaging.instance;
-  await messaging.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
+  // Initialize Notification Service
+  await NotificationService().initialize();
 
   final prefs = await SharedPreferences.getInstance();
 
@@ -53,79 +48,14 @@ class AzerbaijanJobMarketplaceApp extends StatefulWidget {
 }
 
 class _AzerbaijanJobMarketplaceAppState extends State<AzerbaijanJobMarketplaceApp> {
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   void initState() {
     super.initState();
-    _setupForegroundNotifications();
+    // Set navigator key for notification service
+    NotificationService().setNavigatorKey(navigatorKey);
   }
-
-  void _setupForegroundNotifications() {
-    // Listen for messages while the app is in the foreground
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      final notification = message.notification;
-      if (notification != null) {
-        // Show a SnackBar or Dialog when a notification arrives in the foreground
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final context = navigatorKey.currentContext;
-          if (context != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('${notification.title}: ${notification.body}'),
-                duration: const Duration(seconds: 4),
-                behavior: SnackBarBehavior.floating,
-                action: SnackBarAction(
-                  label: 'Bax',
-                  textColor: Colors.white,
-                  onPressed: () => _handleNotificationClick(message),
-                ),
-              ),
-            );
-          }
-        });
-      }
-    });
-
-    // Handle notification taps when app was in background and user taps
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint('Notification tapped (background): ${message.data}');
-      _handleNotificationClick(message);
-    });
-
-    // Handle notification taps when app was terminated
-    FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
-      if (message != null) {
-        debugPrint('Notification tapped (terminated): ${message.data}');
-        // Wait for the first frame so navigator is ready
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _handleNotificationClick(message);
-        });
-      }
-    });
-  }
-
-  void _handleNotificationClick(RemoteMessage message) {
-    if (navigatorKey.currentState == null) return;
-
-    final data = message.data;
-    final action = data['action'] ?? data['type'];
-
-    if (action == 'chat' || data.containsKey('chatId')) {
-      final chatId = data['chatId'];
-      if (chatId != null) {
-        navigatorKey.currentState!.pushNamed(
-          AppRouter.chatDetail,
-          arguments: {
-            'chatId': chatId,
-            'name': data['senderName'] ?? data['name'] ?? 'Söhbət',
-            'otherUserId': data['senderId'] ?? data['otherUserId'] ?? '',
-          },
-        );
-      }
-    }
-    // Future handling for job_detail or other screens can be added here
-  }
-
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   Widget build(BuildContext context) {

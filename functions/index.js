@@ -1,32 +1,135 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
+const {setGlobalOptions} = require("firebase-functions/v2");
+const {onDocumentCreated, onDocumentUpdated} = require("firebase-functions/v2/firestore");
+const admin = require("firebase-admin");
 
-const {setGlobalOptions} = require("firebase-functions");
-const {onRequest} = require("firebase-functions/https");
-const logger = require("firebase-functions/logger");
+setGlobalOptions({maxInstances: 10, region: "us-central1"});
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+admin.initializeApp();
+const db = admin.firestore();
+const messaging = admin.messaging();
 
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
+async function sendPushToUser(userId, title, body, data = {}) {
+  const userDoc = await db.collection("users").doc(userId).get();
+  if (!userDoc.exists) return;
 
-// exports.helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+  const token = userDoc.data().fcmToken;
+  if (!token) return;
+
+  const payloadData = {};
+  Object.entries(data).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      payloadData[key] = String(value);
+    }
+  });
+
+  await messaging.send({
+    token,
+    notification: {title, body},
+    data: payloadData,
+    android: {
+      priority: "high",
+      notification: {
+        channelId: "high_importance_channel",
+        clickAction: "FLUTTER_NOTIFICATION_CLICK",
+      },
+    },
+    apns: {
+      headers: {"apns-priority": "10"},
+      payload: {
+        aps: {
+          sound: "default",
+          contentAvailable: true,
+        },
+      },
+    },
+  });
+}
+
+exports.onNewChatMessage = onDocumentCreated("chats/{chatId}/messages/{messageId}", async (event) => {
+  const message = event.data?.data();
+  if (!message) return;
+
+  const chatId = event.params.chatId;
+  const senderId = message.senderId;
+  const text = message.text || "Yeni mesaj";
+
+  const chatDoc = await db.collection("chats").doc(chatId).get();
+  if (!chatDoc.exists) return;
+
+  const chat = chatDoc.data();
+  const participants = Array.isArray(chat.participantIds) ? chat.participantIds : [];
+  const recipientId = participants.find((id) => id !== senderId);
+  if (!recipientId) return;
+
+  const senderName = senderId === chat.employerId ? (chat.employerName || "İşTap") : (chat.jobSeekerName || "İşTap");
+  await sendPushToUser(recipientId, senderName, text, {
+    action: "chat",
+    chatId,
+    senderId,
+    senderName,
+  });
+});
+
+exports.onApplicationCreated = onDocumentCreated("applications/{applicationId}", async (event) => {
+  const app = event.data?.data();
+  if (!app || !app.employerId) return;
+
+  let applicantName = "Bir namizəd";
+  if (app.applicantId) {
+    const applicantDoc = await db.collection("users").doc(app.applicantId).get();
+    if (applicantDoc.exists) {
+      const userData = applicantDoc.data();
+      applicantName = userData.fullName || userData.name || userData.email || applicantName;
+    }
+  }
+
+  let jobTitle = "iş elanınıza";
+  if (app.jobId) {
+    const jobDoc = await db.collection("jobs").doc(app.jobId).get();
+    if (jobDoc.exists) {
+      jobTitle = jobDoc.data().title || jobTitle;
+    }
+  }
+
+  await sendPushToUser(app.employerId, "Yeni Müraciət!", `${applicantName} "${jobTitle}" elanınıza müraciət etdi.`, {
+    action: "application",
+    applicationId: event.params.applicationId,
+    jobId: app.jobId,
+    applicantId: app.applicantId,
+  });
+});
+
+// ---- STATUS DƏYİŞİKLİYİ: İş axtarana bildiriş ----
+
+exports.onApplicationStatusChanged = onDocumentUpdated("applications/{applicationId}", async (event) => {
+  const before = event.data?.before?.data();
+  const after = event.data?.after?.data();
+  if (!before || !after) return;
+
+  if (before.status === after.status) return;
+  if (after.status !== "accepted" && after.status !== "rejected") return;
+  if (!after.applicantId) return;
+  if (after.statusNotificationSent) return;
+
+  let jobTitle = "müraciətiniz";
+  if (after.jobId) {
+    const jobDoc = await db.collection("jobs").doc(after.jobId).get();
+    if (jobDoc.exists) {
+      jobTitle = jobDoc.data().title || jobTitle;
+    }
+  }
+
+  const title = after.status === "accepted" ? "Təbriklər! 🎉" : "Müraciət Nəticəsi";
+  const body = after.status === "accepted"
+    ? `"${jobTitle}" üçün müraciətiniz qəbul olundu!`
+    : `"${jobTitle}" üçün müraciətiniz rədd edildi.`;
+
+  await sendPushToUser(after.applicantId, title, body, {
+    action: "application_status",
+    applicationId: event.params.applicationId,
+    jobId: after.jobId,
+    status: after.status,
+  });
+
+  await event.data.after.ref.update({statusNotificationSent: true});
+});

@@ -8,8 +8,8 @@ import '../../../jobs/presentation/pages/job_detail_screen.dart';
 import '../../../chat/presentation/pages/chat_list_screen.dart';
 import '../../../chat/data/repositories/chat_repository.dart';
 import '../../../profile/presentation/pages/profile_screen.dart';
-import '../../../profile/presentation/pages/profile_screen.dart';
 import '../../../jobs/data/models/job_model.dart';
+import '../../../../features/applications/data/repositories/applications_repository.dart';
 import '../../../../features/applications/presentation/pages/applicants_list_screen.dart';
 import '../../../../features/applications/presentation/pages/employer_applications_screen.dart';
 import '../../../ai_assistant/presentation/ai_assistant_overlay.dart';
@@ -75,48 +75,73 @@ class _EmployerHomeState extends State<EmployerHome> {
           ),
           builder: (context, unreadSnapshot) {
             final unreadCount = unreadSnapshot.data ?? 0;
-            return BottomNavigationBar(
-              type: BottomNavigationBarType.fixed,
-              currentIndex: _currentIndex,
-              onTap: (i) => setState(() => _currentIndex = i),
-              items: [
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.dashboard_rounded),
-                  label: 'Panel',
-                ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.add_circle_outline_rounded),
-                  activeIcon: Icon(Icons.add_circle_rounded),
-                  label: 'Elan Ver',
-                ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.list_alt_rounded),
-                  label: 'Elanlarım',
-                ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.inbox_outlined),
-                  activeIcon: Icon(Icons.inbox_rounded),
-                  label: 'Müraciətlər',
-                ),
-                BottomNavigationBarItem(
-                  icon: Badge(
-                    isLabelVisible: unreadCount > 0,
-                    label: Text('$unreadCount', style: const TextStyle(fontSize: 10, color: Colors.white)),
-                    child: const Icon(Icons.chat_bubble_outline_rounded),
-                  ),
-                  activeIcon: Badge(
-                    isLabelVisible: unreadCount > 0,
-                    label: Text('$unreadCount', style: const TextStyle(fontSize: 10, color: Colors.white)),
-                    child: const Icon(Icons.chat_bubble_rounded),
-                  ),
-                  label: 'Mesajlar',
-                ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.person_outline_rounded),
-                  activeIcon: Icon(Icons.person_rounded),
-                  label: 'Profil',
-                ),
-              ],
+            
+            return StreamBuilder<int>(
+              stream: ApplicationsRepository().getUnreadApplicationsCount(
+                FirebaseAuth.instance.currentUser?.uid ?? '',
+              ),
+              builder: (context, appUnreadSnapshot) {
+                final appUnreadCount = appUnreadSnapshot.data ?? 0;
+                
+                return BottomNavigationBar(
+                  type: BottomNavigationBarType.fixed,
+                  currentIndex: _currentIndex,
+                  onTap: (i) {
+                    if (i == 3) {
+                      ApplicationsRepository().markAllApplicationsAsRead(
+                        FirebaseAuth.instance.currentUser?.uid ?? '',
+                      );
+                    }
+                    setState(() => _currentIndex = i);
+                  },
+                  items: [
+                    const BottomNavigationBarItem(
+                      icon: Icon(Icons.dashboard_rounded),
+                      label: 'Panel',
+                    ),
+                    const BottomNavigationBarItem(
+                      icon: Icon(Icons.add_circle_outline_rounded),
+                      activeIcon: Icon(Icons.add_circle_rounded),
+                      label: 'Elan Ver',
+                    ),
+                    const BottomNavigationBarItem(
+                      icon: Icon(Icons.list_alt_rounded),
+                      label: 'Elanlarım',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Badge(
+                        isLabelVisible: appUnreadCount > 0,
+                        label: Text('$appUnreadCount', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                        child: const Icon(Icons.inbox_outlined),
+                      ),
+                      activeIcon: Badge(
+                        isLabelVisible: appUnreadCount > 0,
+                        label: Text('$appUnreadCount', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                        child: const Icon(Icons.inbox_rounded),
+                      ),
+                      label: 'Müraciətlər',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Badge(
+                        isLabelVisible: unreadCount > 0,
+                        label: Text('$unreadCount', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                        child: const Icon(Icons.chat_bubble_outline_rounded),
+                      ),
+                      activeIcon: Badge(
+                        isLabelVisible: unreadCount > 0,
+                        label: Text('$unreadCount', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                        child: const Icon(Icons.chat_bubble_rounded),
+                      ),
+                      label: 'Mesajlar',
+                    ),
+                    const BottomNavigationBarItem(
+                      icon: Icon(Icons.person_outline_rounded),
+                      activeIcon: Icon(Icons.person_rounded),
+                      label: 'Profil',
+                    ),
+                  ],
+                );
+              }
             );
           },
         ),

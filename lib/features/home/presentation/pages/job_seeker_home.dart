@@ -18,9 +18,6 @@ import '../../../map/presentation/pages/map_view_screen.dart';
 import '../../../chat/presentation/pages/chat_list_screen.dart';
 import '../../../profile/presentation/pages/profile_screen.dart';
 import '../../../ai_assistant/presentation/ai_assistant_overlay.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class JobSeekerHome extends StatefulWidget {
   const JobSeekerHome({super.key});
@@ -478,7 +475,6 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
               ? FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get()
               : Future.value(null),
           builder: (context, userSnapshot) {
-            // Extract blocked users array
             List<String> blockedUsers = [];
             if (userSnapshot.hasData && userSnapshot.data != null && userSnapshot.data!.exists) {
               final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
@@ -488,450 +484,454 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
             }
 
             var jobs = (_cachedJobs ?? [])
-                // Filter out blocked users
                 .where((j) => !blockedUsers.contains(j.employerId))
+                .where((j) => j.isActive)
                 .toList();
-              
-              if (_selectedCategory != null) {
-                jobs = jobs.where((j) => j.categoryId == _selectedCategory).toList();
-              }
-              if (_selectedJobType != null) {
+
+            if (_selectedCategory != null) {
+              jobs = jobs.where((j) => j.categoryId == _selectedCategory).toList();
+            }
+            if (_selectedJobType != null) {
+              if (_selectedJobType == 'urgent') {
+                jobs = jobs.where((j) => j.isUrgent).toList();
+              } else {
                 jobs = jobs.where((j) => j.jobType == _selectedJobType).toList();
               }
-              if (_searchController.text.isNotEmpty) {
-                final query = _searchController.text.toLowerCase();
-                jobs = jobs.where((j) =>
-                    j.title.toLowerCase().contains(query) ||
-                    j.companyName.toLowerCase().contains(query) ||
-                    j.city.toLowerCase().contains(query)).toList();
-              }
-              
-              if (_filterCity != null && _filterCity!.isNotEmpty) {
-                jobs = jobs.where((j) => j.city == _filterCity).toList();
-              }
-              if (_filterEducation != null && _filterEducation!.isNotEmpty) {
-                if (_filterEducation == 'Vacib deyil') {
-                  jobs = jobs.where((j) => j.educationLevel == null || j.educationLevel == 'Vacib deyil').toList();
-                } else {
-                  jobs = jobs.where((j) => j.educationLevel == _filterEducation).toList();
-                }
-              }
-              if (_filterExperience != null && _filterExperience!.isNotEmpty) {
-                if (_filterExperience == 'Təcrübəsiz') {
-                  jobs = jobs.where((j) => j.experienceLevel == null || j.experienceLevel == 'Təcrübəsiz').toList();
-                } else {
-                  jobs = jobs.where((j) => j.experienceLevel == _filterExperience).toList();
-                }
-              }
-              if (_filterSalaryRange != null && _filterSalaryRange!.isNotEmpty) {
-                jobs = jobs.where((j) {
-                  final salary = (j.salaryMax ?? j.salaryMin).toDouble();
-                  if (_filterSalaryRange == '0-500') return salary <= 500;
-                  if (_filterSalaryRange == '500-1000') return salary > 500 && salary <= 1000;
-                  if (_filterSalaryRange == '1000-2000') return salary > 1000 && salary <= 2000;
-                  if (_filterSalaryRange == '2000+') return salary > 2000;
-                  return true;
-                }).toList();
-              }
+            }
+            if (_searchController.text.isNotEmpty) {
+              final query = _searchController.text.toLowerCase();
+              jobs = jobs.where((j) =>
+                  j.title.toLowerCase().contains(query) ||
+                  j.companyName.toLowerCase().contains(query) ||
+                  j.city.toLowerCase().contains(query)).toList();
+            }
 
-          if (_selectedSortMode == 'newest') {
-            jobs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          } else if (_selectedSortMode == 'salary') {
-            jobs.sort((a, b) {
-              final aSalary = (a.salaryMax ?? a.salaryMin);
-              final bSalary = (b.salaryMax ?? b.salaryMin);
-              return bSalary.compareTo(aSalary);
-            });
-          } else if (_selectedSortMode == 'location' && _userPosition != null) {
-            jobs.sort((a, b) {
-              final distA = Geolocator.distanceBetween(
-                _userPosition!.latitude, _userPosition!.longitude,
-                a.latitude, a.longitude
-              );
-              final distB = Geolocator.distanceBetween(
-                _userPosition!.latitude, _userPosition!.longitude,
-                b.latitude, b.longitude
-              );
-              return distA.compareTo(distB);
-            });
-          } else {
-             jobs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          }
+            if (_filterCity != null && _filterCity!.isNotEmpty) {
+              jobs = jobs.where((j) => j.city == _filterCity).toList();
+            }
+            if (_filterEducation != null && _filterEducation!.isNotEmpty) {
+              if (_filterEducation == 'Vacib deyil') {
+                jobs = jobs.where((j) => j.educationLevel == null || j.educationLevel == 'Vacib deyil').toList();
+              } else {
+                jobs = jobs.where((j) => j.educationLevel == _filterEducation).toList();
+              }
+            }
+            if (_filterExperience != null && _filterExperience!.isNotEmpty) {
+              if (_filterExperience == 'Təcrübəsiz') {
+                jobs = jobs.where((j) => j.experienceLevel == null || j.experienceLevel == 'Təcrübəsiz').toList();
+              } else {
+                jobs = jobs.where((j) => j.experienceLevel == _filterExperience).toList();
+              }
+            }
+            if (_filterSalaryRange != null && _filterSalaryRange!.isNotEmpty) {
+              jobs = jobs.where((j) {
+                final salary = (j.salaryMax ?? j.salaryMin).toDouble();
+                if (_filterSalaryRange == '0-500') return salary <= 500;
+                if (_filterSalaryRange == '500-1000') return salary > 500 && salary <= 1000;
+                if (_filterSalaryRange == '1000-2000') return salary > 1000 && salary <= 2000;
+                if (_filterSalaryRange == '2000+') return salary > 2000;
+                return true;
+              }).toList();
+            }
 
-          return CustomScrollView(
-            slivers: [
-          // Header
-          SliverToBoxAdapter(
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            if (_selectedSortMode == 'newest') {
+              jobs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            } else if (_selectedSortMode == 'salary') {
+              jobs.sort((a, b) {
+                final aSalary = (a.salaryMax ?? a.salaryMin);
+                final bSalary = (b.salaryMax ?? b.salaryMin);
+                return bSalary.compareTo(aSalary);
+              });
+            } else if (_selectedSortMode == 'location' && _userPosition != null) {
+              jobs.sort((a, b) {
+                final distA = Geolocator.distanceBetween(
+                  _userPosition!.latitude, _userPosition!.longitude,
+                  a.latitude, a.longitude,
+                );
+                final distB = Geolocator.distanceBetween(
+                  _userPosition!.latitude, _userPosition!.longitude,
+                  b.latitude, b.longitude,
+                );
+                return distA.compareTo(distB);
+              });
+            } else {
+              jobs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            }
+
+            return CustomScrollView(
+              slivers: [
+                _buildSliverAppBar(),
+                SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                        child: Text(
+                          'Kateqoriyalar',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: context.textPrimaryColor,
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        height: 95,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: JobCategories.all.length,
+                          itemBuilder: (context, index) {
+                            final cat = JobCategories.all[index];
+                            final isSelected = _selectedCategory == cat.id;
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedCategory = isSelected ? null : cat.id;
+                                });
+                              },
+                              child: Container(
+                                width: 75,
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      width: 56,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? cat.color
+                                            : cat.color.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Icon(
+                                        cat.icon,
+                                        color: isSelected ? Colors.white : cat.color,
+                                        size: 26,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      cat.name,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                        color: isSelected ? cat.color : context.textSecondaryColor,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
                         children: [
-                          Text(
-                            'Salam! 👋',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: context.textSecondaryColor,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'İş axtarışı',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              color: context.textPrimaryColor,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
+                          _buildFilterChip('Hamısı', null),
+                          _buildFilterChip('Tam gün', 'fullTime'),
+                          _buildFilterChip('Yarım gün', 'partTime'),
+                          _buildFilterChip('Günlük', 'daily'),
+                          _buildFilterChip('Saatlıq', 'hourly'),
+                          _buildFilterChip('Təcili 🔥', 'urgent'),
+                          _buildFilterChip('Freelance', 'freelance'),
                         ],
                       ),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: IconButton(
-                          onPressed: () {},
-                          icon: const Icon(
-                            Icons.notifications_outlined,
-                            color: AppTheme.primaryColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  // Search Bar & Filter Button
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: context.inputFillColor,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: TextField(
-                            controller: _searchController,
-                            focusNode: _searchFocusNode,
-                            onChanged: (_) => setState(() {}),
-                            onSubmitted: (val) {
-                              _saveSearchTerm(val);
-                              _searchFocusNode.unfocus();
-                            },
-                            textInputAction: TextInputAction.search,
-                            decoration: InputDecoration(
-                              hintText: 'Vəzifə, şirkət və ya şəhər...',
-                              hintStyle: TextStyle(
-                                color: context.textHintColor,
-                                fontSize: 14,
-                              ),
-                              prefixIcon: Icon(
-                                Icons.search_rounded,
-                                color: context.textHintColor,
-                              ),
-                              suffixIcon: _searchController.text.isNotEmpty
-                                  ? IconButton(
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        setState(() {});
-                                      },
-                                      icon: const Icon(Icons.close, size: 20),
-                                    )
-                                  : null,
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 14,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        height: 48,
-                        width: 48,
-                        decoration: BoxDecoration(
-                          color: (_filterSalaryRange != null || _filterEducation != null || _filterCity != null || _filterExperience != null)
-                              ? AppTheme.primaryColor
-                              : context.scaffoldBackgroundColor,
-                          border: Border.all(
-                            color: (_filterSalaryRange != null || _filterEducation != null || _filterCity != null || _filterExperience != null)
-                                ? AppTheme.primaryColor
-                                : context.dividerColor,
-                          ),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: IconButton(
-                          onPressed: _showDetailedFilterOptions,
-                          icon: Icon(
-                            Icons.tune_rounded,
-                            color: (_filterSalaryRange != null || _filterEducation != null || _filterCity != null || _filterExperience != null)
-                                ? Colors.white
-                                : context.textPrimaryColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  ListenableBuilder(
-                    listenable: _searchFocusNode,
-                    builder: (context, _) {
-                      if (_searchFocusNode.hasFocus && _searchHistory.isNotEmpty && _searchController.text.isEmpty) {
-                        return Container(
-                          margin: const EdgeInsets.only(top: 12),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: context.scaffoldBackgroundColor,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Son axtarışlar',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: context.textPrimaryColor,
-                                    ),
-                                  ),
-                                  if (_searchHistory.isNotEmpty)
-                                    InkWell(
-                                      onTap: () async {
-                                        final prefs = await SharedPreferences.getInstance();
-                                        await prefs.remove('searchHistory');
-                                        setState(() => _searchHistory.clear());
-                                      },
-                                      child: const Text(
-                                        'Təmizlə',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppTheme.errorColor,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: _searchHistory.map((term) {
-                                  return InkWell(
-                                    onTap: () {
-                                      _searchController.text = term;
-                                      _saveSearchTerm(term);
-                                      _searchFocusNode.unfocus();
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: context.inputFillColor,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(Icons.history, size: 14, color: context.textSecondaryColor),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            term,
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: context.textPrimaryColor,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Categories
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                  child: Text(
-                    'Kateqoriyalar',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: context.textPrimaryColor,
                     ),
                   ),
                 ),
-                SizedBox(
-                  height: 95,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: JobCategories.all.length,
-                    itemBuilder: (context, index) {
-                      final cat = JobCategories.all[index];
-                      final isSelected = _selectedCategory == cat.id;
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedCategory =
-                                isSelected ? null : cat.id;
-                          });
-                        },
-                        child: Container(
-                          width: 75,
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Column(
-                            children: [
-                              Container(
-                                width: 56,
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? cat.color
-                                      : cat.color.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Icon(
-                                  cat.icon,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : cat.color,
-                                  size: 26,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                cat.name,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                  color: isSelected
-                                      ? cat.color
-                                      : context.textSecondaryColor,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${jobs.length} elan tapıldı',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: context.textPrimaryColor,
                           ),
                         ),
-                      );
-                    },
+                        TextButton.icon(
+                          onPressed: _showSortOptions,
+                          icon: const Icon(Icons.sort_rounded, size: 18),
+                          label: const Text('Sırala'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: context.textSecondaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (jobs.isEmpty)
+                  SliverFillRemaining(
+                    child: Center(
+                      child: Text(
+                        'Heç bir elan tapılmadı',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: context.textSecondaryColor,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final job = jobs[index];
+                        return JobListCard(
+                          job: job,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => JobDetailScreen(job: job),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      childCount: jobs.length,
+                    ),
+                  ),
+                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSliverAppBar() {
+    return SliverToBoxAdapter(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Salam! 👋',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: context.textSecondaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'İş axtarışı',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: context.textPrimaryColor,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: IconButton(
+                    onPressed: () {},
+                    icon: const Icon(
+                      Icons.notifications_outlined,
+                      color: AppTheme.primaryColor,
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-
-          // Job Type Filters
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildFilterChip('Hamısı', null),
-                    _buildFilterChip('Tam gün', 'fullTime'),
-                    _buildFilterChip('Yarım gün', 'partTime'),
-                    _buildFilterChip('Günlük', 'daily'),
-                    _buildFilterChip('Saatlıq', 'hourly'),
-                    _buildFilterChip('Təcili 🔥', 'urgent'),
-                    _buildFilterChip('Freelance', 'freelance'),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Job Count
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${jobs.length} elan tapıldı',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: context.textPrimaryColor,
+            const SizedBox(height: 20),
+            // Search Bar & Filter Button
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: context.inputFillColor,
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                  ),
-                  TextButton.icon(
-                    onPressed: _showSortOptions,
-                    icon: const Icon(Icons.sort_rounded, size: 18),
-                    label: const Text('Sırala'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: context.textSecondaryColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Job List
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final job = jobs[index];
-                return JobListCard(
-                  job: job,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => JobDetailScreen(job: job),
+                    child: TextField(
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      onChanged: (_) => setState(() {}),
+                      onSubmitted: (val) {
+                        _saveSearchTerm(val);
+                        _searchFocusNode.unfocus();
+                      },
+                      textInputAction: TextInputAction.search,
+                      decoration: InputDecoration(
+                        hintText: 'Vəzifə, şirkət və ya şəhər...',
+                        hintStyle: TextStyle(
+                          color: context.textHintColor,
+                          fontSize: 14,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          color: context.textHintColor,
+                        ),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {});
+                                },
+                                icon: const Icon(Icons.close, size: 20),
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
                       ),
-                    );
-                  },
-                );
-              },
-              childCount: jobs.length,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  height: 48,
+                  width: 48,
+                  decoration: BoxDecoration(
+                    color: (_filterSalaryRange != null || _filterEducation != null || _filterCity != null || _filterExperience != null)
+                        ? AppTheme.primaryColor
+                        : context.scaffoldBackgroundColor,
+                    border: Border.all(
+                      color: (_filterSalaryRange != null || _filterEducation != null || _filterCity != null || _filterExperience != null)
+                          ? AppTheme.primaryColor
+                          : context.dividerColor,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: IconButton(
+                    onPressed: _showDetailedFilterOptions,
+                    icon: Icon(
+                      Icons.tune_rounded,
+                      color: (_filterSalaryRange != null || _filterEducation != null || _filterCity != null || _filterExperience != null)
+                          ? Colors.white
+                          : context.textPrimaryColor,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 20)),
-            ],
-          );
-          },
+            ListenableBuilder(
+              listenable: _searchFocusNode,
+              builder: (context, _) {
+                if (_searchFocusNode.hasFocus && _searchHistory.isNotEmpty && _searchController.text.isEmpty) {
+                  return Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: context.scaffoldBackgroundColor,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Son axtarışlar',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: context.textPrimaryColor,
+                              ),
+                            ),
+                            if (_searchHistory.isNotEmpty)
+                              InkWell(
+                                onTap: () async {
+                                  final prefs = await SharedPreferences.getInstance();
+                                  await prefs.remove('searchHistory');
+                                  setState(() => _searchHistory.clear());
+                                },
+                                child: const Text(
+                                  'Təmizlə',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.errorColor,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _searchHistory.map((term) {
+                            return InkWell(
+                              onTap: () {
+                                _searchController.text = term;
+                                _saveSearchTerm(term);
+                                _searchFocusNode.unfocus();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: context.inputFillColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.history, size: 14, color: context.textSecondaryColor),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      term,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: context.textPrimaryColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ],
         ),
       ),
     );

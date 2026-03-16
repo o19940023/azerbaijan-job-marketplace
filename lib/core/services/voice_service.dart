@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:azerbaijan_job_marketplace/core/services/remote_config_service.dart';
 
 class VoiceService {
   // Azure Cognitive Services TTS - Ücretsiz tier (500K karakter/ay)
@@ -157,9 +159,16 @@ class VoiceService {
       final tempDir = await getTemporaryDirectory();
       final audioFile = File('${tempDir.path}/tts_azure_${DateTime.now().millisecondsSinceEpoch}.mp3');
       
-      // Azure TTS API Key - should be set via environment variable
-      const azureApiKey = String.fromEnvironment('AZURE_TTS_API_KEY', defaultValue: '');
-      const azureRegion = 'eastus'; // Azure region
+      // Azure TTS API Key - Priority: Remote Config > .env
+      String azureApiKey = RemoteConfigService().getAzureTtsApiKey();
+      if (azureApiKey.isEmpty) {
+        azureApiKey = dotenv.env['AZURE_TTS_API_KEY'] ?? '';
+      }
+
+      String azureRegion = RemoteConfigService().getAzureTtsRegion();
+      if (azureRegion.isEmpty || azureRegion == 'eastus') { // If default or empty, check .env
+        azureRegion = dotenv.env['AZURE_TTS_REGION'] ?? 'eastus';
+      }
       
       // Azure TTS SSML
       final ssml = '''
@@ -183,6 +192,8 @@ class VoiceService {
       
       if (response.statusCode != 200) {
         debugPrint('Azure TTS: Failed to get token: ${response.statusCode}');
+        debugPrint('Azure TTS: Region: $azureRegion');
+        debugPrint('Azure TTS: API Key Length: ${azureApiKey.length}'); // Log length only for security
         return false;
       }
       

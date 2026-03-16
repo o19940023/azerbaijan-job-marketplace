@@ -6,6 +6,7 @@ class ApplicationModel {
   final String employerId;
   final String applicantId;
   final String status; // pending, accepted, rejected
+  final bool isRead; // okunup okunmadığı
   final DateTime appliedAt;
 
   ApplicationModel({
@@ -14,6 +15,7 @@ class ApplicationModel {
     required this.employerId,
     required this.applicantId,
     required this.status,
+    this.isRead = false,
     required this.appliedAt,
   });
 
@@ -24,6 +26,7 @@ class ApplicationModel {
       'employerId': employerId,
       'applicantId': applicantId,
       'status': status,
+      'isRead': isRead,
       'appliedAt': Timestamp.fromDate(appliedAt),
     };
   }
@@ -35,6 +38,7 @@ class ApplicationModel {
       employerId: map['employerId'] ?? '',
       applicantId: map['applicantId'] ?? '',
       status: map['status'] ?? 'pending',
+      isRead: map['isRead'] ?? false,
       appliedAt: (map['appliedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }

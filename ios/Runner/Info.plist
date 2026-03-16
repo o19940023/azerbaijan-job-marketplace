@@ -57,6 +57,13 @@
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Səsinizi tanımaq üçün icazə lazımdır</string>
 	
+	<!-- Background Modes for Notifications -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+
 	<!-- App Transport Security & Encryption -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>

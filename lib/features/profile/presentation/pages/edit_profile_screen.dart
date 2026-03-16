@@ -58,7 +58,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           if (dobTimestamp is Timestamp) {
             _birthDate = dobTimestamp.toDate();
           }
-          _selectedGender = data['gender'];
+          // Normalize gender value to match dropdown items
+          final gender = data['gender'];
+          if (gender != null) {
+            final genderLower = gender.toString().toLowerCase();
+            if (genderLower == 'kişi') {
+              _selectedGender = 'Kişi';
+            } else if (genderLower == 'qadın') {
+              _selectedGender = 'Qadın';
+            } else if (genderLower.contains('qeyd') || genderLower.contains('istəmir')) {
+              _selectedGender = 'Qeyd etmək istəmirəm';
+            } else {
+              _selectedGender = gender;
+            }
+          }
 
           final city = data['city'];
           if (city != null && AppConstants.azerbaijanCities.contains(city)) {

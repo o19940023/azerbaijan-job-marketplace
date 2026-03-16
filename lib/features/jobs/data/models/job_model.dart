@@ -31,6 +31,7 @@ class JobModel {
   final bool allowCallIfAccepted;
   final String applicationMethod; // 'in_app' or 'redirect'
   final String? externalUrl;
+  final int? matchPercentage; // AI tarafından hesaplanan eşleşme yüzdesi (0-100)
 
   const JobModel({
     required this.id,
@@ -65,6 +66,7 @@ class JobModel {
     this.allowCallIfAccepted = true,
     this.applicationMethod = 'in_app',
     this.externalUrl,
+    this.matchPercentage,
   });
 
   String get salaryText {
@@ -124,6 +126,7 @@ class JobModel {
     bool? allowCallIfAccepted,
     String? applicationMethod,
     String? externalUrl,
+    int? matchPercentage,
   }) {
     return JobModel(
       id: id ?? this.id,
@@ -157,6 +160,7 @@ class JobModel {
       allowCallIfAccepted: allowCallIfAccepted ?? this.allowCallIfAccepted,
       applicationMethod: applicationMethod ?? this.applicationMethod,
       externalUrl: externalUrl ?? this.externalUrl,
+      matchPercentage: matchPercentage ?? this.matchPercentage,
     );
   }
 

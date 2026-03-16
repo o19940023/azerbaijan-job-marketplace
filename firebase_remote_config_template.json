@@ -1,0 +1,22 @@
+{
+  "parameters": {
+    "openrouter_api_key": {
+      "defaultValue": {
+        "value": ""
+      },
+      "description": "API Key for OpenRouter AI service (if empty, uses .env)"
+    },
+    "ai_model_id": {
+      "defaultValue": {
+        "value": "google/gemini-flash-1.5-8b"
+      },
+      "description": "ID of the AI model to use (e.g., google/gemini-flash-1.5-8b, openai/gpt-4o-mini)"
+    },
+    "ai_model_name": {
+      "defaultValue": {
+        "value": "Google Gemini 3 Flash"
+      },
+      "description": "Display name of the AI model shown in the app"
+    }
+  }
+}

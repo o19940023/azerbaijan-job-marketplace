@@ -78,6 +78,32 @@ class ApplicationsRepository {
         });
   }
 
+  // İşverenin okunmamış başvuru sayısını getir
+  Stream<int> getUnreadApplicationsCount(String employerId) {
+    return _firestore
+        .collection('applications')
+        .where('employerId', isEqualTo: employerId)
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
+  // Tüm başvuruları okundu olarak işaretle (Müraciətlər ekranına girildiyinde)
+  Future<void> markAllApplicationsAsRead(String employerId) async {
+    final batch = _firestore.batch();
+    final snapshot = await _firestore
+        .collection('applications')
+        .where('employerId', isEqualTo: employerId)
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    for (var doc in snapshot.docs) {
+      batch.update(doc.reference, {'isRead': true});
+    }
+
+    await batch.commit();
+  }
+
   // Başvuru durumunu güncelle
   Future<void> updateApplicationStatus(String applicationId, String status) async {
     await _firestore.collection('applications').doc(applicationId).update({

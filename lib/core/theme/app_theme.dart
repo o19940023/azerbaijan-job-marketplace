@@ -59,54 +59,65 @@ class AppTheme {
   // Shadows
   static List<BoxShadow> get cardShadow => [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.06),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
+          color: Colors.black.withValues(alpha: 0.05),
+          blurRadius: 20,
+          offset: const Offset(0, 10),
+          spreadRadius: -5,
         ),
       ];
 
   static List<BoxShadow> get elevatedShadow => [
         BoxShadow(
-          color: primaryColor.withValues(alpha: 0.15),
-          blurRadius: 20,
-          offset: const Offset(0, 8),
+          color: primaryColor.withValues(alpha: 0.25),
+          blurRadius: 25,
+          offset: const Offset(0, 10),
+          spreadRadius: -5,
+        ),
+      ];
+      
+  static List<BoxShadow> get glassShadow => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.1),
+          blurRadius: 16,
+          offset: const Offset(0, 4),
         ),
       ];
 
   // Border Radius
-  static const double radiusSmall = 8;
-  static const double radiusMedium = 12;
-  static const double radiusLarge = 16;
-  static const double radiusXLarge = 24;
+  static const double radiusSmall = 12;
+  static const double radiusMedium = 16;
+  static const double radiusLarge = 24;
+  static const double radiusXLarge = 32;
 
   // Light Theme
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       fontFamily: 'Roboto',
+      brightness: Brightness.light,
       colorScheme: ColorScheme.light(
         primary: primaryColor,
         secondary: accentColor,
         error: errorColor,
-        surface: surfaceColor,
+        surface: const Color(0xFFF0F2F5),
         onPrimary: textOnPrimary,
         onSecondary: textOnPrimary,
         onError: textOnPrimary,
         onSurface: textPrimary,
       ),
-      scaffoldBackgroundColor: backgroundColor,
+      scaffoldBackgroundColor: const Color(0xFFF8F9FA),
+      cardColor: Colors.white,
       appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         foregroundColor: textPrimary,
         elevation: 0,
-        centerTitle: true,
-        scrolledUnderElevation: 1,
-        titleTextStyle: TextStyle(
-          color: textPrimary,
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.3,
-        ),
+        scrolledUnderElevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusMedium)),
+        margin: EdgeInsets.zero,
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: Colors.white,
@@ -169,14 +180,6 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         hintStyle: const TextStyle(color: textHint, fontSize: 15),
       ),
-      cardTheme: CardThemeData(
-        elevation: 0,
-        color: cardColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusLarge),
-        ),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      ),
       chipTheme: ChipThemeData(
         backgroundColor: const Color(0xFFF3F4F6),
         selectedColor: primaryColor.withValues(alpha: 0.12),
@@ -210,29 +213,30 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       fontFamily: 'Roboto',
-      colorScheme: ColorScheme.dark(
+      brightness: Brightness.dark,
+      colorScheme: const ColorScheme.dark(
         primary: primaryLight,
         secondary: accentLight,
         error: errorColor,
-        surface: const Color(0xFF1E1E2E),
-        onPrimary: textPrimary,
-        onSecondary: textPrimary,
-        onError: Colors.white,
-        onSurface: Colors.white,
+        surface: Color(0xFF1E1E2E),
+        onPrimary: Colors.black,
+        onSecondary: Colors.black,
+        onError: Colors.black,
+        onSurface: Color(0xFFE0E0E0),
       ),
       scaffoldBackgroundColor: const Color(0xFF121218),
+      cardColor: const Color(0xFF1E1E2E),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF121218),
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
-        centerTitle: true,
-        scrolledUnderElevation: 1,
-        titleTextStyle: TextStyle(
-          color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.3,
-        ),
+        scrolledUnderElevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        color: const Color(0xFF1E1E2E),
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusMedium)),
+        margin: EdgeInsets.zero,
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: Color(0xFF1E1E2E),
@@ -295,14 +299,6 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         hintStyle: const TextStyle(color: textHint, fontSize: 15),
       ),
-      cardTheme: CardThemeData(
-        elevation: 0,
-        color: const Color(0xFF1E1E2E),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusLarge),
-        ),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      ),
       chipTheme: ChipThemeData(
         backgroundColor: const Color(0xFF2A2A3C),
         selectedColor: primaryLight.withValues(alpha: 0.2),
@@ -340,11 +336,10 @@ extension ThemeColors on BuildContext {
   Color get textPrimaryColor => isDarkMode ? Colors.white : AppTheme.textPrimary;
   Color get textSecondaryColor => isDarkMode ? Colors.white70 : AppTheme.textSecondary;
   Color get textHintColor => isDarkMode ? Colors.white54 : AppTheme.textHint;
+  Color get cardColor => theme.cardColor;
   Color get scaffoldBackgroundColor => theme.scaffoldBackgroundColor;
-  Color get cardColor => theme.cardTheme.color ?? theme.cardColor;
+  Color get dividerColor => theme.dividerTheme.color ?? AppTheme.dividerColor;
   Color get inputFillColor => theme.inputDecorationTheme.fillColor ?? (isDarkMode ? const Color(0xFF2A2A3C) : const Color(0xFFF3F4F6));
-  Color get dividerColor => theme.dividerTheme.color ?? theme.dividerColor;
   Color get chipBackgroundColor => theme.chipTheme.backgroundColor ?? (isDarkMode ? const Color(0xFF2A2A3C) : const Color(0xFFF3F4F6));
-  
-  Color get iconContainerColor => isDarkMode ? AppTheme.primaryLight.withValues(alpha: 0.15) : AppTheme.primaryColor.withValues(alpha: 0.08);
+  Color get iconContainerColor => isDarkMode ? Colors.white.withValues(alpha: 0.1) : AppTheme.primaryColor.withValues(alpha: 0.1);
 }

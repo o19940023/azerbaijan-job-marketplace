@@ -10,6 +10,7 @@ import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/cloudinary_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/theme_cubit.dart';
+import '../../../../core/widgets/shimmer_widgets.dart';
 
 class ProfileScreen extends StatefulWidget {
   final bool isEmployerView;
@@ -143,7 +144,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('users').doc(currentUser.uid).snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (!snapshot.hasData) return ShimmerWidgets.buildProfileShimmer(context);
         
         final userData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
         final fullName = userData['fullName'] as String? ?? (widget.isEmployerView ? 'Şirkət' : 'İstifadəçi');
