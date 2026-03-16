@@ -10,7 +10,7 @@ workflows:
         - app_credentials
       vars:
         PACKAGE_NAME: "com.is.tap"
-      flutter: stable
+      flutter: 3.29.0
     scripts:
       - name: Set up local.properties
         script: |
