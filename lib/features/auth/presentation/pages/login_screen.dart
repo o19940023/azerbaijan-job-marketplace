@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../data/repositories/firebase_auth_repository.dart';
@@ -66,6 +67,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         email: _emailController.text,
         password: _passwordController.text,
         expectedUserType: widget.userType,
+      );
+
+      // Log analytics login event
+      await FirebaseAnalytics.instance.logLogin(loginMethod: 'email');
+      await FirebaseAnalytics.instance.setUserProperty(
+        name: 'user_type',
+        value: widget.userType,
       );
       
       if (mounted) {

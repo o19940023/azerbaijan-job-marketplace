@@ -15,12 +15,16 @@ class RemoteConfigService {
   static const String _keyAiBaseUrl = 'ai_api_base_url';
   static const String _keyAzureTtsApiKey = 'azure_tts_api_key';
   static const String _keyAzureTtsRegion = 'azure_tts_region';
+  static const String _keyMinAppVersion = 'min_app_version';
+  static const String _keyLatestAppVersion = 'latest_app_version';
+  static const String _keyAndroidStoreUrl = 'android_store_url';
+  static const String _keyIosStoreUrl = 'ios_store_url';
 
   Future<void> initialize() async {
     try {
       await _remoteConfig.setConfigSettings(RemoteConfigSettings(
-        fetchTimeout: const Duration(minutes: 1),
-        minimumFetchInterval: const Duration(minutes: 1), // Test üçün tez-tez yoxla
+        fetchTimeout: const Duration(seconds: 10),
+        minimumFetchInterval: const Duration(minutes: 5), // Hər 5 dəqiqədən bir yoxla
       ));
 
       // Default dəyərlər (əgər internet yoxdursa və ya config tapılmasa)
@@ -28,10 +32,13 @@ class RemoteConfigService {
         _keyOpenRouterApiKey: '',
         _keyAiModelId: 'google/gemini-flash-1.5-8b',
         _keyAiModelName: 'Google Gemini 3 Flash',
-        // Base URL artıq avtomatik təyin edilir, amma yenə də default olaraq boş qoyuruq
         _keyAiBaseUrl: '', 
         _keyAzureTtsApiKey: '',
         _keyAzureTtsRegion: 'eastus',
+        _keyMinAppVersion: '1.0.0',
+        _keyLatestAppVersion: '1.0.0',
+        _keyAndroidStoreUrl: 'https://play.google.com/store/apps/details?id=com.is.tap',
+        _keyIosStoreUrl: 'https://apps.apple.com/app/id6742566101',
       });
 
       // Yeni config yüklə və aktivləşdir
@@ -92,6 +99,38 @@ class RemoteConfigService {
       return _remoteConfig.getString(_keyAzureTtsRegion);
     } catch (e) {
       return 'eastus';
+    }
+  }
+
+  String getMinAppVersion() {
+    try {
+      return _remoteConfig.getString(_keyMinAppVersion);
+    } catch (e) {
+      return '1.0.0';
+    }
+  }
+
+  String getLatestAppVersion() {
+    try {
+      return _remoteConfig.getString(_keyLatestAppVersion);
+    } catch (e) {
+      return '1.0.0';
+    }
+  }
+
+  String getAndroidStoreUrl() {
+    try {
+      return _remoteConfig.getString(_keyAndroidStoreUrl);
+    } catch (e) {
+      return 'https://play.google.com/store/apps/details?id=com.is.tap';
+    }
+  }
+
+  String getIosStoreUrl() {
+    try {
+      return _remoteConfig.getString(_keyIosStoreUrl);
+    } catch (e) {
+      return 'https://apps.apple.com/app/id6742566101';
     }
   }
 }

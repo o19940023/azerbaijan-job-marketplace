@@ -7,6 +7,8 @@ import 'core/navigation/app_router.dart';
 import 'core/services/notification_service.dart';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'firebase_options.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/services/remote_config_service.dart';
@@ -33,6 +35,14 @@ void main() async {
     // Initialize Notification Service
     await NotificationService().initialize();
     debugPrint('Notification Service initialized');
+
+    // Initialize Firebase Analytics
+    await FirebaseAnalytics.instance.logAppOpen();
+    debugPrint('Firebase Analytics initialized and logged app open');
+
+    // Initialize Crashlytics
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    debugPrint('Firebase Crashlytics initialized');
   } catch (e) {
     debugPrint('Critical initialization error: $e');
     // Continue running app even if services fail, to avoid white screen

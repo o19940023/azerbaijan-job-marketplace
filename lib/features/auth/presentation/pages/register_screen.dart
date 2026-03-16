@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../data/repositories/firebase_auth_repository.dart';
@@ -78,6 +79,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         password: _passwordController.text,
         userType: widget.userType,
       );
+
+      // Log analytics sign up event
+      await FirebaseAnalytics.instance.logSignUp(signUpMethod: 'email');
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

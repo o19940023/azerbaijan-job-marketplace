@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import '../../../../core/services/remote_config_service.dart';
+import '../../../../core/widgets/update_dialog.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/navigation/app_router.dart';
 
@@ -54,12 +57,62 @@ class _SplashScreenState extends State<SplashScreen>
 
     _logoController.forward().then((_) {
       _textController.forward();
-      Future.delayed(const Duration(milliseconds: 1500), () {
+      Future.delayed(const Duration(milliseconds: 1500), () async {
         if (mounted) {
-          _checkAuthAndNavigate();
+          final isUpdateRequired = await _checkVersion();
+          if (!isUpdateRequired && mounted) {
+            _checkAuthAndNavigate();
+          }
         }
       });
     });
+  }
+
+  Future<bool> _checkVersion() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = packageInfo.version;
+      final minVersion = RemoteConfigService().getMinAppVersion();
+      final latestVersion = RemoteConfigService().getLatestAppVersion();
+
+      // Məcburi yeniləmə (Force Update)
+      if (_isVersionLower(currentVersion, minVersion)) {
+        if (mounted) {
+          await showUpdateDialog(context, isMandatory: true);
+        }
+        return true;
+      }
+      
+      // Könüllü yeniləmə (Optional Update)
+      if (_isVersionLower(currentVersion, latestVersion)) {
+        if (mounted) {
+          await showUpdateDialog(context, isMandatory: false);
+        }
+        // Könüllü olduğu üçün tətbiqə davam edə bilər (dialog-da "Sonra" var)
+        return false; 
+      }
+    } catch (e) {
+      debugPrint('Version check error: $e');
+    }
+    return false;
+  }
+
+  bool _isVersionLower(String current, String min) {
+    try {
+      final currentParts = current.split('.').map(int.parse).toList();
+      final minParts = min.split('.').map(int.parse).toList();
+
+      for (var i = 0; i < 3; i++) {
+        final currentPart = i < currentParts.length ? currentParts[i] : 0;
+        final minPart = i < minParts.length ? minParts[i] : 0;
+
+        if (currentPart < minPart) return true;
+        if (currentPart > minPart) return false;
+      }
+    } catch (e) {
+      debugPrint('Version comparison error: $e');
+    }
+    return false;
   }
 
   Future<void> _checkAuthAndNavigate() async {
