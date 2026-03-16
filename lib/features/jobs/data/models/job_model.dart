@@ -28,6 +28,9 @@ class JobModel {
   final int applicationCount;
   final String? educationLevel;
   final String? experienceLevel;
+  final bool allowCallIfAccepted;
+  final String applicationMethod; // 'in_app' or 'redirect'
+  final String? externalUrl;
 
   const JobModel({
     required this.id,
@@ -59,6 +62,9 @@ class JobModel {
     this.applicationCount = 0,
     this.educationLevel,
     this.experienceLevel,
+    this.allowCallIfAccepted = true,
+    this.applicationMethod = 'in_app',
+    this.externalUrl,
   });
 
   String get salaryText {
@@ -115,6 +121,9 @@ class JobModel {
     int? applicationCount,
     String? educationLevel,
     String? experienceLevel,
+    bool? allowCallIfAccepted,
+    String? applicationMethod,
+    String? externalUrl,
   }) {
     return JobModel(
       id: id ?? this.id,
@@ -145,6 +154,9 @@ class JobModel {
       applicationCount: applicationCount ?? this.applicationCount,
       educationLevel: educationLevel ?? this.educationLevel,
       experienceLevel: experienceLevel ?? this.experienceLevel,
+      allowCallIfAccepted: allowCallIfAccepted ?? this.allowCallIfAccepted,
+      applicationMethod: applicationMethod ?? this.applicationMethod,
+      externalUrl: externalUrl ?? this.externalUrl,
     );
   }
 
@@ -179,6 +191,9 @@ class JobModel {
       'applicationCount': applicationCount,
       'educationLevel': educationLevel,
       'experienceLevel': experienceLevel,
+      'allowCallIfAccepted': allowCallIfAccepted,
+      'applicationMethod': applicationMethod,
+      'externalUrl': externalUrl,
     };
   }
 
@@ -213,6 +228,9 @@ class JobModel {
       applicationCount: map['applicationCount']?.toInt() ?? 0,
       educationLevel: map['educationLevel'],
       experienceLevel: map['experienceLevel'],
+      allowCallIfAccepted: map['allowCallIfAccepted'] ?? true,
+      applicationMethod: map['applicationMethod'] ?? 'in_app',
+      externalUrl: map['externalUrl'],
     );
   }
 }

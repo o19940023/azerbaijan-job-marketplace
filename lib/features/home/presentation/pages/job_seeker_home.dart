@@ -1057,6 +1057,7 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                           String title = jobData['title'] ?? 'Bilinməyən Elan';
                           String company = jobData['companyName'] ?? 'Bilinməyən Şirkət';
                           String contactPhone = jobData['contactPhone'] ?? '';
+                          bool allowCall = jobData['allowCallIfAccepted'] ?? true;
 
                           Color statusColor = AppTheme.warningColor;
                           String statusText = 'Müraciətiniz gözləmədədir';
@@ -1147,13 +1148,13 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                                       const SizedBox(height: 8),
                                       Row(
                                         children: [
-                                          if (contactPhone.isNotEmpty)
+                                          if (contactPhone.isNotEmpty && allowCall)
                                             InkWell(
                                             onTap: () async {
                                               final Uri url = Uri(scheme: 'tel', path: contactPhone);
-                                              if (await canLaunchUrl(url)) {
+                                              try {
                                                 await launchUrl(url);
-                                              } else {
+                                              } catch (e) {
                                                 if (context.mounted) {
                                                   ScaffoldMessenger.of(context).showSnackBar(
                                                     const SnackBar(content: Text('Zəng etmək mümkün deyil')),

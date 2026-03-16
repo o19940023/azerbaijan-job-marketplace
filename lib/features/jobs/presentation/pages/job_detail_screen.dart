@@ -12,6 +12,7 @@ import '../../../chat/presentation/pages/chat_detail_screen.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'create_job_screen.dart';
 
 class JobDetailScreen extends StatefulWidget {
@@ -772,7 +773,7 @@ class _SeekerActionButtonsState extends State<_SeekerActionButtons> {
         child: Row(
           children: [
             // Call button
-            if (isAccepted) ...[
+            if (isAccepted && widget.job.allowCallIfAccepted) ...[
               Container(
                 width: 52,
                 height: 52,
@@ -781,12 +782,19 @@ class _SeekerActionButtonsState extends State<_SeekerActionButtons> {
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: IconButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Nömrə maskelidir - təhlükəsiz zəng'),
-                      ),
-                    );
+                  onPressed: () async {
+                    if (widget.job.contactPhone.isNotEmpty) {
+                      final Uri url = Uri(scheme: 'tel', path: widget.job.contactPhone);
+                      try {
+                        await launchUrl(url);
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Zəng etmək mümkün deyil')),
+                          );
+                        }
+                      }
+                    }
                   },
                   icon: const Icon(
                     Icons.phone_rounded,
@@ -861,6 +869,23 @@ class _SeekerActionButtonsState extends State<_SeekerActionButtons> {
                   onPressed: _isLoading || _hasApplied 
                     ? null 
                     : () async {
+                        // Check if this job uses external redirect
+                        if (widget.job.applicationMethod == 'redirect' && 
+                            widget.job.externalUrl != null && 
+                            widget.job.externalUrl!.isNotEmpty) {
+                          final uri = Uri.parse(widget.job.externalUrl!);
+                          try {
+                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Link açıla bilmədi')),
+                              );
+                            }
+                          }
+                          return;
+                        }
+
                         final currentUser = FirebaseAuth.instance.currentUser;
                         if (currentUser == null) {
                           ScaffoldMessenger.of(context).showSnackBar(

@@ -44,6 +44,9 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
   bool _isUploadingLogo = false;
   String _selectedEducation = 'Vacib deyil';
   String _selectedExperience = 'Təcrübəsiz';
+  bool _allowCallIfAccepted = true;
+  String _applicationMethod = 'in_app';
+  final _externalUrlController = TextEditingController();
 
   @override
   void initState() {
@@ -68,6 +71,9 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
       _companyLogoUrl = job.companyLogo;
       _selectedEducation = job.educationLevel ?? 'Vacib deyil';
       _selectedExperience = job.experienceLevel ?? 'Təcrübəsiz';
+      _allowCallIfAccepted = job.allowCallIfAccepted;
+      _applicationMethod = job.applicationMethod;
+      _externalUrlController.text = job.externalUrl ?? '';
     }
   }
 
@@ -79,6 +85,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
     _salaryMaxController.dispose();
     _workingHoursController.dispose();
     _requirementController.dispose();
+    _externalUrlController.dispose();
     super.dispose();
   }
 
@@ -147,6 +154,9 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
         experienceLevel: _selectedExperience,
         viewCount: widget.existingJob?.viewCount ?? 0,
         applicationCount: widget.existingJob?.applicationCount ?? 0,
+        allowCallIfAccepted: _allowCallIfAccepted,
+        applicationMethod: _applicationMethod,
+        externalUrl: _applicationMethod == 'redirect' ? _externalUrlController.text.trim() : null,
       );
 
       await FirebaseFirestore.instance.collection('jobs').doc(jobId).set(newJob.toMap());
@@ -658,6 +668,140 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+
+              // Allow call if accepted toggle
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _allowCallIfAccepted
+                      ? AppTheme.successColor.withValues(alpha: 0.08)
+                      : context.inputFillColor,
+                  borderRadius: BorderRadius.circular(14),
+                  border: _allowCallIfAccepted
+                      ? Border.all(
+                          color: AppTheme.successColor.withValues(alpha: 0.3))
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    const Text('📞', style: TextStyle(fontSize: 24)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Qəbul etdiyin namizədlər sənə zəng edə bilsin',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                          Text(
+                            _allowCallIfAccepted 
+                              ? 'Namizəd qəbul edilsə zəng edə bilər'
+                              : 'Namizəd qəbul edilsə belə zəng edə bilməz',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.textHintColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _allowCallIfAccepted,
+                      onChanged: (v) => setState(() => _allowCallIfAccepted = v),
+                      activeColor: AppTheme.successColor,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Application method selector
+              _buildLabel('Müraciət üsulu'),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: context.inputFillColor,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _applicationMethod = 'in_app'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _applicationMethod == 'in_app'
+                                ? AppTheme.primaryColor
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Tətbiqdən',
+                              style: TextStyle(
+                                color: _applicationMethod == 'in_app'
+                                    ? Colors.white
+                                    : context.textSecondaryColor,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _applicationMethod = 'redirect'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _applicationMethod == 'redirect'
+                                ? AppTheme.primaryColor
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Yönləndir',
+                              style: TextStyle(
+                                color: _applicationMethod == 'redirect'
+                                    ? Colors.white
+                                    : context.textSecondaryColor,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_applicationMethod == 'redirect') ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _externalUrlController,
+                  keyboardType: TextInputType.url,
+                  decoration: const InputDecoration(
+                    hintText: 'https://example.com/apply',
+                    prefixIcon: Icon(Icons.link_rounded),
+                  ),
+                  validator: (v) {
+                    if (_applicationMethod == 'redirect' && (v == null || v.trim().isEmpty)) {
+                      return 'Yönləndirmə linkini daxil edin';
+                    }
+                    return null;
+                  },
+                ),
+              ],
               const SizedBox(height: 28),
 
               // Submit
