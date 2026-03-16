@@ -60,7 +60,7 @@ class _SplashScreenState extends State<SplashScreen>
         }
       });
     });
-  } }
+  }
 
   Future<void> _checkAuthAndNavigate() async {
     try {
