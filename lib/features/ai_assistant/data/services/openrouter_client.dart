@@ -186,6 +186,8 @@ class OpenRouterClient {
       'DEBUG CONFIG: BaseURL=${ModelConfiguration.baseUrl}, Model=$modelId',
       name: 'OpenRouterClient',
     );
+    print('DEBUG CONFIG: BaseURL=${ModelConfiguration.baseUrl}, Model=$modelId'); // Console log
+    print('DEBUG KEY: ${ModelConfiguration.apiKey.substring(0, 10)}...'); // Console log (masked)
     
     final uri = Uri.parse(ModelConfiguration.baseUrl);
     
@@ -210,6 +212,8 @@ class OpenRouterClient {
             );
           },
         );
+    
+    print('DEBUG RESPONSE: Status=${response.statusCode}, Body=${response.body}'); // Console log
     
     return response;
   }
