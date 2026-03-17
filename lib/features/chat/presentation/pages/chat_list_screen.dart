@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/navigation/app_router.dart';
 import '../../data/repositories/chat_repository.dart';
 import 'chat_detail_screen.dart';
 
@@ -20,7 +21,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
   @override
   void initState() {
     super.initState();
-    _checkChatEula();
+    if (FirebaseAuth.instance.currentUser != null) {
+      _checkChatEula();
+    }
   }
 
   Future<void> _checkChatEula() async {
@@ -148,7 +151,35 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     if (currentUser == null) {
-      return const Center(child: Text('Zəhmət olmasa daxil olun.'));
+      final userType = widget.isEmployerView ? 'employer' : 'job_seeker';
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Zəhmət olmasa daxil olun.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(
+                      context,
+                      AppRouter.authChoice,
+                      arguments: userType,
+                    );
+                  },
+                  child: const Text('Daxil ol / Qeydiyyat'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return SafeArea(

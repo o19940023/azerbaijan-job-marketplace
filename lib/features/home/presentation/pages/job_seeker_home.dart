@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/navigation/app_router.dart';
 import '../../../../core/constants/job_categories.dart';
 import '../../../../features/applications/data/models/application_model.dart';
 import '../../../../features/applications/data/repositories/applications_repository.dart';
@@ -75,9 +76,12 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
       );
 
       if (result == true && mounted) {
-        setState(() {
-          _currentIndex = 4; // Switch to Profile tab
-        });
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          setState(() {
+            _currentIndex = 4;
+          });
+        }
       }
     }
   }
@@ -660,9 +664,11 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
           ],
         ),
         child: StreamBuilder<int>(
-          stream: ChatRepository().getTotalUnreadCount(
-            FirebaseAuth.instance.currentUser?.uid ?? '',
-          ),
+          stream: FirebaseAuth.instance.currentUser?.uid == null
+              ? Stream.value(0)
+              : ChatRepository().getTotalUnreadCount(
+                  FirebaseAuth.instance.currentUser!.uid,
+                ),
           builder: (context, unreadSnapshot) {
             final unreadCount = unreadSnapshot.data ?? 0;
             return BottomNavigationBar(
@@ -727,13 +733,13 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
       child: RefreshIndicator(
         onRefresh: _fetchJobs,
         color: AppTheme.primaryColor,
-        child: FutureBuilder<DocumentSnapshot>(
+        child: FutureBuilder<DocumentSnapshot?>(
           future: currentUser != null
               ? FirebaseFirestore.instance
                     .collection('users')
                     .doc(currentUser.uid)
                     .get()
-              : Future.value(null),
+              : Future<DocumentSnapshot?>.value(null),
           builder: (context, userSnapshot) {
             List<String> blockedUsers = [];
             if (userSnapshot.hasData &&
@@ -1342,7 +1348,36 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
 
   Widget _buildApplicationsPage() {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-    if (currentUserId == null) return const Center(child: Text('Daxil olun'));
+    if (currentUserId == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Müraciətləri görmək üçün daxil olun',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(
+                      context,
+                      AppRouter.authChoice,
+                      arguments: 'job_seeker',
+                    );
+                  },
+                  child: const Text('Daxil ol / Qeydiyyat'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return SafeArea(
       child: Padding(

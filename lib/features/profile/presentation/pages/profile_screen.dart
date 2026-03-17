@@ -146,8 +146,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
+      final userType = widget.isEmployerView ? 'employer' : 'job_seeker';
       return Scaffold(
-        body: const Center(child: Text('Zəhmət olmasa daxil olun')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Zəhmət olmasa daxil olun',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushNamed(
+                        context,
+                        AppRouter.authChoice,
+                        arguments: userType,
+                      );
+                    },
+                    child: const Text('Daxil ol / Qeydiyyat'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 

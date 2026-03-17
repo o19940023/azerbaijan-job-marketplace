@@ -109,10 +109,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen>
                     subtitle: 'Yaxınlıqdakı iş imkanlarını tap',
                     gradient: AppTheme.primaryGradient,
                     onTap: () {
-                      Navigator.pushNamed(
+                      Navigator.pushReplacementNamed(
                         context,
-                        AppRouter.authChoice,
-                        arguments: 'job_seeker',
+                        AppRouter.jobSeekerHome,
                       );
                     },
                   ),
