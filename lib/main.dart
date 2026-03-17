@@ -26,6 +26,14 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     ).timeout(const Duration(seconds: 8));
+    
+    // Initialize RemoteConfig immediately after Firebase (Critical for AI)
+    try {
+      await RemoteConfigService().initialize().timeout(const Duration(seconds: 10));
+    } catch (e) {
+      debugPrint('Warning: Remote Config initialization failed: $e');
+    }
+
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
     PlatformDispatcher.instance.onError = (error, stack) {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
@@ -74,11 +82,7 @@ class _AzerbaijanJobMarketplaceAppState extends State<AzerbaijanJobMarketplaceAp
   }
 
   Future<void> _initializeNonCriticalServices() async {
-    try {
-      await RemoteConfigService().initialize().timeout(const Duration(seconds: 10));
-    } catch (e) {
-      debugPrint('Warning: Remote Config initialization failed: $e');
-    }
+    // RemoteConfig is now initialized in main()
     try {
       await NotificationService().initialize().timeout(const Duration(seconds: 10));
     } catch (e) {

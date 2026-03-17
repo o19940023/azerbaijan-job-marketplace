@@ -29,11 +29,24 @@ class ModelConfiguration {
   /// OpenRouter API key
   /// Priority: Remote Config > .env
   static String get apiKey {
-    final remoteKey = RemoteConfigService().openRouterApiKey;
-    if (remoteKey.isNotEmpty) {
-      return remoteKey;
+    try {
+      // Check if RemoteConfig is initialized (implicitly via try-catch if internal instance is null)
+      final remoteKey = RemoteConfigService().openRouterApiKey;
+      if (remoteKey.isNotEmpty) {
+        return remoteKey;
+      }
+    } catch (_) {
+      // RemoteConfig might not be ready, fallback to .env
     }
-    return dotenv.env['OPENROUTER_API_KEY'] ?? '';
+    
+    // Fallback to .env, but ensure dotenv is loaded
+    try {
+      if (dotenv.isInitialized) {
+        return dotenv.env['OPENROUTER_API_KEY'] ?? '';
+      }
+    } catch (_) {}
+    
+    return '';
   }
 
   /// Default AI Model ID
