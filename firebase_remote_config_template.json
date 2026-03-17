@@ -8,21 +8,21 @@
     },
     "ai_model_id": {
       "defaultValue": {
-        "value": "llama-3.3-70b-versatile"
+        "value": "openai/gpt-4o-mini"
       },
-      "description": "ID of the AI model to use (e.g., llama-3.3-70b-versatile, openai/gpt-4o-mini)"
+      "description": "ID of the AI model to use (OpenRouter model id)"
     },
     "ai_model_name": {
       "defaultValue": {
-        "value": "Llama 3.3 70B (Groq)"
+        "value": "OpenAI GPT-4o mini (OpenRouter)"
       },
       "description": "Display name of the AI model shown in the app"
     },
     "ai_api_base_url": {
       "defaultValue": {
-        "value": ""
+        "value": "https://openrouter.ai/api/v1/chat/completions"
       },
-      "description": "Base URL for AI API (optional override)"
+      "description": "Base URL for AI API endpoint"
     },
     "azure_tts_api_key": {
       "defaultValue": {
