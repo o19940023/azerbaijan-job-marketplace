@@ -5,17 +5,15 @@ import '../config/model_configuration.dart';
 import 'openrouter_client.dart';
 
 /// Facade service for AI assistant functionality
-/// Manages conversation history, message enrichment, and delegates to OpenRouterClient
-/// 
-/// Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 10.3, 10.5
+/// Manages conversation history, message enrichment, and delegates to GeminiClient
 class AiService {
-  final OpenRouterClient _client;
+  final GeminiClient _client;
   final List<Map<String, String>> _messages;
 
-  /// Creates an AiService with optional OpenRouterClient
+  /// Creates an AiService with optional GeminiClient
   /// Initializes conversation with system prompt
-  AiService({OpenRouterClient? client})
-      : _client = client ?? OpenRouterClient(),
+  AiService({GeminiClient? client})
+      : _client = client ?? GeminiClient(),
         _messages = [] {
     _initChat();
   }

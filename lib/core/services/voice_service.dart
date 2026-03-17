@@ -160,14 +160,43 @@ class VoiceService {
       final audioFile = File('${tempDir.path}/tts_azure_${DateTime.now().millisecondsSinceEpoch}.mp3');
       
       // Azure TTS API Key - Priority: Remote Config > .env
-      String azureApiKey = RemoteConfigService().getAzureTtsApiKey();
+      String azureApiKey = '';
+      try {
+        azureApiKey = RemoteConfigService().getAzureTtsApiKey();
+      } catch (_) {}
+      
       if (azureApiKey.isEmpty) {
-        azureApiKey = dotenv.env['AZURE_TTS_API_KEY'] ?? '';
+        try {
+          if (dotenv.isInitialized) {
+            azureApiKey = dotenv.env['AZURE_TTS_API_KEY'] ?? '';
+          }
+        } catch (_) {}
       }
 
-      String azureRegion = RemoteConfigService().getAzureTtsRegion();
+      String azureRegion = '';
+      try {
+        azureRegion = RemoteConfigService().getAzureTtsRegion();
+      } catch (_) {}
+      
       if (azureRegion.isEmpty || azureRegion == 'eastus') { // If default or empty, check .env
-        azureRegion = dotenv.env['AZURE_TTS_REGION'] ?? 'eastus';
+        try {
+          if (dotenv.isInitialized) {
+            azureRegion = dotenv.env['AZURE_TTS_REGION'] ?? 'eastus';
+          } else {
+            azureRegion = 'eastus';
+          }
+        } catch (_) {
+          azureRegion = 'eastus';
+        }
+      }
+      
+      // Clean up keys and regions (remove whitespace, backticks, or commas)
+      azureApiKey = azureApiKey.replaceAll('`', '').replaceAll(',', '').trim();
+      azureRegion = azureRegion.replaceAll('`', '').replaceAll(',', '').trim();
+      
+      if (azureApiKey.isEmpty) {
+        debugPrint('VoiceService: Azure TTS API Key is missing. TTS disabled. Add key to Remote Config or .env.');
+        return false;
       }
       
       // Azure TTS SSML

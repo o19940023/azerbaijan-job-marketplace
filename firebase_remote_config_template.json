@@ -1,26 +1,20 @@
 {
   "parameters": {
-    "openrouter_api_key": {
+    "groq_api_key": {
       "defaultValue": {
         "value": ""
       },
-      "description": "API Key for OpenRouter AI service (if empty, uses .env)"
+      "description": "Groq AI API Key"
     },
     "ai_model_id": {
       "defaultValue": {
-        "value": "openai/gpt-4o-mini"
+        "value": "llama-3.3-70b-versatile"
       },
-      "description": "ID of the AI model to use (OpenRouter model id)"
-    },
-    "ai_model_name": {
-      "defaultValue": {
-        "value": "OpenAI GPT-4o mini (OpenRouter)"
-      },
-      "description": "Display name of the AI model shown in the app"
+      "description": "Groq model ID (e.g., llama-3.3-70b-versatile)"
     },
     "ai_api_base_url": {
       "defaultValue": {
-        "value": "https://openrouter.ai/api/v1/chat/completions"
+        "value": "https://api.groq.com/openai/v1/chat/completions"
       },
       "description": "Base URL for AI API endpoint"
     },
@@ -28,43 +22,25 @@
       "defaultValue": {
         "value": ""
       },
-      "description": "API Key for Azure Text-to-Speech service (if empty, uses .env)"
+      "description": "API Key for Azure Text-to-Speech service"
     },
     "azure_tts_region": {
       "defaultValue": {
         "value": "eastus"
       },
-      "description": "Region for Azure Text-to-Speech service (e.g., eastus)"
-    },
-    "github_api_key": {
-      "defaultValue": {
-        "value": ""
-      },
-      "description": "GitHub API Key for AI service (if empty, uses .env)"
+      "description": "Region for Azure Text-to-Speech service"
     },
     "min_app_version": {
       "defaultValue": {
         "value": "1.0.0"
       },
-      "description": "Minimum required app version for force update"
+      "description": "Minimum required app version"
     },
     "latest_app_version": {
       "defaultValue": {
         "value": "1.0.0"
       },
-      "description": "Latest available app version for optional update notification"
-    },
-    "android_store_url": {
-      "defaultValue": {
-        "value": "https://play.google.com/store/apps/details?id=com.is.tap"
-      },
-      "description": "Google Play Store URL for update redirection"
-    },
-    "ios_store_url": {
-      "defaultValue": {
-        "value": "https://apps.apple.com/app/id6742566101"
-      },
-      "description": "App Store URL for update redirection"
+      "description": "Latest available app version"
     }
   }
 }

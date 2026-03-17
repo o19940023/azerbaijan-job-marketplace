@@ -137,14 +137,14 @@ class JobListCard extends StatelessWidget {
                         Container(
                           margin: const EdgeInsets.only(left: 8),
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
+                            horizontal: 8,
+                            vertical: 4,
                           ),
                           decoration: BoxDecoration(
                             color: AppTheme.accentColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: AppTheme.accentColor.withValues(alpha: 0.2),
+                              color: AppTheme.accentColor.withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -153,11 +153,11 @@ class JobListCard extends StatelessWidget {
                             children: [
                               const Icon(
                                 Icons.local_fire_department_rounded,
-                                size: 12,
+                                size: 14,
                                 color: AppTheme.accentColor,
                               ).animate(onPlay: (c) => c.repeat()).shimmer(
-                                duration: 2000.ms,
-                                color: Colors.white.withValues(alpha: 0.8),
+                                duration: 1500.ms,
+                                color: Colors.white.withValues(alpha: 0.6),
                               ),
                               const SizedBox(width: 4),
                               const Text(
