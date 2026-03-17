@@ -197,45 +197,56 @@ class AiAssistantCubit extends Cubit<AiAssistantState> {
     debugPrint('AiAssistantCubit: _handleSpecialCommands input: $response');
     
     // Profile update command
-    if (response.contains('[PROFILE_UPDATE]') && response.contains('[/PROFILE_UPDATE]')) {
+    if (response.contains('[PROFILE_UPDATE]')) {
       try {
-        final jsonStr = response
-            .split('[PROFILE_UPDATE]')[1]
-            .split('[/PROFILE_UPDATE]')[0]
-            .trim();
-        
+        final parts = response.split('[PROFILE_UPDATE]');
+        final textBefore = parts[0].trim();
+        final jsonPart = parts[1].split('[/PROFILE_UPDATE]')[0].trim();
+        final textAfter = parts[1].split('[/PROFILE_UPDATE]').length > 1 
+            ? parts[1].split('[/PROFILE_UPDATE]')[1].trim() 
+            : '';
+            
         // Clean markdown code blocks if present
-        final cleanJson = jsonStr
+        final cleanJson = jsonPart
             .replaceAll('```json', '')
             .replaceAll('```', '')
             .trim();
         
         debugPrint('AiAssistantCubit: Profile update JSON: $cleanJson');
         
-        final profileData = json.decode(cleanJson) as Map<String, dynamic>;
-        final success = await _profileService.updateProfileFromAi(profileData);
-        
-        if (success) {
-          // Trigger iOS-style notification
-          emit(state.copyWith(showProfileUpdatedNotification: true));
+        try {
+          final profileData = json.decode(cleanJson) as Map<String, dynamic>;
+          final success = await _profileService.updateProfileFromAi(profileData);
           
-          // Auto-hide notification after 3 seconds
-          Future.delayed(const Duration(seconds: 3), () {
-            if (!isClosed) {
-              emit(state.copyWith(showProfileUpdatedNotification: false));
-            }
-          });
-          
-          // Remove the JSON part from visible response
-          response = response.split('[PROFILE_UPDATE]')[0].trim();
-          if (response.isEmpty) {
-            response = 'Profiliniz uğurla yeniləndi!';
+          if (success) {
+            // Trigger iOS-style notification
+            emit(state.copyWith(showProfileUpdatedNotification: true));
+            
+            // Auto-hide notification after 3 seconds
+            Future.delayed(const Duration(seconds: 3), () {
+              if (!isClosed) {
+                emit(state.copyWith(showProfileUpdatedNotification: false));
+              }
+            });
           }
+        } catch (e) {
+          debugPrint('Profile update JSON parse error: $e');
         }
+        
+        // Remove the JSON part from visible response
+        // Use text before or text after, whichever is meaningful
+        String displayText = textAfter.isNotEmpty ? textAfter : textBefore;
+        if (displayText.isEmpty) {
+          displayText = 'Profiliniz uğurla yeniləndi!';
+        }
+        
+        return AiMessage(text: displayText, isUser: false);
       } catch (e) {
         debugPrint('Profile update error: $e');
+        // If error, just return original response cleaned
+        final cleanResponse = response.replaceAll(RegExp(r'\[PROFILE_UPDATE\].*?\[/PROFILE_UPDATE\]', dotAll: true), '').trim();
+        return AiMessage(text: cleanResponse.isNotEmpty ? cleanResponse : 'Profil yeniləndi.', isUser: false);
       }
-      return AiMessage(text: response, isUser: false);
     }
 
     // Job search command

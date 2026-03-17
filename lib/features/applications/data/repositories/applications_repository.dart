@@ -22,15 +22,18 @@ class ApplicationsRepository {
       appliedAt: DateTime.now(),
     );
 
-    // Başvuruyu kaydet and Elanın başvuru sayısını artır (transaction ile)
-    await _firestore.runTransaction((transaction) async {
-      transaction.set(newAppRef, application.toMap());
-
-      final jobRef = _firestore.collection('jobs').doc(jobId);
-      transaction.update(jobRef, {
+    // Başvuruyu kaydet (Sadece müraciəti qeyd edirik)
+    await _firestore.collection('applications').doc(newAppRef.id).set(application.toMap());
+    
+    // Elanın müraciət sayını artırırıq
+    try {
+      await _firestore.collection('jobs').doc(jobId).update({
         'applicationCount': FieldValue.increment(1),
       });
-    });
+    } catch (e) {
+      print('Warning: Could not increment application count: $e');
+      // İcazə xətası olsa belə müraciət tamamlanmış sayılır
+    }
   }
 
   // İş arayanın yaptığı başvuruları getir
@@ -106,9 +109,15 @@ class ApplicationsRepository {
 
   // Başvuru durumunu güncelle
   Future<void> updateApplicationStatus(String applicationId, String status) async {
-    await _firestore.collection('applications').doc(applicationId).update({
-      'status': status,
-    });
+    try {
+      // Sadece status sahasını yeniləyirik, ən sadə şəkildə
+      await _firestore.collection('applications').doc(applicationId).update({
+        'status': status,
+      });
+    } catch (e) {
+      print('Error updating application status: $e');
+      rethrow;
+    }
   }
 
   // İş arayanın bu elana daha önce başvurup başvurmadığını kontrol et

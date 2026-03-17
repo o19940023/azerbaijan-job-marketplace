@@ -46,6 +46,33 @@ class AiProfileService {
       if (aiData.containsKey('city') && aiData['city'] != null) {
         updateData['city'] = aiData['city'];
       }
+
+      // Yeni eklenen alanlar
+      if (aiData.containsKey('profession') && aiData['profession'] != null) {
+        updateData['profession'] = aiData['profession'];
+      }
+      if (aiData.containsKey('jobType') && aiData['jobType'] != null) {
+        updateData['jobType'] = aiData['jobType'];
+      }
+      if (aiData.containsKey('expectedSalary') &&
+          aiData['expectedSalary'] != null) {
+        updateData['expectedSalary'] = aiData['expectedSalary'];
+      }
+      if (aiData.containsKey('languages') && aiData['languages'] != null) {
+        updateData['languages'] = aiData['languages'];
+      }
+      if (aiData.containsKey('strengths') && aiData['strengths'] != null) {
+        updateData['strengths'] = aiData['strengths'];
+      }
+      if (aiData.containsKey('careerGoal') && aiData['careerGoal'] != null) {
+        updateData['careerGoal'] = aiData['careerGoal'];
+      }
+      if (aiData.containsKey('cvSummary') && aiData['cvSummary'] != null) {
+        updateData['cvSummary'] = aiData['cvSummary'];
+      }
+      if (aiData.containsKey('jobTags') && aiData['jobTags'] != null) {
+        updateData['jobTags'] = aiData['jobTags'];
+      }
       if (aiData.containsKey('birthDate') && aiData['birthDate'] != null) {
         try {
           final dateStr = aiData['birthDate'] as String;
@@ -81,14 +108,15 @@ class AiProfileService {
 
     // Create a clean JSON object with only relevant fields
     final profileJson = <String, dynamic>{};
-    
+
     if (data['fullName'] != null && data['fullName'].toString().isNotEmpty) {
       profileJson['fullName'] = data['fullName'];
     }
     if (data['bio'] != null && data['bio'].toString().isNotEmpty) {
       profileJson['bio'] = data['bio'];
     }
-    if (data['experience'] != null && data['experience'].toString().isNotEmpty) {
+    if (data['experience'] != null &&
+        data['experience'].toString().isNotEmpty) {
       profileJson['experience'] = data['experience'];
     }
     if (data['education'] != null && data['education'].toString().isNotEmpty) {
@@ -102,6 +130,35 @@ class AiProfileService {
     }
     if (data['city'] != null && data['city'].toString().isNotEmpty) {
       profileJson['city'] = data['city'];
+    }
+
+    // Yeni eklenen alanlar
+    if (data['profession'] != null &&
+        data['profession'].toString().isNotEmpty) {
+      profileJson['profession'] = data['profession'];
+    }
+    if (data['jobType'] != null && data['jobType'].toString().isNotEmpty) {
+      profileJson['jobType'] = data['jobType'];
+    }
+    if (data['expectedSalary'] != null &&
+        data['expectedSalary'].toString().isNotEmpty) {
+      profileJson['expectedSalary'] = data['expectedSalary'];
+    }
+    if (data['languages'] != null && data['languages'].toString().isNotEmpty) {
+      profileJson['languages'] = data['languages'];
+    }
+    if (data['strengths'] != null && data['strengths'].toString().isNotEmpty) {
+      profileJson['strengths'] = data['strengths'];
+    }
+    if (data['careerGoal'] != null &&
+        data['careerGoal'].toString().isNotEmpty) {
+      profileJson['careerGoal'] = data['careerGoal'];
+    }
+    if (data['cvSummary'] != null && data['cvSummary'].toString().isNotEmpty) {
+      profileJson['cvSummary'] = data['cvSummary'];
+    }
+    if (data['jobTags'] != null && data['jobTags'].toString().isNotEmpty) {
+      profileJson['jobTags'] = data['jobTags'];
     }
     if (data['phone'] != null && data['phone'].toString().isNotEmpty) {
       profileJson['phone'] = data['phone'];

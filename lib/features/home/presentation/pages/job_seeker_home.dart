@@ -18,6 +18,7 @@ import '../../../map/presentation/pages/map_view_screen.dart';
 import '../../../chat/presentation/pages/chat_list_screen.dart';
 import '../../../profile/presentation/pages/profile_screen.dart';
 import '../../../ai_assistant/presentation/ai_assistant_overlay.dart';
+import '../../../onboarding/presentation/pages/app_onboarding_screen.dart';
 
 class JobSeekerHome extends StatefulWidget {
   const JobSeekerHome({super.key});
@@ -54,7 +55,31 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
     super.initState();
     _loadSearchHistory();
     _fetchJobs();
-    _getUserLocation(); // Konumu açılışta al
+    _getUserLocation();
+    _checkOnboarding();
+  }
+
+  Future<void> _checkOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool('has_seen_onboarding_v2') ?? false;
+
+    if (!hasSeen && mounted) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+
+      final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => const AppOnboardingScreen(isEmployer: false),
+          fullscreenDialog: true,
+        ),
+      );
+
+      if (result == true && mounted) {
+        setState(() {
+          _currentIndex = 4; // Switch to Profile tab
+        });
+      }
+    }
   }
 
   Future<void> _getUserLocation() async {

@@ -249,699 +249,710 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final content = SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.existingJob != null
-                    ? 'Elanı Redaktə et'
-                    : 'Yeni Elan ver',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: context.textPrimaryColor,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              if (widget.existingJob == null)
+    final content = Material(
+      color: context.scaffoldBackgroundColor,
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  '1 dəqiqədə pulsuz Elan yerləşdir',
+                  widget.existingJob != null
+                      ? 'Elanı Redaktə et'
+                      : 'Yeni Elan ver',
                   style: TextStyle(
-                    fontSize: 14,
-                    color: context.textSecondaryColor,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: context.textPrimaryColor,
+                    letterSpacing: -0.5,
                   ),
                 ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 4),
+                if (widget.existingJob == null)
+                  Text(
+                    '1 dəqiqədə pulsuz Elan yerləşdir',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: context.textSecondaryColor,
+                    ),
+                  ),
+                const SizedBox(height: 24),
 
-              // Job Title
-              _buildLabel('Vəzifə adı'),
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  hintText: 'məs. Ofisant, Kuryer, Satıcı...',
+                // Job Title
+                _buildLabel('Vəzifə adı'),
+                TextFormField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    hintText: 'məs. Ofisant, Kuryer, Satıcı...',
+                  ),
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Vəzifə adını daxil edin' : null,
                 ),
-                validator: (v) =>
-                    v == null || v.isEmpty ? 'Vəzifə adını daxil edin' : null,
-              ),
-              const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-              // Category
-              _buildLabel('Kateqoriya'),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: context.inputFillColor,
-                  borderRadius: BorderRadius.circular(12),
+                // Category
+                _buildLabel('Kateqoriya'),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: context.inputFillColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedCategory,
+                      isExpanded: true,
+                      onChanged: (v) => setState(() => _selectedCategory = v!),
+                      items: JobCategories.all.map((c) {
+                        return DropdownMenuItem(
+                          value: c.id,
+                          child: Row(
+                            children: [
+                              Icon(c.icon, size: 18, color: c.color),
+                              const SizedBox(width: 10),
+                              Text(c.name),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedCategory,
-                    isExpanded: true,
-                    onChanged: (v) => setState(() => _selectedCategory = v!),
-                    items: JobCategories.all.map((c) {
-                      return DropdownMenuItem(
-                        value: c.id,
-                        child: Row(
-                          children: [
-                            Icon(c.icon, size: 18, color: c.color),
-                            const SizedBox(width: 10),
-                            Text(c.name),
+                const SizedBox(height: 20),
+
+                // Job Type
+                _buildLabel('İş növü'),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildJobTypeChip('Tam gün', 'fullTime'),
+                    _buildJobTypeChip('Yarım gün', 'partTime'),
+                    _buildJobTypeChip('Günlük', 'daily'),
+                    _buildJobTypeChip('Saatlıq', 'hourly'),
+                    _buildJobTypeChip('Freelance', 'freelance'),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Education Level
+                _buildLabel('Təhsil tələbi'),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: context.inputFillColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedEducation,
+                      isExpanded: true,
+                      onChanged: (v) => setState(() => _selectedEducation = v!),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Vacib deyil',
+                          child: Text('Vacib deyil'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Elmi dərəcə',
+                          child: Text('Elmi dərəcə'),
+                        ),
+                        DropdownMenuItem(value: 'Ali', child: Text('Ali')),
+                        DropdownMenuItem(
+                          value: 'Natamam ali',
+                          child: Text('Natamam ali'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Orta texniki',
+                          child: Text('Orta texniki'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Orta xüsusi',
+                          child: Text('Orta xüsusi'),
+                        ),
+                        DropdownMenuItem(value: 'Orta', child: Text('Orta')),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Experience Level
+                _buildLabel('İş Təcrübəsi'),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: context.inputFillColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedExperience,
+                      isExpanded: true,
+                      onChanged: (v) =>
+                          setState(() => _selectedExperience = v!),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Təcrübəsiz',
+                          child: Text('Təcrübəsiz'),
+                        ),
+                        DropdownMenuItem(
+                          value: '1 ildən aşağı',
+                          child: Text('1 ildən aşağı'),
+                        ),
+                        DropdownMenuItem(
+                          value: '1 ildən 3 ilə qədər',
+                          child: Text('1 ildən 3 ilə qədər'),
+                        ),
+                        DropdownMenuItem(
+                          value: '3 ildən 5 ilə qədər',
+                          child: Text('3 ildən 5 ilə qədər'),
+                        ),
+                        DropdownMenuItem(
+                          value: '5 ildən artıq',
+                          child: Text('5 ildən artıq'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Salary
+                _buildLabel('Maaş (₼)'),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _salaryMinController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(hintText: 'Minimum'),
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Maaş daxil edin' : null,
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text('—'),
+                    ),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _salaryMaxController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(hintText: 'Maksimum'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: context.inputFillColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedSalaryPeriod,
+                          onChanged: (v) =>
+                              setState(() => _selectedSalaryPeriod = v!),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'aylıq',
+                              child: Text('Aylıq'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'günlük',
+                              child: Text('Günlük'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'saatlıq',
+                              child: Text('Saatlıq'),
+                            ),
                           ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Location
+                _buildLabel('Şəhər'),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: context.inputFillColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedCity,
+                      isExpanded: true,
+                      onChanged: (v) => setState(() => _selectedCity = v!),
+                      items: AppConstants.azerbaijanCities.map((c) {
+                        return DropdownMenuItem(value: c, child: Text(c));
+                      }).toList(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                _buildLabel('İş yerinin mövqeyi *'),
+                InkWell(
+                  onTap: () async {
+                    final result = await Navigator.push<LatLng>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            MapPickerScreen(initialLocation: _selectedLocation),
+                      ),
+                    );
+                    if (result != null) {
+                      setState(() {
+                        _selectedLocation = result;
+                      });
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: context.inputFillColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _selectedLocation != null
+                            ? AppTheme.primaryColor
+                            : Colors.transparent,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.map_rounded,
+                          color: _selectedLocation != null
+                              ? AppTheme.primaryColor
+                              : context.textHintColor,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _selectedLocation != null
+                                ? 'Mövqe seçilib (${_selectedLocation!.latitude.toStringAsFixed(4)}, ${_selectedLocation!.longitude.toStringAsFixed(4)})'
+                                : 'Xəritədə yeri seçin',
+                            style: TextStyle(
+                              color: _selectedLocation != null
+                                  ? AppTheme.primaryColor
+                                  : context.textHintColor,
+                              fontWeight: _selectedLocation != null
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                        if (_selectedLocation != null)
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            color: AppTheme.primaryColor,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Working Hours
+                _buildLabel('İş saatı'),
+                TextFormField(
+                  controller: _workingHoursController,
+                  decoration: const InputDecoration(
+                    hintText: 'məs. 09:00 - 18:00',
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Requirements
+                _buildLabel('Tələblər (namizəddən gözləntilər)'),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _requirementController,
+                        decoration: const InputDecoration(
+                          hintText: 'məs. 1 il təcrübə, İngilis dili...',
+                        ),
+                        onFieldSubmitted: (v) => _addRequirement(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      height: 52,
+                      width: 52,
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: IconButton(
+                        onPressed: _addRequirement,
+                        icon: const Icon(
+                          Icons.add_rounded,
+                          color: AppTheme.accentColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_requirements.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _requirements.map((req) {
+                      return Chip(
+                        label: Text(req, style: const TextStyle(fontSize: 13)),
+                        deleteIcon: const Icon(Icons.close_rounded, size: 16),
+                        onDeleted: () {
+                          setState(() {
+                            _requirements.remove(req);
+                          });
+                        },
+                        backgroundColor: context.scaffoldBackgroundColor,
+                        side: BorderSide(
+                          color: context.textHintColor.withValues(alpha: 0.3),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       );
                     }).toList(),
                   ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Job Type
-              _buildLabel('İş növü'),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildJobTypeChip('Tam gün', 'fullTime'),
-                  _buildJobTypeChip('Yarım gün', 'partTime'),
-                  _buildJobTypeChip('Günlük', 'daily'),
-                  _buildJobTypeChip('Saatlıq', 'hourly'),
-                  _buildJobTypeChip('Freelance', 'freelance'),
                 ],
-              ),
-              const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-              // Education Level
-              _buildLabel('Təhsil tələbi'),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: context.inputFillColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedEducation,
-                    isExpanded: true,
-                    onChanged: (v) => setState(() => _selectedEducation = v!),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'Vacib deyil',
-                        child: Text('Vacib deyil'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Elmi dərəcə',
-                        child: Text('Elmi dərəcə'),
-                      ),
-                      DropdownMenuItem(value: 'Ali', child: Text('Ali')),
-                      DropdownMenuItem(
-                        value: 'Natamam ali',
-                        child: Text('Natamam ali'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Orta texniki',
-                        child: Text('Orta texniki'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Orta xüsusi',
-                        child: Text('Orta xüsusi'),
-                      ),
-                      DropdownMenuItem(value: 'Orta', child: Text('Orta')),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Experience Level
-              _buildLabel('İş Təcrübəsi'),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: context.inputFillColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedExperience,
-                    isExpanded: true,
-                    onChanged: (v) => setState(() => _selectedExperience = v!),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'Təcrübəsiz',
-                        child: Text('Təcrübəsiz'),
-                      ),
-                      DropdownMenuItem(
-                        value: '1 ildən aşağı',
-                        child: Text('1 ildən aşağı'),
-                      ),
-                      DropdownMenuItem(
-                        value: '1 ildən 3 ilə qədər',
-                        child: Text('1 ildən 3 ilə qədər'),
-                      ),
-                      DropdownMenuItem(
-                        value: '3 ildən 5 ilə qədər',
-                        child: Text('3 ildən 5 ilə qədər'),
-                      ),
-                      DropdownMenuItem(
-                        value: '5 ildən artıq',
-                        child: Text('5 ildən artıq'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Salary
-              _buildLabel('Maaş (₼)'),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _salaryMinController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(hintText: 'Minimum'),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Maaş daxil edin' : null,
-                    ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Text('—'),
-                  ),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _salaryMaxController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(hintText: 'Maksimum'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: context.inputFillColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedSalaryPeriod,
-                        onChanged: (v) =>
-                            setState(() => _selectedSalaryPeriod = v!),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'aylıq',
-                            child: Text('Aylıq'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'günlük',
-                            child: Text('Günlük'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'saatlıq',
-                            child: Text('Saatlıq'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Location
-              _buildLabel('Şəhər'),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: context.inputFillColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedCity,
-                    isExpanded: true,
-                    onChanged: (v) => setState(() => _selectedCity = v!),
-                    items: AppConstants.azerbaijanCities.map((c) {
-                      return DropdownMenuItem(value: c, child: Text(c));
-                    }).toList(),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              _buildLabel('İş yerinin mövqeyi *'),
-              InkWell(
-                onTap: () async {
-                  final result = await Navigator.push<LatLng>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          MapPickerScreen(initialLocation: _selectedLocation),
-                    ),
-                  );
-                  if (result != null) {
-                    setState(() {
-                      _selectedLocation = result;
-                    });
-                  }
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    color: context.inputFillColor,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _selectedLocation != null
-                          ? AppTheme.primaryColor
-                          : Colors.transparent,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.map_rounded,
-                        color: _selectedLocation != null
-                            ? AppTheme.primaryColor
-                            : context.textHintColor,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _selectedLocation != null
-                              ? 'Mövqe seçilib (${_selectedLocation!.latitude.toStringAsFixed(4)}, ${_selectedLocation!.longitude.toStringAsFixed(4)})'
-                              : 'Xəritədə yeri seçin',
-                          style: TextStyle(
-                            color: _selectedLocation != null
-                                ? AppTheme.primaryColor
-                                : context.textHintColor,
-                            fontWeight: _selectedLocation != null
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      ),
-                      if (_selectedLocation != null)
-                        const Icon(
-                          Icons.check_circle_rounded,
-                          color: AppTheme.primaryColor,
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Working Hours
-              _buildLabel('İş saatı'),
-              TextFormField(
-                controller: _workingHoursController,
-                decoration: const InputDecoration(
-                  hintText: 'məs. 09:00 - 18:00',
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Requirements
-              _buildLabel('Tələblər (namizəddən gözləntilər)'),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _requirementController,
-                      decoration: const InputDecoration(
-                        hintText: 'məs. 1 il təcrübə, İngilis dili...',
-                      ),
-                      onFieldSubmitted: (v) => _addRequirement(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    height: 52,
-                    width: 52,
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: IconButton(
-                      onPressed: _addRequirement,
-                      icon: const Icon(
-                        Icons.add_rounded,
-                        color: AppTheme.accentColor,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (_requirements.isNotEmpty) ...[
-                const SizedBox(height: 12),
+                // Benefits
+                _buildLabel('Yan haqlar (istəyə bağlı)'),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: _requirements.map((req) {
-                    return Chip(
-                      label: Text(req, style: const TextStyle(fontSize: 13)),
-                      deleteIcon: const Icon(Icons.close_rounded, size: 16),
-                      onDeleted: () {
-                        setState(() {
-                          _requirements.remove(req);
-                        });
-                      },
-                      backgroundColor: context.scaffoldBackgroundColor,
-                      side: BorderSide(
-                        color: context.textHintColor.withValues(alpha: 0.3),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    );
-                  }).toList(),
+                  children: _availableBenefits
+                      .map((b) => _buildBenefitChip(b))
+                      .toList(),
                 ),
-              ],
-              const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-              // Benefits
-              _buildLabel('Yan haqlar (istəyə bağlı)'),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _availableBenefits
-                    .map((b) => _buildBenefitChip(b))
-                    .toList(),
-              ),
-              const SizedBox(height: 20),
-
-              // Description
-              _buildLabel('İş haqqında ətraflı'),
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  hintText: 'İş barədə ətraflı məlumat yazın...',
-                  alignLabelWithHint: true,
+                // Description
+                _buildLabel('İş haqqında ətraflı'),
+                TextFormField(
+                  controller: _descriptionController,
+                  maxLines: 5,
+                  decoration: const InputDecoration(
+                    hintText: 'İş barədə ətraflı məlumat yazın...',
+                    alignLabelWithHint: true,
+                  ),
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Açıqlama yazın' : null,
                 ),
-                validator: (v) =>
-                    v == null || v.isEmpty ? 'Açıqlama yazın' : null,
-              ),
-              const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-              // Company Logo (optional)
-              _buildLabel('Şirkət logosu (istəyə bağlı)'),
-              GestureDetector(
-                onTap: _isUploadingLogo ? null : _pickCompanyLogo,
-                child: Container(
-                  width: double.infinity,
+                // Company Logo (optional)
+                _buildLabel('Şirkət logosu (istəyə bağlı)'),
+                GestureDetector(
+                  onTap: _isUploadingLogo ? null : _pickCompanyLogo,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: context.inputFillColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _companyLogoUrl != null
+                            ? AppTheme.primaryColor
+                            : Colors.transparent,
+                      ),
+                    ),
+                    child: _isUploadingLogo
+                        ? const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                              ),
+                            ),
+                          )
+                        : Row(
+                            children: [
+                              if (_companyLogoUrl != null) ...[
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    _companyLogoUrl!,
+                                    width: 40,
+                                    height: 40,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Expanded(
+                                  child: Text(
+                                    'Logo yükləndi ✅',
+                                    style: TextStyle(
+                                      color: AppTheme.primaryColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.close_rounded,
+                                    color: context.textHintColor,
+                                  ),
+                                  onPressed: () =>
+                                      setState(() => _companyLogoUrl = null),
+                                ),
+                              ] else ...[
+                                Icon(
+                                  Icons.add_photo_alternate_outlined,
+                                  color: context.textHintColor,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Qalereyadan logo seçin',
+                                  style: TextStyle(
+                                    color: context.textHintColor,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Urgent Switch
+                Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 16,
+                    vertical: 8,
                   ),
                   decoration: BoxDecoration(
                     color: context.inputFillColor,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _companyLogoUrl != null
-                          ? AppTheme.primaryColor
+                      color: _isUrgent
+                          ? AppTheme.accentColor
                           : Colors.transparent,
+                      width: 1.5,
                     ),
                   ),
-                  child: _isUploadingLogo
-                      ? const Center(
-                          child: SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2.5),
-                          ),
-                        )
-                      : Row(
+                  child: SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text(
+                      'Təcili Elan 🔥',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Elanınız axtarışlarda daha yuxarıda görünəcək',
+                      style: TextStyle(
+                        color: context.textSecondaryColor,
+                        fontSize: 13,
+                      ),
+                    ),
+                    value: _isUrgent,
+                    activeColor: AppTheme.accentColor,
+                    onChanged: (v) => setState(() => _isUrgent = v),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Allow call if accepted toggle
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: _allowCallIfAccepted
+                        ? AppTheme.successColor.withValues(alpha: 0.08)
+                        : context.inputFillColor,
+                    borderRadius: BorderRadius.circular(14),
+                    border: _allowCallIfAccepted
+                        ? Border.all(
+                            color: AppTheme.successColor.withValues(alpha: 0.3),
+                          )
+                        : null,
+                  ),
+                  child: Row(
+                    children: [
+                      const Text('📞', style: TextStyle(fontSize: 24)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (_companyLogoUrl != null) ...[
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  _companyLogoUrl!,
-                                  width: 40,
-                                  height: 40,
-                                  fit: BoxFit.cover,
-                                ),
+                            const Text(
+                              'Qəbul etdiyin namizədlər sənə zəng edə bilsin',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
                               ),
-                              const SizedBox(width: 12),
-                              const Expanded(
-                                child: Text(
-                                  'Logo yükləndi ✅',
-                                  style: TextStyle(
-                                    color: AppTheme.primaryColor,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.close_rounded,
-                                  color: context.textHintColor,
-                                ),
-                                onPressed: () =>
-                                    setState(() => _companyLogoUrl = null),
-                              ),
-                            ] else ...[
-                              Icon(
-                                Icons.add_photo_alternate_outlined,
+                            ),
+                            Text(
+                              _allowCallIfAccepted
+                                  ? 'Namizəd qəbul edilsə zəng edə bilər'
+                                  : 'Namizəd qəbul edilsə belə zəng edə bilməz',
+                              style: TextStyle(
+                                fontSize: 12,
                                 color: context.textHintColor,
                               ),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Qalereyadan logo seçin',
-                                style: TextStyle(color: context.textHintColor),
-                              ),
-                            ],
+                            ),
                           ],
                         ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Urgent Switch
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: context.inputFillColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _isUrgent
-                        ? AppTheme.accentColor
-                        : Colors.transparent,
-                    width: 1.5,
-                  ),
-                ),
-                child: SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text(
-                    'Təcili Elan 🔥',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-                  ),
-                  subtitle: Text(
-                    'Elanınız axtarışlarda daha yuxarıda görünəcək',
-                    style: TextStyle(
-                      color: context.textSecondaryColor,
-                      fontSize: 13,
-                    ),
-                  ),
-                  value: _isUrgent,
-                  activeColor: AppTheme.accentColor,
-                  onChanged: (v) => setState(() => _isUrgent = v),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Allow call if accepted toggle
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _allowCallIfAccepted
-                      ? AppTheme.successColor.withValues(alpha: 0.08)
-                      : context.inputFillColor,
-                  borderRadius: BorderRadius.circular(14),
-                  border: _allowCallIfAccepted
-                      ? Border.all(
-                          color: AppTheme.successColor.withValues(alpha: 0.3),
-                        )
-                      : null,
-                ),
-                child: Row(
-                  children: [
-                    const Text('📞', style: TextStyle(fontSize: 24)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Qəbul etdiyin namizədlər sənə zəng edə bilsin',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                          Text(
-                            _allowCallIfAccepted
-                                ? 'Namizəd qəbul edilsə zəng edə bilər'
-                                : 'Namizəd qəbul edilsə belə zəng edə bilməz',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: context.textHintColor,
-                            ),
-                          ),
-                        ],
                       ),
-                    ),
-                    Switch(
-                      value: _allowCallIfAccepted,
-                      onChanged: (v) =>
-                          setState(() => _allowCallIfAccepted = v),
-                      activeColor: AppTheme.successColor,
-                    ),
-                  ],
+                      Switch(
+                        value: _allowCallIfAccepted,
+                        onChanged: (v) =>
+                            setState(() => _allowCallIfAccepted = v),
+                        activeColor: AppTheme.successColor,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // Application method selector
-              _buildLabel('Müraciət üsulu'),
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: context.inputFillColor,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () =>
-                            setState(() => _applicationMethod = 'in_app'),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: _applicationMethod == 'in_app'
-                                ? AppTheme.primaryColor
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Tətbiqdən',
-                              style: TextStyle(
-                                color: _applicationMethod == 'in_app'
-                                    ? Colors.white
-                                    : context.textSecondaryColor,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
+                // Application method selector
+                _buildLabel('Müraciət üsulu'),
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: context.inputFillColor,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () =>
+                              setState(() => _applicationMethod = 'in_app'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _applicationMethod == 'in_app'
+                                  ? AppTheme.primaryColor
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Tətbiqdən',
+                                style: TextStyle(
+                                  color: _applicationMethod == 'in_app'
+                                      ? Colors.white
+                                      : context.textSecondaryColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () =>
-                            setState(() => _applicationMethod = 'redirect'),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: _applicationMethod == 'redirect'
-                                ? AppTheme.primaryColor
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Yönləndir',
-                              style: TextStyle(
-                                color: _applicationMethod == 'redirect'
-                                    ? Colors.white
-                                    : context.textSecondaryColor,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () =>
+                              setState(() => _applicationMethod = 'redirect'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _applicationMethod == 'redirect'
+                                  ? AppTheme.primaryColor
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Yönləndir',
+                                style: TextStyle(
+                                  color: _applicationMethod == 'redirect'
+                                      ? Colors.white
+                                      : context.textSecondaryColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              if (_applicationMethod == 'redirect') ...[
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _externalUrlController,
-                  keyboardType: TextInputType.url,
-                  decoration: const InputDecoration(
-                    hintText: 'https://example.com/apply',
-                    prefixIcon: Icon(Icons.link_rounded),
+                    ],
                   ),
-                  validator: (v) {
-                    if (_applicationMethod == 'redirect' &&
-                        (v == null || v.trim().isEmpty)) {
-                      return 'Yönləndirmə linkini daxil edin';
-                    }
-                    return null;
-                  },
                 ),
+                if (_applicationMethod == 'redirect') ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _externalUrlController,
+                    keyboardType: TextInputType.url,
+                    decoration: const InputDecoration(
+                      hintText: 'https://example.com/apply',
+                      prefixIcon: Icon(Icons.link_rounded),
+                    ),
+                    validator: (v) {
+                      if (_applicationMethod == 'redirect' &&
+                          (v == null || v.trim().isEmpty)) {
+                        return 'Yönləndirmə linkini daxil edin';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+                const SizedBox(height: 28),
+
+                // Submit
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isSubmitting ? null : _submitJob,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accentColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            widget.existingJob != null
+                                ? 'Yadda Saxla'
+                                : 'Elanı yerləşdir',
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 32),
               ],
-              const SizedBox(height: 28),
-
-              // Submit
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitJob,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.accentColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : Text(
-                          widget.existingJob != null
-                              ? 'Yadda Saxla'
-                              : 'Elanı yerləşdir',
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 32),
-            ],
+            ),
           ),
         ),
       ),
@@ -958,10 +969,11 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
       );
     }
 
-    // When creating (used as a tab), return without Scaffold
+    // When creating (used as a tab), return without Scaffold.
     return content;
   }
 
+  // Add requirement to the list
   void _addRequirement() {
     final text = _requirementController.text.trim();
     if (text.isNotEmpty && !_requirements.contains(text)) {

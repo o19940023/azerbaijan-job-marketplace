@@ -601,10 +601,8 @@ class AiJobSearchService {
     final keywords = _professionKeywords[profession];
     if (keywords == null) return false;
 
-    // İş başlığını ve açıklamasını kelimelere ayır
-    final jobWords = (jobTitleLower + ' ' + jobDescLower).split(
-      RegExp(r'[\s,;.]+'),
-    );
+    // İş başlığını və açıklamasını kelimelere ayır
+    final jobWords = '$jobTitleLower $jobDescLower'.split(RegExp(r'[\s,;.]+'));
 
     // İş başlığı veya açıklamasında bu mesleğe ait kelimeler var mı?
     for (final keyword in keywords) {
@@ -631,10 +629,8 @@ class AiJobSearchService {
     final jobTitleLower = jobTitle.toLowerCase();
     final jobDescLower = jobDesc.toLowerCase();
 
-    // İş başlığını ve açıklamasını kelimelere ayır
-    final jobWords = (jobTitleLower + ' ' + jobDescLower).split(
-      RegExp(r'[\s,;.]+'),
-    );
+    // İş başlığını və açıklamasını kelimelere ayır
+    final jobWords = '$jobTitleLower $jobDescLower'.split(RegExp(r'[\s,;.]+'));
 
     // Diğer tüm meslekleri kontrol et
     for (final entry in _professionKeywords.entries) {
@@ -914,10 +910,12 @@ class AiJobSearchService {
       buffer.writeln('   Maaş: ${j.salaryText}');
       buffer.writeln('   Şəhər: ${j.city}, ${j.district}');
       buffer.writeln('   Növ: ${j.jobType}');
-      if (j.experienceLevel != null)
+      if (j.experienceLevel != null) {
         buffer.writeln('   Təcrübə: ${j.experienceLevel}');
-      if (j.educationLevel != null)
+      }
+      if (j.educationLevel != null) {
         buffer.writeln('   Təhsil: ${j.educationLevel}');
+      }
       buffer.writeln();
     }
     return buffer.toString();

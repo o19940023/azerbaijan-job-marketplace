@@ -3,7 +3,7 @@ import 'package:azerbaijan_job_marketplace/features/ai_assistant/data/services/a
 import 'package:azerbaijan_job_marketplace/features/ai_assistant/data/services/openrouter_client.dart';
 
 // Simple mock implementation for testing
-class MockOpenRouterClient extends OpenRouterClient {
+class MockOpenRouterClient extends GeminiClient {
   String? _nextResponse;
   Exception? _nextError;
   List<List<Map<String, String>>>? capturedMessages;

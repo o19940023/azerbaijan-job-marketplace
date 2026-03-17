@@ -11,6 +11,7 @@ import '../../../../core/services/cloudinary_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/theme_cubit.dart';
 import '../../../../core/widgets/shimmer_widgets.dart';
+import '../../../onboarding/presentation/pages/app_onboarding_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final bool isEmployerView;
@@ -145,648 +146,685 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      return const Center(child: Text('Zəhmət olmasa daxil olun'));
+      return Scaffold(
+        body: const Center(child: Text('Zəhmət olmasa daxil olun')),
+      );
     }
 
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData)
-          return ShimmerWidgets.buildProfileShimmer(context);
+    return Scaffold(
+      backgroundColor: context.scaffoldBackgroundColor,
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData)
+            return ShimmerWidgets.buildProfileShimmer(context);
 
-        final userData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
-        final fullName =
-            userData['fullName'] as String? ??
-            (widget.isEmployerView ? 'Şirkət' : 'İstifadəçi');
-        final phone = userData['phone'] as String? ?? 'Nömrə yoxdur';
-        final photoUrl = userData['photoUrl'] as String?;
+          final userData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+          final fullName =
+              userData['fullName'] as String? ??
+              (widget.isEmployerView ? 'Şirkət' : 'İstifadəçi');
+          final phone = userData['phone'] as String? ?? 'Nömrə yoxdur';
+          final photoUrl = userData['photoUrl'] as String?;
 
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                const SizedBox(height: 16),
-                // Avatar
-                GestureDetector(
-                  onTap: _isUploading ? null : _pickAndUploadPhoto,
-                  child: Stack(
-                    children: [
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          gradient: photoUrl == null
-                              ? AppTheme.primaryGradient
-                              : null,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.primaryColor.withValues(
-                                alpha: 0.3,
+          return SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  const SizedBox(height: 16),
+                  // Avatar
+                  GestureDetector(
+                    onTap: _isUploading ? null : _pickAndUploadPhoto,
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            gradient: photoUrl == null
+                                ? AppTheme.primaryGradient
+                                : null,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryColor.withValues(
+                                  alpha: 0.3,
+                                ),
+                                blurRadius: 16,
+                                offset: const Offset(0, 6),
                               ),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                          image: photoUrl != null
-                              ? DecorationImage(
-                                  image: NetworkImage(photoUrl),
-                                  fit: BoxFit.cover,
+                            ],
+                            image: photoUrl != null
+                                ? DecorationImage(
+                                    image: NetworkImage(photoUrl),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                          ),
+                          child: _isUploading
+                              ? Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(24),
+                                    child: const CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 3,
+                                    ),
+                                  ),
+                                )
+                              : photoUrl == null
+                              ? const Icon(
+                                  Icons.person_rounded,
+                                  size: 50,
+                                  color: Colors.white,
                                 )
                               : null,
                         ),
-                        child: _isUploading
-                            ? const Center(
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 3,
-                                ),
-                              )
-                            : photoUrl == null
-                            ? const Icon(
-                                Icons.person_rounded,
-                                size: 50,
-                                color: Colors.white,
-                              )
-                            : null,
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: AppTheme.accentColor,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: const Icon(
-                            Icons.camera_alt_rounded,
-                            size: 16,
-                            color: Colors.white,
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: AppTheme.accentColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt_rounded,
+                              size: 16,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  fullName,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: context.textPrimaryColor,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  phone,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: context.textSecondaryColor,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    widget.isEmployerView ? 'İşverən' : 'İş axtaran',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryColor,
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 28),
-
-                // Employer Action Buttons
-                if (widget.isEmployerView) ...[
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _ProfileActionButton(
-                          title: 'İlanlarım',
-                          icon: Icons.list_alt_rounded,
-                          color: AppTheme.primaryColor,
-                          onTap: () {
-                            Navigator.pushNamed(
-                              context,
-                              AppRouter.employerHome,
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _ProfileActionButton(
-                          title: 'Yeni Elan',
-                          icon: Icons.add_circle_outline_rounded,
-                          color: AppTheme.successColor,
-                          onTap: () {
-                            Navigator.pushNamed(context, AppRouter.createJob);
-                          },
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 16),
+                  Text(
+                    fullName,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: context.textPrimaryColor,
+                    ),
                   ),
-                ],
+                  const SizedBox(height: 4),
+                  Text(
+                    phone,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: context.textSecondaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      widget.isEmployerView ? 'İşverən' : 'İş axtaran',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
 
-                const SizedBox(height: 28),
-
-                // Profile completion - dynamic calculation
-                if (!widget.isEmployerView) ...[
-                  Builder(
-                    builder: (context) {
-                      int filledCount = 0;
-                      int totalFields =
-                          5; // fullName, phone, experience, education, skills
-
-                      if ((userData['fullName'] as String?)?.isNotEmpty == true)
-                        filledCount++;
-                      if ((userData['phone'] as String?)?.isNotEmpty == true)
-                        filledCount++;
-                      if ((userData['experience'] as String?)?.isNotEmpty ==
-                          true)
-                        filledCount++;
-                      if ((userData['education'] as String?)?.isNotEmpty ==
-                          true)
-                        filledCount++;
-                      if ((userData['skills'] as String?)?.isNotEmpty == true)
-                        filledCount++;
-
-                      final completionPercent = filledCount / totalFields;
-                      final completionInt = (completionPercent * 100).round();
-
-                      // 100% olduqda banneri gizlə
-                      if (completionInt >= 100) return const SizedBox.shrink();
-
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppTheme.warningColor.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: AppTheme.warningColor.withValues(alpha: 0.2),
+                  // Employer Action Buttons
+                  if (widget.isEmployerView) ...[
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _ProfileActionButton(
+                            title: 'İlanlarım',
+                            icon: Icons.list_alt_rounded,
+                            color: AppTheme.primaryColor,
+                            onTap: () {
+                              Navigator.pushNamed(
+                                context,
+                                AppRouter.employerHome,
+                              );
+                            },
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            CircularProgressIndicator(
-                              value: completionPercent,
-                              strokeWidth: 5,
-                              backgroundColor: AppTheme.warningColor.withValues(
-                                alpha: 0.15,
-                              ),
-                              valueColor: const AlwaysStoppedAnimation(
-                                AppTheme.warningColor,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Profil $completionInt% tamamdır',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Profilini tamamla, daha çox iş tap!',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: context.textSecondaryColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(right: 16),
-                              child: OutlinedButton(
-                                onPressed: () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    AppRouter.editProfile,
-                                  );
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                    color: AppTheme.warningColor,
-                                  ),
-                                  foregroundColor: AppTheme.warningColor,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Tamamla',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                ],
-
-                // Menu items
-                _MenuItem(
-                  icon: widget.isEmployerView
-                      ? Icons.business_rounded
-                      : Icons.person_outline_rounded,
-                  title: widget.isEmployerView
-                      ? 'Şirkət məlumatları'
-                      : 'Məlumatlarım',
-                  subtitle: 'Ad, telefon, şəhər',
-                  onTap: () {
-                    Navigator.pushNamed(context, AppRouter.editProfile);
-                  },
-                ),
-                if (!widget.isEmployerView) ...[
-                  _MenuItem(
-                    icon: Icons.work_outline_rounded,
-                    title: 'Təcrübə',
-                    subtitle:
-                        userData['experience']?.toString().isNotEmpty == true
-                        ? userData['experience']
-                        : 'Əlavə edilməyib',
-                    onTap: () {
-                      Navigator.pushNamed(context, AppRouter.editProfile);
-                    },
-                  ),
-                  _MenuItem(
-                    icon: Icons.school_outlined,
-                    title: 'Təhsil',
-                    subtitle:
-                        userData['education']?.toString().isNotEmpty == true
-                        ? userData['education']
-                        : 'Əlavə edilməyib',
-                    onTap: () {
-                      Navigator.pushNamed(context, AppRouter.editProfile);
-                    },
-                  ),
-                  _MenuItem(
-                    icon: Icons.star_outline_rounded,
-                    title: 'Bacarıqlar',
-                    subtitle: userData['skills']?.toString().isNotEmpty == true
-                        ? userData['skills']
-                        : 'Əlavə edilməyib',
-                    onTap: () {
-                      Navigator.pushNamed(context, AppRouter.editProfile);
-                    },
-                  ),
-                ],
-
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Divider(),
-                ),
-
-                if (!widget.isEmployerView) ...[
-                  _MenuItem(
-                    icon: Icons.bookmark_outline_rounded,
-                    title: 'Saxlanmış elanlar',
-                    onTap: () {},
-                  ),
-                  _MenuItem(
-                    icon: Icons.history_rounded,
-                    title: 'Baxış tarixçəsi',
-                    onTap: () {},
-                  ),
-                ],
-                _MenuItem(
-                  icon: Icons.color_lens_outlined,
-                  title: 'Rejim (Dark/Light)',
-                  subtitle: _getThemeName(context),
-                  onTap: () => _showThemeBottomSheet(context),
-                ),
-                _MenuItem(
-                  icon: Icons.notifications_outlined,
-                  title: 'Bildirişlər',
-                  onTap: () {},
-                ),
-                _MenuItem(
-                  icon: Icons.language_rounded,
-                  title: 'Dil',
-                  subtitle: 'Azərbaycan',
-                  onTap: () {},
-                ),
-                _MenuItem(
-                  icon: Icons.help_outline_rounded,
-                  title: 'Kömək',
-                  onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      backgroundColor: context.scaffoldBackgroundColor,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(24),
-                        ),
-                      ),
-                      builder: (context) => SafeArea(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 24,
-                            horizontal: 20,
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _ProfileActionButton(
+                            title: 'Yeni Elan',
+                            icon: Icons.add_circle_outline_rounded,
+                            color: AppTheme.successColor,
+                            onTap: () {
+                              Navigator.pushNamed(context, AppRouter.createJob);
+                            },
                           ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
+                        ),
+                      ],
+                    ),
+                  ],
+
+                  const SizedBox(height: 28),
+
+                  // Profile completion - dynamic calculation
+                  if (!widget.isEmployerView) ...[
+                    Builder(
+                      builder: (context) {
+                        int filledCount = 0;
+                        int totalFields =
+                            5; // fullName, phone, experience, education, skills
+
+                        if ((userData['fullName'] as String?)?.isNotEmpty ==
+                            true)
+                          filledCount++;
+                        if ((userData['phone'] as String?)?.isNotEmpty == true)
+                          filledCount++;
+                        if ((userData['experience'] as String?)?.isNotEmpty ==
+                            true)
+                          filledCount++;
+                        if ((userData['education'] as String?)?.isNotEmpty ==
+                            true)
+                          filledCount++;
+                        if ((userData['skills'] as String?)?.isNotEmpty == true)
+                          filledCount++;
+
+                        final completionPercent = filledCount / totalFields;
+                        final completionInt = (completionPercent * 100).round();
+
+                        // 100% olduqda banneri gizlə
+                        if (completionInt >= 100)
+                          return const SizedBox.shrink();
+
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppTheme.warningColor.withValues(
+                              alpha: 0.08,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: AppTheme.warningColor.withValues(
+                                alpha: 0.2,
+                              ),
+                            ),
+                          ),
+                          child: Row(
                             children: [
-                              Container(
-                                width: 40,
-                                height: 4,
-                                margin: const EdgeInsets.only(bottom: 24),
-                                decoration: BoxDecoration(
-                                  color: context.textHintColor.withValues(
-                                    alpha: 0.3,
+                              CircularProgressIndicator(
+                                value: completionPercent,
+                                strokeWidth: 5,
+                                backgroundColor: AppTheme.warningColor
+                                    .withValues(alpha: 0.15),
+                                valueColor: const AlwaysStoppedAnimation(
+                                  AppTheme.warningColor,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Profil $completionInt% tamamdır',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Profilini tamamla, daha çox iş tap!',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: context.textSecondaryColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(right: 16),
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRouter.editProfile,
+                                    );
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(
+                                      color: AppTheme.warningColor,
+                                    ),
+                                    foregroundColor: AppTheme.warningColor,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
                                   ),
-                                  borderRadius: BorderRadius.circular(2),
+                                  child: const Text(
+                                    'Tamamla',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                'Kömək və Qaydalar',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  color: context.textPrimaryColor,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              ListTile(
-                                leading: const Icon(
-                                  Icons.privacy_tip_outlined,
-                                  color: AppTheme.primaryColor,
-                                ),
-                                title: const Text(
-                                  'Məxfilik Siyasəti (Privacy Policy)',
-                                ),
-                                trailing: Icon(
-                                  Icons.open_in_new_rounded,
-                                  size: 16,
-                                  color: context.textHintColor,
-                                ),
-                                onTap: () async {
-                                  final Uri url = Uri.parse(
-                                    'https://istapapp.netlify.app/privacy.html',
-                                  );
-                                  if (!await launchUrl(url)) {
-                                    debugPrint('Could not launch \$url');
-                                  }
-                                  if (context.mounted) Navigator.pop(context);
-                                },
-                              ),
-                              ListTile(
-                                leading: const Icon(
-                                  Icons.description_outlined,
-                                  color: AppTheme.primaryColor,
-                                ),
-                                title: const Text('İstifadəçi Şərtləri (EULA)'),
-                                trailing: Icon(
-                                  Icons.open_in_new_rounded,
-                                  size: 16,
-                                  color: context.textHintColor,
-                                ),
-                                onTap: () async {
-                                  final Uri url = Uri.parse(
-                                    'https://istapapp.netlify.app/terms.html',
-                                  );
-                                  if (!await launchUrl(url)) {
-                                    debugPrint('Could not launch \$url');
-                                  }
-                                  if (context.mounted) Navigator.pop(context);
-                                },
-                              ),
-                              ListTile(
-                                leading: const Icon(
-                                  Icons.support_agent_rounded,
-                                  color: AppTheme.primaryColor,
-                                ),
-                                title: const Text('Dəstək (Support)'),
-                                trailing: Icon(
-                                  Icons.open_in_new_rounded,
-                                  size: 16,
-                                  color: context.textHintColor,
-                                ),
-                                onTap: () async {
-                                  final Uri url = Uri.parse(
-                                    'https://istapapp.netlify.app/support.html',
-                                  );
-                                  if (!await launchUrl(url)) {
-                                    debugPrint('Could not launch \$url');
-                                  }
-                                  if (context.mounted) Navigator.pop(context);
-                                },
                               ),
                             ],
                           ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 8),
-
-                // Logout
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      await FirebaseAuth.instance.signOut();
-                      if (context.mounted) {
-                        Navigator.pushNamedAndRemoveUntil(
-                          context,
-                          AppRouter.roleSelection,
-                          (route) => false,
                         );
-                      }
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // Menu items
+                  _MenuItem(
+                    icon: widget.isEmployerView
+                        ? Icons.business_rounded
+                        : Icons.person_outline_rounded,
+                    title: widget.isEmployerView
+                        ? 'Şirkət məlumatları'
+                        : 'Məlumatlarım',
+                    subtitle: 'Ad, telefon, şəhər',
+                    onTap: () {
+                      Navigator.pushNamed(context, AppRouter.editProfile);
                     },
-                    icon: const Icon(
-                      Icons.logout_rounded,
-                      color: AppTheme.errorColor,
-                    ),
-                    label: const Text(
-                      'Çıxış',
-                      style: TextStyle(color: AppTheme.errorColor),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(
-                        color: AppTheme.errorColor.withValues(alpha: 0.3),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
                   ),
-                ),
+                  if (!widget.isEmployerView) ...[
+                    _MenuItem(
+                      icon: Icons.work_outline_rounded,
+                      title: 'Təcrübə',
+                      subtitle:
+                          userData['experience']?.toString().isNotEmpty == true
+                          ? userData['experience']
+                          : 'Əlavə edilməyib',
+                      onTap: () {
+                        Navigator.pushNamed(context, AppRouter.editProfile);
+                      },
+                    ),
+                    _MenuItem(
+                      icon: Icons.school_outlined,
+                      title: 'Təhsil',
+                      subtitle:
+                          userData['education']?.toString().isNotEmpty == true
+                          ? userData['education']
+                          : 'Əlavə edilməyib',
+                      onTap: () {
+                        Navigator.pushNamed(context, AppRouter.editProfile);
+                      },
+                    ),
+                    _MenuItem(
+                      icon: Icons.star_outline_rounded,
+                      title: 'Bacarıqlar',
+                      subtitle:
+                          userData['skills']?.toString().isNotEmpty == true
+                          ? userData['skills']
+                          : 'Əlavə edilməyib',
+                      onTap: () {
+                        Navigator.pushNamed(context, AppRouter.editProfile);
+                      },
+                    ),
+                  ],
 
-                const SizedBox(height: 12),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Divider(),
+                  ),
 
-                // Delete Account
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton.icon(
-                    onPressed: () async {
-                      final confirmed = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text(
-                            'Hesabı Sil',
-                            style: TextStyle(color: AppTheme.errorColor),
+                  if (!widget.isEmployerView) ...[
+                    _MenuItem(
+                      icon: Icons.bookmark_outline_rounded,
+                      title: 'Saxlanmış elanlar',
+                      onTap: () {},
+                    ),
+                    _MenuItem(
+                      icon: Icons.history_rounded,
+                      title: 'Baxış tarixçəsi',
+                      onTap: () {},
+                    ),
+                  ],
+                  _MenuItem(
+                    icon: Icons.color_lens_outlined,
+                    title: 'Rejim (Dark/Light)',
+                    subtitle: _getThemeName(context),
+                    onTap: () => _showThemeBottomSheet(context),
+                  ),
+                  _MenuItem(
+                    icon: Icons.notifications_outlined,
+                    title: 'Bildirişlər',
+                    onTap: () {},
+                  ),
+                  _MenuItem(
+                    icon: Icons.language_rounded,
+                    title: 'Dil',
+                    subtitle: 'Azərbaycan',
+                    onTap: () {},
+                  ),
+                  _MenuItem(
+                    icon: Icons.info_outline_rounded,
+                    title: 'Tətbiq haqqında',
+                    subtitle: 'Onboarding səhifəsinə bax',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AppOnboardingScreen(
+                            isEmployer: widget.isEmployerView,
                           ),
-                          content: const Text(
-                            'Hesabınızı silmək istədiyinizə əminsiniz? Bu əməliyyat geri alına bilməz və bütün məlumatlarınız həmişəlik silinəcək.',
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('Ləğv et'),
-                            ),
-                            ElevatedButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.errorColor,
-                                foregroundColor: Colors.white,
-                              ),
-                              child: const Text('Sil'),
-                            ),
-                          ],
+                          fullscreenDialog: true,
                         ),
                       );
+                    },
+                  ),
+                  _MenuItem(
+                    icon: Icons.help_outline_rounded,
+                    title: 'Kömək',
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: context.scaffoldBackgroundColor,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(24),
+                          ),
+                        ),
+                        builder: (context) => SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 24,
+                              horizontal: 20,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 4,
+                                  margin: const EdgeInsets.only(bottom: 24),
+                                  decoration: BoxDecoration(
+                                    color: context.textHintColor.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                Text(
+                                  'Kömək və Qaydalar',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    color: context.textPrimaryColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.privacy_tip_outlined,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                  title: const Text(
+                                    'Məxfilik Siyasəti (Privacy Policy)',
+                                  ),
+                                  trailing: Icon(
+                                    Icons.open_in_new_rounded,
+                                    size: 16,
+                                    color: context.textHintColor,
+                                  ),
+                                  onTap: () async {
+                                    final Uri url = Uri.parse(
+                                      'https://istapapp.netlify.app/privacy.html',
+                                    );
+                                    if (!await launchUrl(url)) {
+                                      debugPrint('Could not launch \$url');
+                                    }
+                                    if (context.mounted) Navigator.pop(context);
+                                  },
+                                ),
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.description_outlined,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                  title: const Text(
+                                    'İstifadəçi Şərtləri (EULA)',
+                                  ),
+                                  trailing: Icon(
+                                    Icons.open_in_new_rounded,
+                                    size: 16,
+                                    color: context.textHintColor,
+                                  ),
+                                  onTap: () async {
+                                    final Uri url = Uri.parse(
+                                      'https://istapapp.netlify.app/terms.html',
+                                    );
+                                    if (!await launchUrl(url)) {
+                                      debugPrint('Could not launch \$url');
+                                    }
+                                    if (context.mounted) Navigator.pop(context);
+                                  },
+                                ),
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.support_agent_rounded,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                  title: const Text('Dəstək (Support)'),
+                                  trailing: Icon(
+                                    Icons.open_in_new_rounded,
+                                    size: 16,
+                                    color: context.textHintColor,
+                                  ),
+                                  onTap: () async {
+                                    final Uri url = Uri.parse(
+                                      'https://istapapp.netlify.app/support.html',
+                                    );
+                                    if (!await launchUrl(url)) {
+                                      debugPrint('Could not launch \$url');
+                                    }
+                                    if (context.mounted) Navigator.pop(context);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
 
-                      if (confirmed == true && context.mounted) {
-                        // Loading göstər
-                        showDialog(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (ctx) =>
-                              const Center(child: CircularProgressIndicator()),
-                        );
+                  const SizedBox(height: 8),
 
-                        try {
-                          final user = FirebaseAuth.instance.currentUser;
-                          if (user != null) {
-                            final uid = user.uid;
-                            final batch = FirebaseFirestore.instance.batch();
-
-                            // 1. İstifadəçinin elanlarını sil
-                            final jobsSnapshot = await FirebaseFirestore
-                                .instance
-                                .collection('jobs')
-                                .where('employerId', isEqualTo: uid)
-                                .get();
-                            for (var doc in jobsSnapshot.docs) {
-                              batch.delete(doc.reference);
-                            }
-
-                            // 2. İstifadəçinin müraciətlərini sil
-                            final applicationsSnapshot = await FirebaseFirestore
-                                .instance
-                                .collection('applications')
-                                .where('applicantId', isEqualTo: uid)
-                                .get();
-                            for (var doc in applicationsSnapshot.docs) {
-                              batch.delete(doc.reference);
-                            }
-
-                            // 3. İstifadəçinin işəgötürən olaraq aldığı müraciətləri sil
-                            final employerApplicationsSnapshot =
-                                await FirebaseFirestore.instance
-                                    .collection('applications')
-                                    .where('employerId', isEqualTo: uid)
-                                    .get();
-                            for (var doc in employerApplicationsSnapshot.docs) {
-                              batch.delete(doc.reference);
-                            }
-
-                            // 4. İstifadəçinin mesajlarını sil
-                            final chatsSnapshot = await FirebaseFirestore
-                                .instance
-                                .collection('chats')
-                                .where('participants', arrayContains: uid)
-                                .get();
-                            for (var doc in chatsSnapshot.docs) {
-                              batch.delete(doc.reference);
-                            }
-
-                            // 5. İstifadəçi məlumatlarını sil
-                            batch.delete(
-                              FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(uid),
-                            );
-
-                            // Batch commit
-                            await batch.commit();
-
-                            // 6. Auth-dan sil
-                            await user.delete();
-                          }
-                        } catch (e) {
-                          // Ignore errors
-                        }
-
-                        // Navigation
+                  // Logout
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        await FirebaseAuth.instance.signOut();
                         if (context.mounted) {
-                          Navigator.of(context).pushNamedAndRemoveUntil(
+                          Navigator.pushNamedAndRemoveUntil(
+                            context,
                             AppRouter.roleSelection,
                             (route) => false,
                           );
                         }
-                      }
-                    },
-                    icon: Icon(
-                      Icons.delete_forever_rounded,
-                      color: context.textHintColor,
-                    ),
-                    label: Text(
-                      'Hesabı Sil',
-                      style: TextStyle(color: context.textHintColor),
-                    ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      },
+                      icon: const Icon(
+                        Icons.logout_rounded,
+                        color: AppTheme.errorColor,
+                      ),
+                      label: const Text(
+                        'Çıxış',
+                        style: TextStyle(color: AppTheme.errorColor),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: AppTheme.errorColor.withValues(alpha: 0.3),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 8),
-                Text(
-                  'Versiya 1.0.0',
-                  style: TextStyle(fontSize: 12, color: context.textHintColor),
-                ),
-                const SizedBox(height: 16),
-              ],
+                  const SizedBox(height: 12),
+
+                  // Delete Account
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton.icon(
+                      onPressed: () async {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text(
+                              'Hesabı Sil',
+                              style: TextStyle(color: AppTheme.errorColor),
+                            ),
+                            content: const Text(
+                              'Hesabınızı silmək istədiyinizə əminsiniz? Bu əməliyyat geri alına bilməz və bütün məlumatlarınız həmişəlik silinəcək.',
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Ləğv et'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.errorColor,
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: const Text('Sil'),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirmed == true && context.mounted) {
+                          // Loading göstər
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (ctx) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+
+                          try {
+                            final user = FirebaseAuth.instance.currentUser;
+                            if (user != null) {
+                              final uid = user.uid;
+                              final batch = FirebaseFirestore.instance.batch();
+
+                              // 1. İstifadəçinin elanlarını sil
+                              final jobsSnapshot = await FirebaseFirestore
+                                  .instance
+                                  .collection('jobs')
+                                  .where('employerId', isEqualTo: uid)
+                                  .get();
+                              for (var doc in jobsSnapshot.docs) {
+                                batch.delete(doc.reference);
+                              }
+
+                              // 2. İstifadəçinin müraciətlərini sil
+                              final applicationsSnapshot =
+                                  await FirebaseFirestore.instance
+                                      .collection('applications')
+                                      .where('applicantId', isEqualTo: uid)
+                                      .get();
+                              for (var doc in applicationsSnapshot.docs) {
+                                batch.delete(doc.reference);
+                              }
+
+                              // 3. İstifadəçinin işəgötürən olaraq aldığı müraciətləri sil
+                              final employerApplicationsSnapshot =
+                                  await FirebaseFirestore.instance
+                                      .collection('applications')
+                                      .where('employerId', isEqualTo: uid)
+                                      .get();
+                              for (var doc
+                                  in employerApplicationsSnapshot.docs) {
+                                batch.delete(doc.reference);
+                              }
+
+                              // 4. İstifadəçinin mesajlarını sil
+                              final chatsSnapshot = await FirebaseFirestore
+                                  .instance
+                                  .collection('chats')
+                                  .where('participants', arrayContains: uid)
+                                  .get();
+                              for (var doc in chatsSnapshot.docs) {
+                                batch.delete(doc.reference);
+                              }
+
+                              // 5. İstifadəçi məlumatlarını sil
+                              batch.delete(
+                                FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(uid),
+                              );
+
+                              // Batch commit
+                              await batch.commit();
+
+                              // 6. Auth-dan sil
+                              await user.delete();
+                            }
+                          } catch (e) {
+                            // Ignore errors
+                          }
+
+                          // Navigation
+                          if (context.mounted) {
+                            Navigator.of(context).pushNamedAndRemoveUntil(
+                              AppRouter.roleSelection,
+                              (route) => false,
+                            );
+                          }
+                        }
+                      },
+                      icon: Icon(
+                        Icons.delete_forever_rounded,
+                        color: context.textHintColor,
+                      ),
+                      label: Text(
+                        'Hesabı Sil',
+                        style: TextStyle(color: context.textHintColor),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+                  Text(
+                    'Versiya 1.0.0',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: context.textHintColor,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
@@ -806,29 +844,32 @@ class _ProfileActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 28),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

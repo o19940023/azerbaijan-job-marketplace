@@ -48,16 +48,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _messageController.clear();
 
     try {
-      await ChatRepository().sendMessage(
-        widget.chatId,
-        currentUserId,
-        text,
-      );
+      await ChatRepository().sendMessage(widget.chatId, currentUserId, text);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Səhv baş verdi: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Səhv baş verdi: $e')));
       }
     }
   }
@@ -72,7 +68,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: const Text('Şikayət Et', style: TextStyle(color: AppTheme.errorColor)),
+              title: const Text(
+                'Şikayət Et',
+                style: TextStyle(color: AppTheme.errorColor),
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -82,17 +81,31 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     DropdownButtonFormField<String>(
                       value: selectedReason,
                       items: const [
-                        DropdownMenuItem(value: 'Spam', child: Text('Spam və ya Reklam')),
-                        DropdownMenuItem(value: 'Təhqiramiz məzmun', child: Text('Təhqiramiz məzmun')),
-                        DropdownMenuItem(value: 'Saxtakarlıq', child: Text('Saxtakarlıq / Fırıldaqçılıq')),
+                        DropdownMenuItem(
+                          value: 'Spam',
+                          child: Text('Spam və ya Reklam'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Təhqiramiz məzmun',
+                          child: Text('Təhqiramiz məzmun'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Saxtakarlıq',
+                          child: Text('Saxtakarlıq / Fırıldaqçılıq'),
+                        ),
                         DropdownMenuItem(value: 'Digər', child: Text('Digər')),
                       ],
                       onChanged: (val) {
                         setState(() => selectedReason = val!);
                       },
                       decoration: InputDecoration(
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -101,17 +114,24 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       maxLines: 3,
                       decoration: InputDecoration(
                         hintText: 'Əlavə məlumat (İstəyə bağlı)',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text('Ləğv et', style: TextStyle(color: context.textHintColor)),
+                  child: Text(
+                    'Ləğv et',
+                    style: TextStyle(color: context.textHintColor),
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: () async {
@@ -125,16 +145,24 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         reason: selectedReason,
                         additionalDetails: detailsController.text.trim(),
                       );
-                      
+
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Şikayətiniz uğurla göndərildi. Komandamız tərəfindən 24 saat ərzində baxılacaq.')),
+                          const SnackBar(
+                            content: Text(
+                              'Şikayətiniz uğurla göndərildi. Komandamız tərəfindən 24 saat ərzində baxılacaq.',
+                            ),
+                          ),
                         );
                       }
                     } catch (e) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Şikayət göndərilərkən xəta baş verdi.')),
+                          const SnackBar(
+                            content: Text(
+                              'Şikayət göndərilərkən xəta baş verdi.',
+                            ),
+                          ),
                         );
                       }
                     }
@@ -147,32 +175,44 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 ),
               ],
             );
-          }
+          },
         );
       },
     );
   }
 
-  void _showBlockDialog() {
+  void _showBlockConfirmation() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('İstifadəçini Blokla', style: TextStyle(color: AppTheme.errorColor)),
-        content: const Text('Bu istifadəçini bloklamaq istədiyinizə əminsiniz? O sizə bir daha mesaj yaza bilməyəcək və elanlarınızı görməyəcək.'),
+        title: const Text(
+          'İstifadəçini Blokla',
+          style: TextStyle(color: AppTheme.errorColor),
+        ),
+        content: const Text(
+          'Bu istifadəçini bloklamaq istədiyinizə əminsiniz? O sizə bir daha mesaj yaza bilməyəcək və elanlarınızı görməyəcək.',
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Ləğv et', style: TextStyle(color: context.textHintColor)),
+            child: Text(
+              'Ləğv et',
+              style: TextStyle(color: context.textHintColor),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context); // Close dialog
-              
+
               try {
                 // Blokla
-                await ChatRepository().toggleBlockUser(currentUserId, widget.otherUserId, true);
-                
+                await ChatRepository().toggleBlockUser(
+                  currentUserId,
+                  widget.otherUserId,
+                  true,
+                );
+
                 // Şəxsin çatını hazırkı istifadəçi üçün gizlət
                 await ChatRepository().hideChat(widget.chatId, currentUserId);
 
@@ -212,9 +252,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         title: Row(
           children: [
             FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance.collection('users').doc(widget.otherUserId).get(),
+              future: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(widget.otherUserId)
+                  .get(),
               builder: (context, snap) {
-                final photoUrl = (snap.data?.data() as Map<String, dynamic>?)?['photoUrl'] as String?;
+                final photoUrl =
+                    (snap.data?.data() as Map<String, dynamic>?)?['photoUrl']
+                        as String?;
                 return Container(
                   width: 36,
                   height: 36,
@@ -231,7 +276,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   child: photoUrl == null
                       ? Center(
                           child: Text(
-                            widget.otherUserName.isNotEmpty ? widget.otherUserName[0].toUpperCase() : '?',
+                            widget.otherUserName.isNotEmpty
+                                ? widget.otherUserName[0].toUpperCase()
+                                : '?',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -247,7 +294,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             Expanded(
               child: Text(
                 widget.otherUserName,
-                style: const TextStyle(fontSize: 16),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -261,7 +311,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               if (value == 'report') {
                 _showReportDialog();
               } else if (value == 'block') {
-                _showBlockDialog();
+                _showBlockConfirmation();
               }
             },
             itemBuilder: (context) => [
@@ -269,9 +319,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 value: 'report',
                 child: Row(
                   children: [
-                    Icon(Icons.report_problem_rounded, color: AppTheme.errorColor, size: 20),
-                    SizedBox(width: 8),
-                    Text('Şikayət Et', style: TextStyle(color: AppTheme.errorColor)),
+                    Icon(
+                      Icons.report_problem_outlined,
+                      color: AppTheme.errorColor,
+                      size: 20,
+                    ),
+                    SizedBox(width: 10),
+                    Text('Şikayət et'),
                   ],
                 ),
               ),
@@ -279,9 +333,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 value: 'block',
                 child: Row(
                   children: [
-                    Icon(Icons.block_rounded, size: 20),
-                    SizedBox(width: 8),
-                    Text('Blokla'),
+                    Icon(
+                      Icons.block_flipped,
+                      color: AppTheme.errorColor,
+                      size: 20,
+                    ),
+                    SizedBox(width: 10),
+                    Text('İstifadəçini blokla'),
                   ],
                 ),
               ),
@@ -291,6 +349,32 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       ),
       body: Column(
         children: [
+          // Safety Tip
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            color: AppTheme.warningColor.withValues(alpha: 0.05),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.info_outline_rounded,
+                  size: 14,
+                  color: AppTheme.warningColor,
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Təhqiramiz və ya kobud mesajlar göndərmək qadağandır.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.warningColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           // Messages List
           Expanded(
             child: StreamBuilder(
@@ -301,7 +385,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 }
 
                 if (snapshot.hasError) {
-                  return Center(child: Text('Bilinməyən xəta: ${snapshot.error}'));
+                  return Center(
+                    child: Text('Bilinməyən xəta: ${snapshot.error}'),
+                  );
                 }
 
                 final messages = snapshot.data ?? [];
@@ -317,12 +403,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
                 return ListView.builder(
                   reverse: true, // Auto-scroll to bottom behavior
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final msg = messages[index];
                     final isMe = msg.senderId == currentUserId;
-                    final timeString = DateFormat('HH:mm').format(msg.createdAt);
+                    final timeString = DateFormat(
+                      'HH:mm',
+                    ).format(msg.createdAt);
 
                     return _MessageBubble(
                       messageId: msg.id,
@@ -348,7 +439,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               color: context.scaffoldBackgroundColor,
               boxShadow: [
                 BoxShadow(
-                  color: context.isDarkMode ? Colors.black.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.04),
+                  color: context.isDarkMode
+                      ? Colors.black.withValues(alpha: 0.5)
+                      : Colors.black.withValues(alpha: 0.04),
                   blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),
@@ -428,13 +521,19 @@ class _MessageBubble extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Mesajı sil', style: TextStyle(color: AppTheme.errorColor)),
+        title: const Text(
+          'Mesajı sil',
+          style: TextStyle(color: AppTheme.errorColor),
+        ),
         content: const Text('Bu mesajı silmək istədiyinizə əminsiniz?'),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Ləğv et', style: TextStyle(color: context.textHintColor)),
+            child: Text(
+              'Ləğv et',
+              style: TextStyle(color: context.textHintColor),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -444,7 +543,9 @@ class _MessageBubble extends StatelessWidget {
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Mesaj silinərkən xəta baş verdi.')),
+                    const SnackBar(
+                      content: Text('Mesaj silinərkən xəta baş verdi.'),
+                    ),
                   );
                 }
               }
@@ -498,7 +599,9 @@ class _MessageBubble extends StatelessWidget {
                 time,
                 style: TextStyle(
                   fontSize: 10,
-                  color: isMe ? Colors.white.withValues(alpha: 0.6) : context.textHintColor,
+                  color: isMe
+                      ? Colors.white.withValues(alpha: 0.6)
+                      : context.textHintColor,
                 ),
               ),
             ],

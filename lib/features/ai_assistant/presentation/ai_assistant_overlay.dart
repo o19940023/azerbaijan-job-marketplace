@@ -88,7 +88,9 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                 height: MediaQuery.of(context).size.height * 0.75,
                 decoration: BoxDecoration(
                   color: context.scaffoldBackgroundColor,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(28),
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.2),
@@ -114,16 +116,14 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                     _buildHeader(context, cubit, state),
 
                     // Messages
-                    Expanded(
-                      child: _buildMessages(context, state),
-                    ),
+                    Expanded(child: _buildMessages(context, state)),
 
                     // Input area
                     _buildInputArea(context, cubit, state),
                   ],
                 ),
               ),
-              
+
               // iOS-style notification
               if (state.showProfileUpdatedNotification)
                 Positioned(
@@ -137,10 +137,7 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                     builder: (context, value, child) {
                       return Transform.translate(
                         offset: Offset(0, -30 * (1 - value)),
-                        child: Opacity(
-                          opacity: value,
-                          child: child,
-                        ),
+                        child: Opacity(opacity: value, child: child),
                       );
                     },
                     child: Container(
@@ -207,7 +204,11 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
     );
   }
 
-  Widget _buildHeader(BuildContext context, AiAssistantCubit cubit, AiAssistantState state) {
+  Widget _buildHeader(
+    BuildContext context,
+    AiAssistantCubit cubit,
+    AiAssistantState state,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
@@ -233,10 +234,7 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(14),
-              child: Image.asset(
-                'assets/images/AiLogo.png',
-                fit: BoxFit.cover,
-              ),
+              child: Image.asset('assets/images/AiLogo.png', fit: BoxFit.cover),
             ),
           ),
           const SizedBox(width: 12),
@@ -266,7 +264,10 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
           // Reset conversation
           IconButton(
             onPressed: () => cubit.resetConversation(),
-            icon: Icon(Icons.refresh_rounded, color: context.textSecondaryColor),
+            icon: Icon(
+              Icons.refresh_rounded,
+              color: context.textSecondaryColor,
+            ),
             tooltip: 'Söhbəti sıfırla',
           ),
         ],
@@ -310,10 +311,7 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
             Text(
               'Profil doldurmaq və iş axtarmaq üçün\nmikrofonla danışın və ya yazın',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: context.textSecondaryColor,
-              ),
+              style: TextStyle(fontSize: 13, color: context.textSecondaryColor),
             ),
           ],
         ),
@@ -323,7 +321,9 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: state.messages.length + (state.status == AiAssistantStatus.thinking ? 1 : 0),
+      itemCount:
+          state.messages.length +
+          (state.status == AiAssistantStatus.thinking ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == state.messages.length) {
           // Thinking indicator
@@ -336,6 +336,17 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
   }
 
   Widget _buildMessageBubble(BuildContext context, AiMessage msg) {
+    // Regex to detect [PROFILE_UPDATE] or [JOB_SEARCH] tags and their content
+    final tagRegex = RegExp(r'\[(PROFILE_UPDATE|JOB_SEARCH)\][\s\S]*?\[\/\1\]');
+
+    // Clean text by removing technical tags for UI and TTS
+    String cleanText = msg.text.replaceAll(tagRegex, '').trim();
+
+    // If text becomes empty after removing tags (it was just a tag), don't show bubble
+    if (cleanText.isEmpty && (msg.jobs == null || msg.jobs!.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeOutCubic,
@@ -343,19 +354,20 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
       builder: (context, value, child) {
         return Transform.translate(
           offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: Column(
-          crossAxisAlignment: msg.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: msg.isUser
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: msg.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+              mainAxisAlignment: msg.isUser
+                  ? MainAxisAlignment.end
+                  : MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 if (!msg.isUser) ...[
@@ -372,7 +384,9 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                         borderRadius: BorderRadius.circular(8),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
+                            color: const Color(
+                              0xFF6C63FF,
+                            ).withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -390,13 +404,16 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                 ],
                 Flexible(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: msg.isUser
                           ? AppTheme.primaryColor
                           : context.isDarkMode
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : const Color(0xFFF0F0F5),
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : const Color(0xFFF0F0F5),
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(18),
                         topRight: const Radius.circular(18),
@@ -412,7 +429,7 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                       ],
                     ),
                     child: Text(
-                      msg.text,
+                      cleanText,
                       style: TextStyle(
                         fontSize: 14,
                         height: 1.5,
@@ -440,10 +457,7 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                       builder: (context, value, child) {
                         return Transform.translate(
                           offset: Offset(0, 15 * (1 - value)),
-                          child: Opacity(
-                            opacity: value,
-                            child: child,
-                          ),
+                          child: Opacity(opacity: value, child: child),
                         );
                       },
                       child: _buildMiniJobCard(context, job),
@@ -497,7 +511,11 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                     color: AppTheme.primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.work_outline, color: AppTheme.primaryColor, size: 20),
+                  child: const Icon(
+                    Icons.work_outline,
+                    color: AppTheme.primaryColor,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -527,15 +545,23 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                   ),
                 ),
                 // Match percentage badge
-                if (job.matchPercentage != null && job.matchPercentage! > 0) ...[
+                if (job.matchPercentage != null &&
+                    job.matchPercentage! > 0) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: _getMatchColor(job.matchPercentage!).withValues(alpha: 0.15),
+                      color: _getMatchColor(
+                        job.matchPercentage!,
+                      ).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: _getMatchColor(job.matchPercentage!).withValues(alpha: 0.3),
+                        color: _getMatchColor(
+                          job.matchPercentage!,
+                        ).withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),
@@ -550,7 +576,11 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                   ),
                 ],
                 const SizedBox(width: 8),
-                Icon(Icons.chevron_right_rounded, color: context.textSecondaryColor, size: 20),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: context.textSecondaryColor,
+                  size: 20,
+                ),
               ],
             ),
           ),
@@ -567,10 +597,7 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
       builder: (context, value, child) {
         return Transform.translate(
           offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: Padding(
@@ -641,8 +668,12 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              const Color(0xFF6C63FF).withValues(alpha: 0.4 + animValue * 0.6),
-                              const Color(0xFF4ECDC4).withValues(alpha: 0.4 + animValue * 0.6),
+                              const Color(
+                                0xFF6C63FF,
+                              ).withValues(alpha: 0.4 + animValue * 0.6),
+                              const Color(
+                                0xFF4ECDC4,
+                              ).withValues(alpha: 0.4 + animValue * 0.6),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(4),
@@ -659,14 +690,20 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
     );
   }
 
-  Widget _buildInputArea(BuildContext context, AiAssistantCubit cubit, AiAssistantState state) {
+  Widget _buildInputArea(
+    BuildContext context,
+    AiAssistantCubit cubit,
+    AiAssistantState state,
+  ) {
     final isListening = state.status == AiAssistantStatus.listening;
     final isThinking = state.status == AiAssistantStatus.thinking;
     final isSpeaking = state.status == AiAssistantStatus.speaking;
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-        16, 12, 12,
+        16,
+        12,
+        12,
         MediaQuery.of(context).padding.bottom + 12,
       ),
       decoration: BoxDecoration(
@@ -688,12 +725,16 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                 controller: _textController,
                 enabled: !isListening && !isThinking,
                 decoration: InputDecoration(
-                  hintText: isListening
-                      ? 'Dinləyirəm...'
-                      : 'Mesaj yazın...',
-                  hintStyle: TextStyle(color: context.textHintColor, fontSize: 14),
+                  hintText: isListening ? 'Dinləyirəm...' : 'Mesaj yazın...',
+                  hintStyle: TextStyle(
+                    color: context.textHintColor,
+                    fontSize: 14,
+                  ),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                 ),
                 onSubmitted: (text) {
                   if (text.trim().isNotEmpty) {
@@ -715,10 +756,7 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
               builder: (context, value, child) {
                 return Transform.scale(
                   scale: value,
-                  child: Opacity(
-                    opacity: value,
-                    child: child,
-                  ),
+                  child: Opacity(opacity: value, child: child),
                 );
               },
               child: GestureDetector(
@@ -746,7 +784,11 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.send_rounded, color: Colors.white, size: 22),
+                  child: const Icon(
+                    Icons.send_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                 ),
               ),
             ),
@@ -766,7 +808,9 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
               child: AnimatedBuilder(
                 animation: _pulseController,
                 builder: (context, child) {
-                  final scale = isListening ? 1.0 + _pulseController.value * 0.15 : 1.0;
+                  final scale = isListening
+                      ? 1.0 + _pulseController.value * 0.15
+                      : 1.0;
                   return Transform.scale(
                     scale: scale,
                     child: Stack(
@@ -780,7 +824,9 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: Colors.red.withValues(alpha: 0.3 * (1 - _pulseController.value)),
+                                color: Colors.red.withValues(
+                                  alpha: 0.3 * (1 - _pulseController.value),
+                                ),
                                 width: 2,
                               ),
                             ),
@@ -792,22 +838,32 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: isListening
-                                  ? [const Color(0xFFFF5252), const Color(0xFFFF1744)]
+                                  ? [
+                                      const Color(0xFFFF5252),
+                                      const Color(0xFFFF1744),
+                                    ]
                                   : isSpeaking
-                                      ? [const Color(0xFF4ECDC4), const Color(0xFF44A08D)]
-                                      : [const Color(0xFF6C63FF), const Color(0xFF4ECDC4)],
+                                  ? [
+                                      const Color(0xFF4ECDC4),
+                                      const Color(0xFF44A08D),
+                                    ]
+                                  : [
+                                      const Color(0xFF6C63FF),
+                                      const Color(0xFF4ECDC4),
+                                    ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(26),
                             boxShadow: [
                               BoxShadow(
-                                color: (isListening
-                                        ? Colors.red
-                                        : isSpeaking
+                                color:
+                                    (isListening
+                                            ? Colors.red
+                                            : isSpeaking
                                             ? const Color(0xFF4ECDC4)
                                             : const Color(0xFF6C63FF))
-                                    .withValues(alpha: 0.4),
+                                        .withValues(alpha: 0.4),
                                 blurRadius: isListening ? 20 : 12,
                                 spreadRadius: isListening ? 3 : 0,
                                 offset: const Offset(0, 4),
@@ -829,9 +885,15 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                               isListening
                                   ? Icons.stop_rounded
                                   : isSpeaking
-                                      ? Icons.volume_up_rounded
-                                      : Icons.mic_rounded,
-                              key: ValueKey(isListening ? 'stop' : isSpeaking ? 'volume' : 'mic'),
+                                  ? Icons.volume_up_rounded
+                                  : Icons.mic_rounded,
+                              key: ValueKey(
+                                isListening
+                                    ? 'stop'
+                                    : isSpeaking
+                                    ? 'volume'
+                                    : 'mic',
+                              ),
                               color: Colors.white,
                               size: 24,
                             ),
@@ -932,7 +994,9 @@ class _AiAssistantFabState extends State<AiAssistantFab>
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF6C63FF).withValues(alpha: 0.3 + _glowController.value * 0.2),
+                color: const Color(
+                  0xFF6C63FF,
+                ).withValues(alpha: 0.3 + _glowController.value * 0.2),
                 blurRadius: 12 + _glowController.value * 8,
                 spreadRadius: _glowController.value * 2,
                 offset: const Offset(0, 4),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class MapPickerScreen extends StatefulWidget {
@@ -15,11 +16,51 @@ class MapPickerScreen extends StatefulWidget {
 class _MapPickerScreenState extends State<MapPickerScreen> {
   LatLng? _selectedLocation;
   final MapController _mapController = MapController();
+  bool _isLocating = false;
 
   @override
   void initState() {
     super.initState();
     _selectedLocation = widget.initialLocation ?? const LatLng(40.4093, 49.8671); // Default to Baku
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isLocating = true);
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw 'Məkan xidməti bağlıdır.';
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw 'Məkan icazəsi rədd edildi.';
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw 'Məkan icazəsi həmişəlik rədd edilib.';
+      }
+
+      final position = await Geolocator.getCurrentPosition();
+      final newLatLng = LatLng(position.latitude, position.longitude);
+      
+      setState(() {
+        _selectedLocation = newLatLng;
+      });
+      
+      _mapController.move(newLatLng, 15.0);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
   }
 
   @override
@@ -70,6 +111,23 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                   ],
                 ),
             ],
+          ),
+          // Current Location Button
+          Positioned(
+            right: 20,
+            bottom: 160,
+            child: FloatingActionButton(
+              onPressed: _isLocating ? null : _getCurrentLocation,
+              backgroundColor: Colors.white,
+              mini: true,
+              child: _isLocating
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.my_location_rounded, color: AppTheme.primaryColor),
+            ),
           ),
           Positioned(
             bottom: 30,

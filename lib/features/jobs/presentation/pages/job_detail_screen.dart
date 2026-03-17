@@ -155,504 +155,513 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
     return Scaffold(
       backgroundColor: context.scaffoldBackgroundColor,
-      body: CustomScrollView(
-        slivers: [
-          // App Bar
-          SliverAppBar(
-            expandedHeight: 280,
-            pinned: true,
-            backgroundColor: category.color,
-            leading: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: GlassContainer(
-                blur: 10,
-                opacity: 0.2,
-                borderRadius: BorderRadius.circular(12),
-                child: IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
-                  color: Colors.white,
-                  padding: EdgeInsets.zero,
-                ),
-              ),
-            ),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                child: GlassContainer(
-                  blur: 10,
-                  opacity: 0.2,
-                  borderRadius: BorderRadius.circular(12),
-                  child: IconButton(
-                    onPressed: () {
-                      final shareText = '''
-${job.title} - ${job.companyName}
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance.collection('jobs').doc(job.id).snapshots(),
+        builder: (context, snapshot) {
+          final currentJob = snapshot.hasData 
+              ? JobModel.fromMap(snapshot.data!.data() as Map<String, dynamic>, snapshot.data!.id)
+              : job;
 
-Maaş: ${job.salaryText}
-Şəhər: ${job.city}
-İş növü: ${_getJobTypeLabel(job.jobType)}
+          return CustomScrollView(
+            slivers: [
+              // App Bar
+              SliverAppBar(
+                expandedHeight: 280,
+                pinned: true,
+                backgroundColor: category.color,
+                leading: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: GlassContainer(
+                    blur: 10,
+                    opacity: 0.2,
+                    borderRadius: BorderRadius.circular(12),
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
+                      color: Colors.white,
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                    child: GlassContainer(
+                      blur: 10,
+                      opacity: 0.2,
+                      borderRadius: BorderRadius.circular(12),
+                      child: IconButton(
+                        onPressed: () {
+                          final shareText = '''
+${currentJob.title} - ${currentJob.companyName}
+
+Maaş: ${currentJob.salaryText}
+Şəhər: ${currentJob.city}
+İş növü: ${_getJobTypeLabel(currentJob.jobType)}
 
 Daha ətraflı məlumat üçün Azərbaycan İş Bazarı (İş Tap AI) tətbiqini yükləyin!
 ''';
-                      Share.share(shareText, subject: job.title);
-                    },
-                    icon: const Icon(Icons.share_rounded, size: 20),
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              if (!isEmployerView) Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                child: GlassContainer(
-                  blur: 10,
-                  opacity: 0.2,
-                  borderRadius: BorderRadius.circular(12),
-                  child: _BookmarkButton(jobId: job.id),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 4, right: 12, top: 8, bottom: 8),
-                child: GlassContainer(
-                  blur: 10,
-                  opacity: 0.2,
-                  borderRadius: BorderRadius.circular(12),
-                  child: PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert_rounded, size: 20),
-                    color: Colors.white,
-                    onSelected: (value) {
-                      if (value == 'report') {
-                        _showReportDialog();
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'report',
-                        child: Row(
-                          children: [
-                            Icon(Icons.report_problem_rounded, color: AppTheme.errorColor, size: 20),
-                            SizedBox(width: 8),
-                            Text('Şikayət Et', style: TextStyle(color: AppTheme.errorColor)),
-                          ],
-                        ),
+                          Share.share(shareText, subject: currentJob.title);
+                        },
+                        icon: const Icon(Icons.share_rounded, size: 20),
+                        color: Colors.white,
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                children: [
-                  // Gradient Background
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          category.color,
-                          category.color.withValues(alpha: 0.6),
-                          AppTheme.primaryColor.withValues(alpha: 0.8),
+                  if (!isEmployerView) Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                    child: GlassContainer(
+                      blur: 10,
+                      opacity: 0.2,
+                      borderRadius: BorderRadius.circular(12),
+                      child: _BookmarkButton(jobId: currentJob.id),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, right: 12, top: 8, bottom: 8),
+                    child: GlassContainer(
+                      blur: 10,
+                      opacity: 0.2,
+                      borderRadius: BorderRadius.circular(12),
+                      child: PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert_rounded, size: 20),
+                        color: Colors.white,
+                        onSelected: (value) {
+                          if (value == 'report') {
+                            _showReportDialog();
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'report',
+                            child: Row(
+                              children: [
+                                Icon(Icons.report_problem_rounded, color: AppTheme.errorColor, size: 20),
+                                SizedBox(width: 8),
+                                Text('Şikayət Et', style: TextStyle(color: AppTheme.errorColor)),
+                              ],
+                            ),
+                          ),
                         ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
                       ),
-                    ),
-                  ),
-                  // Mesh Pattern Overlay
-                  Positioned(
-                    top: -100,
-                    right: -100,
-                    child: Container(
-                      width: 300,
-                      height: 300,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            Colors.white.withValues(alpha: 0.2),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: -50,
-                    left: -50,
-                    child: Container(
-                      width: 200,
-                      height: 200,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            Colors.black.withValues(alpha: 0.1),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Content
-                  Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 60),
-                        Hero(
-                          tag: 'job_logo_${job.id}',
-                          child: Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(24),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.15),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(24),
-                              child: job.companyLogo != null && job.companyLogo!.isNotEmpty
-                                  ? Image.network(job.companyLogo!, fit: BoxFit.cover)
-                                  : Icon(category.icon, color: category.color, size: 40),
-                            ),
-                          ),
-                        ).animate().scale(duration: 500.ms, curve: Curves.easeOutBack),
-                        const SizedBox(height: 16),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Text(
-                            job.title,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              letterSpacing: -0.5,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black26,
-                                  blurRadius: 8,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, end: 0),
-                        const SizedBox(height: 8),
-                        GlassContainer(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          borderRadius: BorderRadius.circular(20),
-                          opacity: 0.15,
-                          child: Text(
-                            job.companyName,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ).animate().fadeIn(delay: 300.ms),
-                      ],
                     ),
                   ),
                 ],
-              ),
-            ),
-          ),
-
-          // Content
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Quick info cards
-                Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: context.cardColor,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: AppTheme.cardShadow,
-                    border: Border.all(color: context.dividerColor.withValues(alpha: 0.5)),
-                  ),
-                  child: Column(
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Stack(
                     children: [
-                      Row(
-                        children: [
-                          _QuickInfo(
-                            icon: Icons.monetization_on_rounded,
-                            title: 'Maaş',
-                            value: job.salaryText,
-                            color: AppTheme.successColor,
+                      // Gradient Background
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              category.color,
+                              category.color.withValues(alpha: 0.6),
+                              AppTheme.primaryColor.withValues(alpha: 0.8),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          _VerticalDivider(),
-                          _QuickInfo(
-                            icon: Icons.schedule_rounded,
-                            title: 'İş növü',
-                            value: _getJobTypeLabel(job.jobType),
-                            color: AppTheme.primaryColor,
-                          ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      Divider(color: context.dividerColor.withValues(alpha: 0.5), height: 1),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          _QuickInfo(
-                            icon: Icons.location_on_rounded,
-                            title: 'Şəhər',
-                            value: job.city,
-                            color: AppTheme.accentColor,
-                          ),
-                          _VerticalDivider(),
-                          _QuickInfo(
-                            icon: Icons.work_rounded,
-                            title: 'Təcrübə',
-                            value: job.experienceLevel ?? 'Təcrübəsiz',
-                            color: AppTheme.infoColor,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
-
-                // Urgent badge
-                if (job.isUrgent)
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.accentColor.withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Text('🔥', style: TextStyle(fontSize: 18)),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'Təcili vakansiya - Tezliklə cavab veriləcək!',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.accentColor,
+                      // Mesh Pattern Overlay
+                      Positioned(
+                        top: -100,
+                        right: -100,
+                        child: Container(
+                          width: 300,
+                          height: 300,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                Colors.white.withValues(alpha: 0.2),
+                                Colors.transparent,
+                              ],
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-
-                // 1) İş haqqında (Description)
-                _SectionCard(
-                  title: 'İş haqqında',
-                  child: Text(
-                    job.description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.6,
-                      color: context.textSecondaryColor,
-                    ),
-                  ),
-                ),
-
-                // 2) Tələblər (Requirements)
-                if (job.requirements.isNotEmpty)
-                  _SectionCard(
-                    title: 'Tələblər',
-                    child: Column(
-                      children: job.requirements
-                          .map((r) => Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(
-                                      Icons.check_circle_rounded,
-                                      color: AppTheme.successColor,
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        r,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: context.textSecondaryColor,
-                                        ),
-                                      ),
+                      ),
+                      Positioned(
+                        bottom: -50,
+                        left: -50,
+                        child: Container(
+                          width: 200,
+                          height: 200,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                Colors.black.withValues(alpha: 0.1),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Content
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 60),
+                            Hero(
+                              tag: 'job_logo_${currentJob.id}',
+                              child: Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.15),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 10),
                                     ),
                                   ],
                                 ),
-                              ))
-                          .toList(),
-                    ),
-                  ),
-
-                // 3) Yan haqlar (Benefits)
-                if (job.benefits.isNotEmpty)
-                  _SectionCard(
-                    title: 'Yan haqlar',
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: job.benefits.map((benefit) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            benefit,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: AppTheme.primaryColor,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-
-                // 4) Detallar (Details)
-                _SectionCard(
-                  title: 'Detallar',
-                  child: Column(
-                    children: [
-                      _DetailRow(
-                        icon: Icons.business_rounded,
-                        label: 'Şirkət',
-                        value: job.companyName,
-                      ),
-                      _DetailRow(
-                        icon: Icons.location_city_rounded,
-                        label: 'Şəhər',
-                        value: job.city,
-                      ),
-                      if (job.district != null && job.district!.isNotEmpty)
-                        _DetailRow(
-                          icon: Icons.map_rounded,
-                          label: 'Rayon',
-                          value: job.district!,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(24),
+                                  child: currentJob.companyLogo != null && currentJob.companyLogo!.isNotEmpty
+                                      ? Image.network(currentJob.companyLogo!, fit: BoxFit.cover)
+                                      : Icon(category.icon, color: category.color, size: 40),
+                                ),
+                              ),
+                            ).animate().scale(duration: 500.ms, curve: Curves.easeOutBack),
+                            const SizedBox(height: 16),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                currentJob.title,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: -0.5,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black26,
+                                      blurRadius: 8,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, end: 0),
+                            const SizedBox(height: 8),
+                            GlassContainer(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              borderRadius: BorderRadius.circular(20),
+                              opacity: 0.15,
+                              child: Text(
+                                currentJob.companyName,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ).animate().fadeIn(delay: 300.ms),
+                          ],
                         ),
-                      if (job.address != null && job.address!.isNotEmpty)
-                        _DetailRow(
-                          icon: Icons.pin_drop_rounded,
-                          label: 'Ünvan',
-                          value: job.address!,
-                        ),
-                      if (job.workingHours != null)
-                        _DetailRow(
-                          icon: Icons.schedule_rounded,
-                          label: 'İş saatı',
-                          value: job.workingHours!,
-                        ),
-                      _DetailRow(
-                        icon: Icons.calendar_today_rounded,
-                        label: 'Tarix',
-                        value: job.timeAgo,
                       ),
                     ],
                   ),
                 ),
+              ),
 
-                // 5) İşin Mövqeyi (Location Map) — en sonda
-                if (job.latitude != 0 && job.longitude != 0)
-                  _SectionCard(
-                    title: 'İşin Mövqeyi',
-                    child: Container(
-                      height: 200,
+              // Content
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Quick info cards
+                    Container(
+                      margin: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: context.dividerColor),
+                        color: context.cardColor,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: AppTheme.cardShadow,
+                        border: Border.all(color: context.dividerColor.withValues(alpha: 0.5)),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: IgnorePointer(
-                          child: FlutterMap(
-                            options: MapOptions(
-                              initialCenter: LatLng(job.latitude, job.longitude),
-                              initialZoom: 15.0,
-                            ),
+                      child: Column(
+                        children: [
+                          Row(
                             children: [
-                              TileLayer(
-                                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                userAgentPackageName: 'com.is.tap',
+                              _QuickInfo(
+                                icon: Icons.monetization_on_rounded,
+                                title: 'Maaş',
+                                value: currentJob.salaryText,
+                                color: AppTheme.successColor,
                               ),
-                              MarkerLayer(
-                                markers: [
-                                  Marker(
-                                    point: LatLng(job.latitude, job.longitude),
-                                    width: 40,
-                                    height: 40,
-                                    child: const Icon(
-                                      Icons.location_on,
-                                      color: Colors.red,
-                                      size: 40,
-                                    ),
-                                  ),
-                                ],
+                              _VerticalDivider(),
+                              _QuickInfo(
+                                icon: Icons.schedule_rounded,
+                                title: 'İş növü',
+                                value: _getJobTypeLabel(currentJob.jobType),
+                                color: AppTheme.primaryColor,
                               ),
                             ],
                           ),
+                          const SizedBox(height: 16),
+                          Divider(color: context.dividerColor.withValues(alpha: 0.5), height: 1),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              _QuickInfo(
+                                icon: Icons.location_on_rounded,
+                                title: 'Şəhər',
+                                value: currentJob.city,
+                                color: AppTheme.accentColor,
+                              ),
+                              _VerticalDivider(),
+                              _QuickInfo(
+                                icon: Icons.work_rounded,
+                                title: 'Təcrübə',
+                                value: currentJob.experienceLevel ?? 'Təcrübəsiz',
+                                color: AppTheme.infoColor,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
+
+                    // Urgent badge
+                    if (currentJob.isUrgent)
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppTheme.accentColor.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text('🔥', style: TextStyle(fontSize: 18)),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Təcili vakansiya - Tezliklə cavab veriləcək!',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.accentColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // 1) İş haqqında (Description)
+                    _SectionCard(
+                      title: 'İş haqqında',
+                      child: Text(
+                        currentJob.description,
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.6,
+                          color: context.textSecondaryColor,
                         ),
                       ),
                     ),
-                  ),
 
-                // Stats
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: context.cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _StatItem(
-                        icon: Icons.visibility_outlined,
-                        value: '${job.viewCount}',
-                        label: 'Baxış',
+                    // 2) Tələblər (Requirements)
+                    if (currentJob.requirements.isNotEmpty)
+                      _SectionCard(
+                        title: 'Tələblər',
+                        child: Column(
+                          children: currentJob.requirements
+                              .map((r) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Icon(
+                                          Icons.check_circle_rounded,
+                                          color: AppTheme.successColor,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            r,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: context.textSecondaryColor,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
                       ),
-                      _StatItem(
-                        icon: Icons.people_outline_rounded,
-                        value: '${job.applicationCount}',
-                        label: 'Müraciət',
+
+                    // 3) Yan haqlar (Benefits)
+                    if (currentJob.benefits.isNotEmpty)
+                      _SectionCard(
+                        title: 'Yan haqlar',
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: currentJob.benefits.map((benefit) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                benefit,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
                       ),
-                      _StatItem(
-                        icon: Icons.timer_outlined,
-                        value: '${job.expiresAt.difference(DateTime.now()).inDays}',
-                        label: 'Gün qalıb',
+
+                    // 4) Detallar (Details)
+                    _SectionCard(
+                      title: 'Detallar',
+                      child: Column(
+                        children: [
+                          _DetailRow(
+                            icon: Icons.business_rounded,
+                            label: 'Şirkət',
+                            value: currentJob.companyName,
+                          ),
+                          _DetailRow(
+                            icon: Icons.location_city_rounded,
+                            label: 'Şəhər',
+                            value: currentJob.city,
+                          ),
+                          if (currentJob.district != null && currentJob.district!.isNotEmpty)
+                            _DetailRow(
+                              icon: Icons.map_rounded,
+                              label: 'Rayon',
+                              value: currentJob.district!,
+                            ),
+                          if (currentJob.address != null && currentJob.address!.isNotEmpty)
+                            _DetailRow(
+                              icon: Icons.pin_drop_rounded,
+                              label: 'Ünvan',
+                              value: currentJob.address!,
+                            ),
+                          if (currentJob.workingHours != null)
+                            _DetailRow(
+                              icon: Icons.schedule_rounded,
+                              label: 'İş saatı',
+                              value: currentJob.workingHours!,
+                            ),
+                          _DetailRow(
+                            icon: Icons.calendar_today_rounded,
+                            label: 'Tarix',
+                            value: currentJob.timeAgo,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+
+                    // 5) İşin Mövqeyi (Location Map) — en sonda
+                    if (currentJob.latitude != 0 && currentJob.longitude != 0)
+                      _SectionCard(
+                        title: 'İşin Mövqeyi',
+                        child: Container(
+                          height: 200,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: context.dividerColor),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: IgnorePointer(
+                              child: FlutterMap(
+                                options: MapOptions(
+                                  initialCenter: LatLng(currentJob.latitude, currentJob.longitude),
+                                  initialZoom: 15.0,
+                                ),
+                                children: [
+                                  TileLayer(
+                                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                    userAgentPackageName: 'com.is.tap',
+                                  ),
+                                  MarkerLayer(
+                                    markers: [
+                                      Marker(
+                                        point: LatLng(currentJob.latitude, currentJob.longitude),
+                                        width: 40,
+                                        height: 40,
+                                        child: const Icon(
+                                          Icons.location_on,
+                                          color: Colors.red,
+                                          size: 40,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    // Stats
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: context.cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _StatItem(
+                            icon: Icons.visibility_outlined,
+                            value: '${currentJob.viewCount}',
+                            label: 'Baxış',
+                          ),
+                          _StatItem(
+                            icon: Icons.people_outline_rounded,
+                            value: '${currentJob.applicationCount}',
+                            label: 'Müraciət',
+                          ),
+                          _StatItem(
+                            icon: Icons.timer_outlined,
+                            value: '${currentJob.expiresAt.difference(DateTime.now()).inDays}',
+                            label: 'Gün qalıb',
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 100),
+                  ],
                 ),
-
-                const SizedBox(height: 100),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          );
+        }
       ),
 
       // Bottom Action Bar
