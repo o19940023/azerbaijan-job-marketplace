@@ -26,7 +26,7 @@ class RemoteConfigService {
       _remoteConfig = FirebaseRemoteConfig.instance;
       await _remoteConfig!.setConfigSettings(RemoteConfigSettings(
         fetchTimeout: const Duration(seconds: 10),
-        minimumFetchInterval: const Duration(minutes: 5), // Hər 5 dəqiqədən bir yoxla
+        minimumFetchInterval: const Duration(seconds: 0), // Anında yenilə (test üçün)
       ));
 
       // Default dəyərlər (əgər internet yoxdursa və ya config tapılmasa)
