@@ -54,25 +54,159 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
     super.initState();
     _loadSearchHistory();
     _fetchJobs();
+    _getUserLocation(); // Konumu açılışta al
+  }
+
+  Future<void> _getUserLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return; // Konum servisi kapalı
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return; // İzin reddedildi
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return; // İzin kalıcı olarak reddedildi
+    }
+
+    try {
+      final position = await Geolocator.getCurrentPosition();
+      if (mounted) {
+        setState(() {
+          _userPosition = position;
+        });
+        _recalculateDistances(); // Konum alınınca mesafeleri hesapla
+      }
+    } catch (e) {
+      debugPrint('Error getting location: $e');
+    }
+  }
+
+  void _recalculateDistances() {
+    if (_userPosition == null || _cachedJobs == null) return;
+
+    setState(() {
+      _cachedJobs = _cachedJobs!.map((job) {
+        final distanceInMeters = Geolocator.distanceBetween(
+          _userPosition!.latitude,
+          _userPosition!.longitude,
+          job.latitude,
+          job.longitude,
+        );
+        return job.copyWith(
+          distance: distanceInMeters / 1000,
+        ); // Metreyi km'ye çevir
+      }).toList();
+    });
   }
 
   Future<void> _fetchJobs() async {
     if (!mounted) return;
     setState(() => _isLoadingJobs = true);
     try {
-      final snapshot = await FirebaseFirestore.instance.collection('jobs').get();
+      // 1. Fetch Urgent Jobs (Global, no filters)
+      final urgentSnapshot = await FirebaseFirestore.instance
+          .collection('jobs')
+          .where('isUrgent', isEqualTo: true)
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      final urgentJobs = urgentSnapshot.docs
+          .map((d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+          .toList();
+
+      // 2. Fetch Normal/Organic Jobs (With filters - though for MVP we fetch all active and filter locally or basic query)
+      // Note: In a real app with pagination, we'd query carefully. Here we fetch active jobs.
+      // We will exclude urgent jobs from organic list if they appear there to avoid duplicates,
+      // OR we just treat "organic" as "everything else".
+
+      // Let's fetch all active jobs for now and filter/sort in memory for the "organic" part,
+      // since the query logic for filters is complex to do purely in one Firestore call with '!='.
+      final organicSnapshot = await FirebaseFirestore.instance
+          .collection('jobs')
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      final allOrganicJobs = organicSnapshot.docs
+          .map((d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+          // Exclude jobs that are already in the urgent list to prevent duplicates?
+          // The prompt says "ilk 2 ilan acil... sonra 15 normal".
+          // If a job is urgent, it should probably ONLY appear in the urgent slots to make those slots valuable.
+          // So let's filter out isUrgent=true from organic list.
+          .where((job) => !job.isUrgent)
+          .toList();
+
       if (!mounted) return;
+
+      // 3. Mix them
       setState(() {
-        _cachedJobs = snapshot.docs
-            .map((d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
-            .toList();
+        _cachedJobs = _mixJobs(allOrganicJobs, urgentJobs);
         _isLoadingJobs = false;
       });
+
+      // Calculate distances if location is already available
+      if (_userPosition != null) {
+        _recalculateDistances();
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoadingJobs = false);
       }
     }
+  }
+
+  List<JobModel> _mixJobs(List<JobModel> organic, List<JobModel> urgent) {
+    if (urgent.isEmpty) return organic;
+
+    List<JobModel> result = [];
+    // Randomize urgent pool on each refresh
+    List<JobModel> urgentPool = List.from(urgent)..shuffle();
+
+    int urgentIndex = 0;
+    int organicIndex = 0;
+
+    // Pattern: 2 Urgent -> 15 Organic -> 2 Urgent -> 15 Organic ...
+
+    // Initial 2 Urgent
+    for (int i = 0; i < 2; i++) {
+      if (urgentPool.isEmpty) break;
+      result.add(urgentPool[urgentIndex % urgentPool.length]);
+      urgentIndex++;
+    }
+
+    while (organicIndex < organic.length) {
+      // Add 10 Organic
+      int chunkEnd = (organicIndex + 10 < organic.length)
+          ? organicIndex + 10
+          : organic.length;
+      result.addAll(organic.sublist(organicIndex, chunkEnd));
+      organicIndex = chunkEnd;
+
+      // Add 2 Urgent (if we are not at the very end, OR even if we are?
+      // "10 ilandan sonra tekrar 2 random acil ilan ve bu sonsuza kadar boyle devam edecek"
+      // It implies adding them periodically.
+      // If we finished organic, do we stop? Usually yes, otherwise infinite scroll of just ads.
+      // But let's add one more block of ads if we finished a full block of 10.
+      if (organicIndex < organic.length ||
+          (organicIndex > 0 && organicIndex % 10 == 0)) {
+        for (int i = 0; i < 2; i++) {
+          if (urgentPool.isEmpty) break;
+          result.add(urgentPool[urgentIndex % urgentPool.length]);
+          urgentIndex++;
+        }
+      }
+    }
+
+    return result;
   }
 
   Future<void> _loadSearchHistory() async {
@@ -86,7 +220,8 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
     if (term.trim().isEmpty) return;
     _searchHistory.remove(term);
     _searchHistory.insert(0, term);
-    if (_searchHistory.length > 10) _searchHistory = _searchHistory.sublist(0, 10);
+    if (_searchHistory.length > 10)
+      _searchHistory = _searchHistory.sublist(0, 10);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('searchHistory', _searchHistory);
     setState(() {});
@@ -100,7 +235,9 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
     if (!serviceEnabled) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Zəhmət olmasa, məkan xidmətlərini aktivləşdirin')),
+          const SnackBar(
+            content: Text('Zəhmət olmasa, məkan xidmətlərini aktivləşdirin'),
+          ),
         );
       }
       return;
@@ -122,7 +259,9 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
     if (permission == LocationPermission.deniedForever) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Məkan icazələri həmişəlik rədd edilib')),
+          const SnackBar(
+            content: Text('Məkan icazələri həmişəlik rədd edilib'),
+          ),
         );
       }
       return;
@@ -168,9 +307,17 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
               );
             }
 
-            Widget buildDropdown(String hint, List<String> items, String? currentValue, Function(String?) onChanged) {
+            Widget buildDropdown(
+              String hint,
+              List<String> items,
+              String? currentValue,
+              Function(String?) onChanged,
+            ) {
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: context.inputFillColor,
                   borderRadius: BorderRadius.circular(12),
@@ -178,11 +325,30 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     isExpanded: true,
-                    hint: Text(hint, style: TextStyle(color: context.textHintColor, fontSize: 14)),
+                    hint: Text(
+                      hint,
+                      style: TextStyle(
+                        color: context.textHintColor,
+                        fontSize: 14,
+                      ),
+                    ),
                     value: currentValue,
-                    items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 14)))).toList(),
+                    items: items
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e,
+                            child: Text(
+                              e,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        )
+                        .toList(),
                     onChanged: onChanged,
-                    icon: Icon(Icons.keyboard_arrow_down_rounded, color: context.textSecondaryColor),
+                    icon: Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: context.textSecondaryColor,
+                    ),
                   ),
                 ),
               );
@@ -238,7 +404,10 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                                 _selectedJobType = null;
                               });
                             },
-                            child: const Text('Təmizlə', style: TextStyle(color: AppTheme.errorColor)),
+                            child: const Text(
+                              'Təmizlə',
+                              style: TextStyle(color: AppTheme.errorColor),
+                            ),
                           ),
                         ],
                       ),
@@ -247,16 +416,56 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                           controller: scrollController,
                           children: [
                             buildSectionTitle('Maaş Aralığı (₼)'),
-                            buildDropdown('Seçin', ['0-500', '500-1000', '1000-2000', '2000+'], _filterSalaryRange, (v) => setModalState(() => _filterSalaryRange = v)),
-                            
+                            buildDropdown(
+                              'Seçin',
+                              ['0-500', '500-1000', '1000-2000', '2000+'],
+                              _filterSalaryRange,
+                              (v) =>
+                                  setModalState(() => _filterSalaryRange = v),
+                            ),
+
                             buildSectionTitle('Təhsil'),
-                            buildDropdown('Seçin', ['Vacib deyil', 'Orta', 'Peşə', 'Natamam ali', 'Ali'], _filterEducation, (v) => setModalState(() => _filterEducation = v)),
-                            
+                            buildDropdown(
+                              'Seçin',
+                              [
+                                'Vacib deyil',
+                                'Orta',
+                                'Peşə',
+                                'Natamam ali',
+                                'Ali',
+                              ],
+                              _filterEducation,
+                              (v) => setModalState(() => _filterEducation = v),
+                            ),
+
                             buildSectionTitle('Şəhər'),
-                            buildDropdown('Seçin', ['Bakı', 'Sumqayıt', 'Gəncə', 'Mingəçevir', 'Lənkəran', 'Digər'], _filterCity, (v) => setModalState(() => _filterCity = v)),
-                            
+                            buildDropdown(
+                              'Seçin',
+                              [
+                                'Bakı',
+                                'Sumqayıt',
+                                'Gəncə',
+                                'Mingəçevir',
+                                'Lənkəran',
+                                'Digər',
+                              ],
+                              _filterCity,
+                              (v) => setModalState(() => _filterCity = v),
+                            ),
+
                             buildSectionTitle('İş Təcrübəsi'),
-                            buildDropdown('Seçin', ['Təcrübəsiz', '1 ildən aşağı', '1 ildən 3 ilə qədər', '3 ildən 5 ilə qədər', '5 ildən artıq'], _filterExperience, (v) => setModalState(() => _filterExperience = v)),
+                            buildDropdown(
+                              'Seçin',
+                              [
+                                'Təcrübəsiz',
+                                '1 ildən aşağı',
+                                '1 ildən 3 ilə qədər',
+                                '3 ildən 5 ilə qədər',
+                                '5 ildən artıq',
+                              ],
+                              _filterExperience,
+                              (v) => setModalState(() => _filterExperience = v),
+                            ),
 
                             const SizedBox(height: 24),
                           ],
@@ -273,9 +482,18 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primaryColor,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
-                          child: const Text('Tətbiq Et', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+                          child: const Text(
+                            'Tətbiq Et',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -322,7 +540,9 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
               ListTile(
                 leading: const Icon(Icons.access_time_rounded),
                 title: const Text('Ən yenidən köhnəyə'),
-                trailing: _selectedSortMode == 'newest' ? const Icon(Icons.check, color: AppTheme.primaryColor) : null,
+                trailing: _selectedSortMode == 'newest'
+                    ? const Icon(Icons.check, color: AppTheme.primaryColor)
+                    : null,
                 onTap: () {
                   setState(() {
                     _selectedSortMode = 'newest';
@@ -333,7 +553,9 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
               ListTile(
                 leading: const Icon(Icons.attach_money_rounded),
                 title: const Text('Ən yüksək maaş'),
-                trailing: _selectedSortMode == 'salary' ? const Icon(Icons.check, color: AppTheme.primaryColor) : null,
+                trailing: _selectedSortMode == 'salary'
+                    ? const Icon(Icons.check, color: AppTheme.primaryColor)
+                    : null,
                 onTap: () {
                   setState(() {
                     _selectedSortMode = 'salary';
@@ -344,7 +566,9 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
               ListTile(
                 leading: const Icon(Icons.location_on_rounded),
                 title: const Text('Ən yaxın konum'),
-                trailing: _selectedSortMode == 'location' ? const Icon(Icons.check, color: AppTheme.primaryColor) : null,
+                trailing: _selectedSortMode == 'location'
+                    ? const Icon(Icons.check, color: AppTheme.primaryColor)
+                    : null,
                 onTap: () {
                   Navigator.pop(context);
                   _handleLocationSort();
@@ -402,7 +626,9 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
           color: context.scaffoldBackgroundColor,
           boxShadow: [
             BoxShadow(
-              color: context.isDarkMode ? Colors.black.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.06),
+              color: context.isDarkMode
+                  ? Colors.black.withValues(alpha: 0.5)
+                  : Colors.black.withValues(alpha: 0.06),
               blurRadius: 20,
               offset: const Offset(0, -4),
             ),
@@ -436,12 +662,18 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                 BottomNavigationBarItem(
                   icon: Badge(
                     isLabelVisible: unreadCount > 0,
-                    label: Text('$unreadCount', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                    label: Text(
+                      '$unreadCount',
+                      style: const TextStyle(fontSize: 10, color: Colors.white),
+                    ),
                     child: const Icon(Icons.chat_bubble_outline_rounded),
                   ),
                   activeIcon: Badge(
                     isLabelVisible: unreadCount > 0,
-                    label: Text('$unreadCount', style: const TextStyle(fontSize: 10, color: Colors.white)),
+                    label: Text(
+                      '$unreadCount',
+                      style: const TextStyle(fontSize: 10, color: Colors.white),
+                    ),
                     child: const Icon(Icons.chat_bubble_rounded),
                   ),
                   label: 'Mesajlar',
@@ -471,92 +703,176 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
         onRefresh: _fetchJobs,
         color: AppTheme.primaryColor,
         child: FutureBuilder<DocumentSnapshot>(
-          future: currentUser != null 
-              ? FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get()
+          future: currentUser != null
+              ? FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(currentUser.uid)
+                    .get()
               : Future.value(null),
           builder: (context, userSnapshot) {
             List<String> blockedUsers = [];
-            if (userSnapshot.hasData && userSnapshot.data != null && userSnapshot.data!.exists) {
-              final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+            if (userSnapshot.hasData &&
+                userSnapshot.data != null &&
+                userSnapshot.data!.exists) {
+              final userData =
+                  userSnapshot.data!.data() as Map<String, dynamic>?;
               if (userData != null && userData.containsKey('blockedUsers')) {
-                blockedUsers = List<String>.from(userData['blockedUsers'] ?? []);
+                blockedUsers = List<String>.from(
+                  userData['blockedUsers'] ?? [],
+                );
               }
             }
 
-            var jobs = (_cachedJobs ?? [])
+            // Separate urgent and normal jobs from cached mixed list
+            // Note: _cachedJobs already contains the mix (2 urgent, 10 normal, etc.)
+            // But if we want to filter normal jobs dynamically while keeping urgent ones,
+            // we need to re-mix or filter carefully.
+
+            // Current approach in _fetchJobs:
+            // 1. Fetches ALL urgent jobs
+            // 2. Fetches ALL normal jobs (no filter applied at query level except isActive)
+            // 3. Mixes them into _cachedJobs
+
+            // Problem: When user applies filters in UI (e.g. Category=Waiter),
+            // the _cachedJobs list is filtered below, potentially removing urgent jobs
+            // if they don't match the category.
+            // Requirement: "acil ilanlar ne olursa olsun gozukecek" (Urgent jobs must show regardless of filters)
+
+            // Solution:
+            // 1. Separate _cachedJobs back into organic and urgent pools locally
+            // 2. Filter ONLY organic jobs based on UI filters
+            // 3. Re-mix filtered organic jobs with ALL urgent jobs using the 2-10-2 pattern
+
+            var allJobs = _cachedJobs ?? [];
+            var urgentJobs = allJobs.where((j) => j.isUrgent).toList();
+            // Dedup urgent jobs if any (though _fetchJobs handles this, better safe)
+            final urgentIds = urgentJobs.map((j) => j.id).toSet();
+
+            var organicJobs = allJobs
+                .where(
+                  (j) => !j.isUrgent && !urgentIds.contains(j.id),
+                ) // Ensure pure organic
                 .where((j) => !blockedUsers.contains(j.employerId))
                 .where((j) => j.isActive)
                 .toList();
 
+            // Apply filters ONLY to organic jobs
             if (_selectedCategory != null) {
-              jobs = jobs.where((j) => j.categoryId == _selectedCategory).toList();
+              organicJobs = organicJobs
+                  .where((j) => j.categoryId == _selectedCategory)
+                  .toList();
             }
             if (_selectedJobType != null) {
-              if (_selectedJobType == 'urgent') {
-                jobs = jobs.where((j) => j.isUrgent).toList();
-              } else {
-                jobs = jobs.where((j) => j.jobType == _selectedJobType).toList();
+              if (_selectedJobType != 'urgent') {
+                // Urgent filter handled separately
+                organicJobs = organicJobs
+                    .where((j) => j.jobType == _selectedJobType)
+                    .toList();
               }
             }
             if (_searchController.text.isNotEmpty) {
               final query = _searchController.text.toLowerCase();
-              jobs = jobs.where((j) =>
-                  j.title.toLowerCase().contains(query) ||
-                  j.companyName.toLowerCase().contains(query) ||
-                  j.city.toLowerCase().contains(query)).toList();
+              organicJobs = organicJobs
+                  .where(
+                    (j) =>
+                        j.title.toLowerCase().contains(query) ||
+                        j.companyName.toLowerCase().contains(query) ||
+                        j.city.toLowerCase().contains(query),
+                  )
+                  .toList();
             }
 
             if (_filterCity != null && _filterCity!.isNotEmpty) {
-              jobs = jobs.where((j) => j.city == _filterCity).toList();
+              organicJobs = organicJobs
+                  .where((j) => j.city == _filterCity)
+                  .toList();
             }
             if (_filterEducation != null && _filterEducation!.isNotEmpty) {
               if (_filterEducation == 'Vacib deyil') {
-                jobs = jobs.where((j) => j.educationLevel == null || j.educationLevel == 'Vacib deyil').toList();
+                organicJobs = organicJobs
+                    .where(
+                      (j) =>
+                          j.educationLevel == null ||
+                          j.educationLevel == 'Vacib deyil',
+                    )
+                    .toList();
               } else {
-                jobs = jobs.where((j) => j.educationLevel == _filterEducation).toList();
+                organicJobs = organicJobs
+                    .where((j) => j.educationLevel == _filterEducation)
+                    .toList();
               }
             }
             if (_filterExperience != null && _filterExperience!.isNotEmpty) {
               if (_filterExperience == 'Təcrübəsiz') {
-                jobs = jobs.where((j) => j.experienceLevel == null || j.experienceLevel == 'Təcrübəsiz').toList();
+                organicJobs = organicJobs
+                    .where(
+                      (j) =>
+                          j.experienceLevel == null ||
+                          j.experienceLevel == 'Təcrübəsiz',
+                    )
+                    .toList();
               } else {
-                jobs = jobs.where((j) => j.experienceLevel == _filterExperience).toList();
+                organicJobs = organicJobs
+                    .where((j) => j.experienceLevel == _filterExperience)
+                    .toList();
               }
             }
             if (_filterSalaryRange != null && _filterSalaryRange!.isNotEmpty) {
-              jobs = jobs.where((j) {
+              organicJobs = organicJobs.where((j) {
                 final salary = (j.salaryMax ?? j.salaryMin).toDouble();
                 if (_filterSalaryRange == '0-500') return salary <= 500;
-                if (_filterSalaryRange == '500-1000') return salary > 500 && salary <= 1000;
-                if (_filterSalaryRange == '1000-2000') return salary > 1000 && salary <= 2000;
+                if (_filterSalaryRange == '500-1000')
+                  return salary > 500 && salary <= 1000;
+                if (_filterSalaryRange == '1000-2000')
+                  return salary > 1000 && salary <= 2000;
                 if (_filterSalaryRange == '2000+') return salary > 2000;
                 return true;
               }).toList();
             }
 
+            // Sort ONLY organic jobs
             if (_selectedSortMode == 'newest') {
-              jobs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+              organicJobs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
             } else if (_selectedSortMode == 'salary') {
-              jobs.sort((a, b) {
+              organicJobs.sort((a, b) {
                 final aSalary = (a.salaryMax ?? a.salaryMin);
                 final bSalary = (b.salaryMax ?? b.salaryMin);
                 return bSalary.compareTo(aSalary);
               });
-            } else if (_selectedSortMode == 'location' && _userPosition != null) {
-              jobs.sort((a, b) {
+            } else if (_selectedSortMode == 'location' &&
+                _userPosition != null) {
+              organicJobs.sort((a, b) {
                 final distA = Geolocator.distanceBetween(
-                  _userPosition!.latitude, _userPosition!.longitude,
-                  a.latitude, a.longitude,
+                  _userPosition!.latitude,
+                  _userPosition!.longitude,
+                  a.latitude,
+                  a.longitude,
                 );
                 final distB = Geolocator.distanceBetween(
-                  _userPosition!.latitude, _userPosition!.longitude,
-                  b.latitude, b.longitude,
+                  _userPosition!.latitude,
+                  _userPosition!.longitude,
+                  b.latitude,
+                  b.longitude,
                 );
                 return distA.compareTo(distB);
               });
             } else {
-              jobs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+              organicJobs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
             }
+
+            // Special case: If "Urgent" filter is explicitly selected by user
+            if (_selectedJobType == 'urgent') {
+              // Show only urgent jobs
+              organicJobs = []; // Clear organic
+              // Urgent jobs are already in urgentJobs list
+            }
+
+            // Re-mix jobs for display
+            // If "Urgent" filter selected, we show only urgent jobs.
+            // Otherwise, we show mix of (Filtered Organic) + (All Urgent)
+            final displayJobs = _selectedJobType == 'urgent'
+                ? urgentJobs
+                : _mixJobs(organicJobs, urgentJobs);
 
             return CustomScrollView(
               slivers: [
@@ -588,12 +904,16 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                             return GestureDetector(
                               onTap: () {
                                 setState(() {
-                                  _selectedCategory = isSelected ? null : cat.id;
+                                  _selectedCategory = isSelected
+                                      ? null
+                                      : cat.id;
                                 });
                               },
                               child: Container(
                                 width: 75,
-                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
                                 child: Column(
                                   children: [
                                     Container(
@@ -607,7 +927,9 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                                       ),
                                       child: Icon(
                                         cat.icon,
-                                        color: isSelected ? Colors.white : cat.color,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : cat.color,
                                         size: 26,
                                       ),
                                     ),
@@ -616,8 +938,12 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                                       cat.name,
                                       style: TextStyle(
                                         fontSize: 11,
-                                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                        color: isSelected ? cat.color : context.textSecondaryColor,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                        color: isSelected
+                                            ? cat.color
+                                            : context.textSecondaryColor,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -659,7 +985,7 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '${jobs.length} elan tapıldı',
+                          '${displayJobs.length} elan tapıldı',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -678,7 +1004,7 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                     ),
                   ),
                 ),
-                if (jobs.isEmpty)
+                if (displayJobs.isEmpty)
                   SliverFillRemaining(
                     child: Center(
                       child: Text(
@@ -692,23 +1018,20 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                   )
                 else
                   SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final job = jobs[index];
-                        return JobListCard(
-                          job: job,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => JobDetailScreen(job: job),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                      childCount: jobs.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final job = displayJobs[index];
+                      return JobListCard(
+                        job: job,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => JobDetailScreen(job: job),
+                            ),
+                          );
+                        },
+                      );
+                    }, childCount: displayJobs.length),
                   ),
                 const SliverToBoxAdapter(child: SizedBox(height: 20)),
               ],
@@ -818,11 +1141,19 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                   height: 48,
                   width: 48,
                   decoration: BoxDecoration(
-                    color: (_filterSalaryRange != null || _filterEducation != null || _filterCity != null || _filterExperience != null)
+                    color:
+                        (_filterSalaryRange != null ||
+                            _filterEducation != null ||
+                            _filterCity != null ||
+                            _filterExperience != null)
                         ? AppTheme.primaryColor
                         : context.scaffoldBackgroundColor,
                     border: Border.all(
-                      color: (_filterSalaryRange != null || _filterEducation != null || _filterCity != null || _filterExperience != null)
+                      color:
+                          (_filterSalaryRange != null ||
+                              _filterEducation != null ||
+                              _filterCity != null ||
+                              _filterExperience != null)
                           ? AppTheme.primaryColor
                           : context.dividerColor,
                     ),
@@ -832,7 +1163,11 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                     onPressed: _showDetailedFilterOptions,
                     icon: Icon(
                       Icons.tune_rounded,
-                      color: (_filterSalaryRange != null || _filterEducation != null || _filterCity != null || _filterExperience != null)
+                      color:
+                          (_filterSalaryRange != null ||
+                              _filterEducation != null ||
+                              _filterCity != null ||
+                              _filterExperience != null)
                           ? Colors.white
                           : context.textPrimaryColor,
                     ),
@@ -843,7 +1178,9 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
             ListenableBuilder(
               listenable: _searchFocusNode,
               builder: (context, _) {
-                if (_searchFocusNode.hasFocus && _searchHistory.isNotEmpty && _searchController.text.isEmpty) {
+                if (_searchFocusNode.hasFocus &&
+                    _searchHistory.isNotEmpty &&
+                    _searchController.text.isEmpty) {
                   return Container(
                     margin: const EdgeInsets.only(top: 12),
                     padding: const EdgeInsets.all(16),
@@ -875,7 +1212,8 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                             if (_searchHistory.isNotEmpty)
                               InkWell(
                                 onTap: () async {
-                                  final prefs = await SharedPreferences.getInstance();
+                                  final prefs =
+                                      await SharedPreferences.getInstance();
                                   await prefs.remove('searchHistory');
                                   setState(() => _searchHistory.clear());
                                 },
@@ -901,7 +1239,10 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                                 _searchFocusNode.unfocus();
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
                                 decoration: BoxDecoration(
                                   color: context.inputFillColor,
                                   borderRadius: BorderRadius.circular(8),
@@ -909,7 +1250,11 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.history, size: 14, color: context.textSecondaryColor),
+                                    Icon(
+                                      Icons.history,
+                                      size: 14,
+                                      color: context.textSecondaryColor,
+                                    ),
                                     const SizedBox(width: 6),
                                     Text(
                                       term,
@@ -951,7 +1296,9 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
         selectedColor: AppTheme.primaryColor.withValues(alpha: 0.12),
         checkmarkColor: AppTheme.primaryColor,
         labelStyle: TextStyle(
-          color: isSelected ? AppTheme.primaryColor : context.textSecondaryColor,
+          color: isSelected
+              ? AppTheme.primaryColor
+              : context.textSecondaryColor,
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
           fontSize: 13,
         ),
@@ -989,22 +1336,21 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
             const SizedBox(height: 8),
             Text(
               'Göndərdiyiniz müraciətlər burada görünəcək',
-              style: TextStyle(
-                fontSize: 14,
-                color: context.textSecondaryColor,
-              ),
+              style: TextStyle(fontSize: 14, color: context.textSecondaryColor),
             ),
             const SizedBox(height: 16),
             Expanded(
               child: StreamBuilder<List<ApplicationModel>>(
-                stream: ApplicationsRepository().getApplicantApplications(currentUserId),
+                stream: ApplicationsRepository().getApplicantApplications(
+                  currentUserId,
+                ),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  
+
                   final applications = snapshot.data ?? [];
-                  
+
                   if (applications.isEmpty) {
                     return Center(
                       child: Column(
@@ -1029,7 +1375,9 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                             'Elanlara baxıb müraciət edə bilərsiniz',
                             style: TextStyle(
                               fontSize: 13,
-                              color: context.textHintColor.withValues(alpha: 0.7),
+                              color: context.textHintColor.withValues(
+                                alpha: 0.7,
+                              ),
                             ),
                           ),
                         ],
@@ -1047,17 +1395,24 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                         return const SizedBox.shrink();
                       }
                       return FutureBuilder<DocumentSnapshot>(
-                        future: FirebaseFirestore.instance.collection('jobs').doc(app.jobId).get(),
+                        future: FirebaseFirestore.instance
+                            .collection('jobs')
+                            .doc(app.jobId)
+                            .get(),
                         builder: (ctx, jobSnapshot) {
-                          if (!jobSnapshot.hasData) return const SizedBox.shrink();
-                          
-                          final jobData = jobSnapshot.data!.data() as Map<String, dynamic>?;
+                          if (!jobSnapshot.hasData)
+                            return const SizedBox.shrink();
+
+                          final jobData =
+                              jobSnapshot.data!.data() as Map<String, dynamic>?;
                           if (jobData == null) return const SizedBox.shrink();
 
                           String title = jobData['title'] ?? 'Bilinməyən Elan';
-                          String company = jobData['companyName'] ?? 'Bilinməyən Şirkət';
+                          String company =
+                              jobData['companyName'] ?? 'Bilinməyən Şirkət';
                           String contactPhone = jobData['contactPhone'] ?? '';
-                          bool allowCall = jobData['allowCallIfAccepted'] ?? true;
+                          bool allowCall =
+                              jobData['allowCallIfAccepted'] ?? true;
 
                           Color statusColor = AppTheme.warningColor;
                           String statusText = 'Müraciətiniz gözləmədədir';
@@ -1089,13 +1444,18 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                                     color: statusColor.withOpacity(0.1),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: Icon(statusIcon, color: statusColor, size: 24),
+                                  child: Icon(
+                                    statusIcon,
+                                    color: statusColor,
+                                    size: 24,
+                                  ),
                                 ),
                                 const SizedBox(width: 16),
                                 // Details
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         title,
@@ -1115,7 +1475,9 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        DateFormat('dd MMM yyyy').format(app.appliedAt),
+                                        DateFormat(
+                                          'dd MMM yyyy',
+                                        ).format(app.appliedAt),
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: context.textHintColor,
@@ -1129,7 +1491,10 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: statusColor.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(12),
@@ -1148,90 +1513,151 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
                                       const SizedBox(height: 8),
                                       Row(
                                         children: [
-                                          if (contactPhone.isNotEmpty && allowCall)
+                                          if (contactPhone.isNotEmpty &&
+                                              allowCall)
                                             InkWell(
-                                            onTap: () async {
-                                              final Uri url = Uri(scheme: 'tel', path: contactPhone);
-                                              try {
-                                                await launchUrl(url);
-                                              } catch (e) {
-                                                if (context.mounted) {
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    const SnackBar(content: Text('Zəng etmək mümkün deyil')),
-                                                  );
+                                              onTap: () async {
+                                                final Uri url = Uri(
+                                                  scheme: 'tel',
+                                                  path: contactPhone,
+                                                );
+                                                try {
+                                                  await launchUrl(url);
+                                                } catch (e) {
+                                                  if (context.mounted) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'Zəng etmək mümkün deyil',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
                                                 }
-                                              }
-                                            },
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                              decoration: BoxDecoration(
-                                                color: AppTheme.successColor,
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: const Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(Icons.phone, size: 14, color: Colors.white),
-                                                ],
+                                              },
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 6,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.successColor,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: const Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.phone,
+                                                      size: 14,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
                                             ),
-                                          ),
                                           const SizedBox(width: 8),
                                           InkWell(
                                             onTap: () async {
                                               try {
-                                                final employerDoc = await FirebaseFirestore.instance.collection('users').doc(app.employerId).get();
-                                                final employerName = employerDoc.data()?['fullName'] ?? 'İşəgötürən';
- 
-                                                final userDoc = await FirebaseFirestore.instance.collection('users').doc(currentUserId).get();
-                                                final seekerName = userDoc.data()?['fullName'] ?? 'Namizəd';
- 
-                                                final chatId = await ChatRepository().createOrGetChat(
-                                                  employerId: app.employerId,
-                                                  jobSeekerId: currentUserId,
-                                                  jobId: app.jobId,
-                                                  jobTitle: title,
-                                                  employerName: employerName,
-                                                  jobSeekerName: seekerName,
-                                                );
- 
+                                                final employerDoc =
+                                                    await FirebaseFirestore
+                                                        .instance
+                                                        .collection('users')
+                                                        .doc(app.employerId)
+                                                        .get();
+                                                final employerName =
+                                                    employerDoc
+                                                        .data()?['fullName'] ??
+                                                    'İşəgötürən';
+
+                                                final userDoc =
+                                                    await FirebaseFirestore
+                                                        .instance
+                                                        .collection('users')
+                                                        .doc(currentUserId)
+                                                        .get();
+                                                final seekerName =
+                                                    userDoc
+                                                        .data()?['fullName'] ??
+                                                    'Namizəd';
+
+                                                final chatId =
+                                                    await ChatRepository()
+                                                        .createOrGetChat(
+                                                          employerId:
+                                                              app.employerId,
+                                                          jobSeekerId:
+                                                              currentUserId,
+                                                          jobId: app.jobId,
+                                                          jobTitle: title,
+                                                          employerName:
+                                                              employerName,
+                                                          jobSeekerName:
+                                                              seekerName,
+                                                        );
+
                                                 if (context.mounted) {
                                                   Navigator.push(
                                                     context,
                                                     MaterialPageRoute(
-                                                      builder: (_) => ChatDetailScreen(
-                                                        chatId: chatId,
-                                                        otherUserName: employerName,
-                                                        otherUserId: app.employerId,
-                                                      ),
+                                                      builder: (_) =>
+                                                          ChatDetailScreen(
+                                                            chatId: chatId,
+                                                            otherUserName:
+                                                                employerName,
+                                                            otherUserId:
+                                                                app.employerId,
+                                                          ),
                                                     ),
                                                   );
                                                 }
                                               } catch (e) {
                                                 if (context.mounted) {
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    SnackBar(content: Text('Xəta baş verdi: $e')),
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        'Xəta baş verdi: $e',
+                                                      ),
+                                                    ),
                                                   );
                                                 }
                                               }
                                             },
                                             child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 6,
+                                                  ),
                                               decoration: BoxDecoration(
                                                 color: AppTheme.primaryColor,
-                                                borderRadius: BorderRadius.circular(8),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
                                               ),
                                               child: const Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  Icon(Icons.chat_bubble_outline_rounded, size: 14, color: Colors.white),
+                                                  Icon(
+                                                    Icons
+                                                        .chat_bubble_outline_rounded,
+                                                    size: 14,
+                                                    color: Colors.white,
+                                                  ),
                                                 ],
                                               ),
                                             ),
                                           ),
                                         ],
-                                      )
-                                    ]
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ],
