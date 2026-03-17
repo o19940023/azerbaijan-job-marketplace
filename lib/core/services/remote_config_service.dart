@@ -91,13 +91,9 @@ class RemoteConfigService {
 
   String getAzureTtsApiKey() => _getString(_keyAzureTtsApiKey);
 
-  String getAzureTtsRegion() =>
-      _getString(_keyAzureTtsRegion, defaultValue: 'eastus');
+  String getAzureTtsRegion() => _getString(_keyAzureTtsRegion, defaultValue: 'eastus');
 
-  String getGitHubApiKey() => _getString(_keyGitHubApiKey);
-
-  String getMinAppVersion() =>
-      _getString(_keyMinAppVersion, defaultValue: '1.0.0');
+  String getMinAppVersion() => _getString(_keyMinAppVersion, defaultValue: '1.0.0');
 
   String getLatestAppVersion() =>
       _getString(_keyLatestAppVersion, defaultValue: '1.0.0');
