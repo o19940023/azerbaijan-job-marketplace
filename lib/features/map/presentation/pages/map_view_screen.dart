@@ -20,19 +20,30 @@ class _MapViewScreenState extends State<MapViewScreen> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('jobs').snapshots(),
+      child: FutureBuilder<QuerySnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('jobs')
+            .where('isActive', isEqualTo: true)
+            .get(const GetOptions(source: Source.serverAndCache)),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final jobs = snapshot.data!.docs
-              .where((d) => d.data() != null)
-              .map(
-                (d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id),
-              )
-              .toList();
+          final now = DateTime.now();
+          final jobs =
+              snapshot.data?.docs
+                  .where((d) => d.data() != null)
+                  .map(
+                    (d) => JobModel.fromMap(
+                      d.data() as Map<String, dynamic>,
+                      d.id,
+                    ),
+                  )
+                  .where((job) => job.expiresAt.isAfter(now))
+                  .toList() ??
+              [];
 
           return Stack(
             children: [

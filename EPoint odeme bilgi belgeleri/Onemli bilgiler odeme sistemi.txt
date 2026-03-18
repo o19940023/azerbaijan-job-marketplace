@@ -1,0 +1,162 @@
+Epoint.az Elektron Ödəniş Platforması – API Dokumentasiya (v1.0.3)
+Mündəricat
+
+Epoint sisteminin işləmə prinsipi
+API sorğusunun formalaşdırılması + Data & Signature
+Sorğunun göndərilməsi
+Callback funksiyası
+Ödəniş statusunun yoxlanılması
+Kart yadda saxlanması (card-registration)
+Saxlanılan kartla ödəniş (execute-pay)
+İlk ödənişlə kart yadda saxlama (card-registration-with-pay)
+Vəsaitlərin köçürülməsi (refund)
+Əməliyyatın ləğvi (reverse)
+Bölünmüş ödəniş (split-request)
+Saxlanılan kartla bölünmüş ödəniş
+İlk bölünmüş ödənişlə kart yadda saxlama
+Preauth sorğusu + tamamlanması
+Apple Pay & Google Pay (Widget + mobil inteqrasiya)
+Cüzdanlar (wallet)
+Hesab-fakturalar (invoices)
+Heartbeat API
+Bank cavab kodları
+
+
+1. Epoint sisteminin işləmə prinsipi
+Epoint-ə qoşulmaq üçün biznes hesabı açmalısınız. Şəxsi kabinetdə aşağıdakı URL-ləri əlavə edin:
+
+success_url
+error_url
+result_url (callback)
+
+Sonra sizə public_key (tacir ID) və private_key (API açarı) verilir.
+İş prinsipi:
+
+Siz JSON → base64(data) + signature yaradırsınız.
+Müştəri Epoint checkout səhifəsinə yönləndirilir.
+Ödənişdən sonra result_url-ə POST callback gəlir.
+
+
+2. API sorğusunun formalaşdırılması (əsas qayda – BÜTÜN sorğularda eynidir)
+Endpoint: https://epoint.az/api/1/request (POST)
+Parametrlər (data JSON içində):
+JSON{
+  "public_key": "i000000001",          // Required
+  "amount": 30.75,                     // Required
+  "currency": "AZN",                   // Required
+  "language": "az",                    // az / en / ru
+  "order_id": "your_order_123",        // Required, max 255 simvol
+  "description": "Test ödəniş",
+  "success_redirect_url": "...",
+  "error_redirect_url": "...",
+  "other_attr": { ... }
+}
+Data yaratma:
+JavaScriptconst jsonString = { ...yuxarıdakı JSON... };
+const data = btoa(JSON.stringify(jsonString));   // base64
+Signature yaratma:
+JavaScriptconst signatureString = privateKey + data + privateKey;
+const hash = CryptoJS.SHA1(signatureString);     // və ya PHP sha1(..., true)
+const signature = btoa(hash);                    // base64
+Sorğu göndərmə (PHP nümunəsi):
+PHP$data = base64_encode(json_encode($payload));
+$signature = base64_encode(sha1($privateKey . $data . $privateKey, true));
+
+$post = ['data' => $data, 'signature' => $signature];
+Cavab: { "status": "success", "transaction": "...", "redirect_url": "..." }
+
+3. Callback (result_url) – Ən vacib hissə
+Epoint sizə POST göndərir → data + signature.
+Yoxlama:
+JavaScriptconst receivedSignature = ...;
+const mySignature = btoa(sha1(privateKey + receivedData + privateKey, true));
+if (mySignature === receivedSignature) { ... } // etibarlı
+
+const result = JSON.parse(atob(receivedData));
+Cavab parametrləri:
+
+status: success / failed
+order_id, transaction, amount, card_mask, rrn, code, message...
+
+
+4. Kart yadda saxlama (recurring / in-app üçün ən vacib)
+1. Sadə kart qeydiyyatı: /api/1/card-registration
+2. İlk ödənişlə kart qeydiyyatı: /api/1/card-registration-with-pay (tövsiyə olunur)
+3. Saxlanılan kartla ödəniş: /api/1/execute-pay
+JSON{
+  "public_key": "...",
+  "language": "az",
+  "card_id": "card_xxx",
+  "order_id": "...",
+  "amount": 50.00,
+  "currency": "AZN"
+}
+
+5. Google Pay (mobil tətbiqlər üçün)
+Native inteqrasiya tələb olunur:
+
+Google Pay Android docs: https://developers.google.com/pay/api/android/overview
+Epoint-ə düymənin skrinşotunu göndər.
+Merchant ID al.
+
+
+6. Apple Pay & Google Pay Widget (WebView / in-app üçün ən asan yol)
+Endpoint: https://epoint.az/api/1/token/widget (POST)
+JSON:
+JSON{
+  "public_key": "...",
+  "amount": 2.50,
+  "order_id": "order_123",
+  "description": "In-app purchase"
+}
+Cavab:
+JSON{
+  "status": "success",
+  "widget_url": "https://epoint.../widget/000001"
+}
+WebView-də aç + iframe message dinlə:
+JavaScriptwindow.addEventListener('message', (event) => {
+  console.log(event.data); // {status: 'success', payment: {...}}
+});
+
+7. Cüzdanlar (Wallet)
+Siyahı alma: /api/1/wallet/status
+Ödəniş et: /api/1/wallet/payment
+
+8. Digər vacib endpointlər
+
+Preauth: /api/1/pre-auth-request + /api/1/pre-auth-complete
+Bölünmüş ödəniş: /api/1/split-request və /api/1/split-execute-pay
+Refund: /api/1/refund-request
+Reverse: /api/1/reverse
+Status yoxla: /api/1/get-status
+
+
+9. Hesab-fakturalar (Invoices)
+
+/invoices/create
+/invoices/update
+/invoices/view
+/invoices/list
+/invoices/send-sms
+/invoices/send-email
+
+
+10. Heartbeat
+GET https://epoint.az/api/heartbeat → { "status": "ok" }
+
+11. Bank Cavab Kodları (tam siyahı)
+000 → Təsdiq edildi
+100-129, 180 → İmtina səbəbləri
+200-210 → Pick-up
+300-309 → Status mesajları
+400-504, 600-680, 700-923, 950 → Digər statuslar
+0Y1, 0Y3, 1Q1, 1Z1, 1Z3 → ICC oflayn
+
+Əlavə qeydlər AI üçün:
+
+Bütün sorğularda data + signature mütləqdir.
+Signature həmişə: base64(sha1(privateKey + data + privateKey, true))
+Test mühiti var (dəstəkdən soruş).
+Mobil in-app üçün Widget və ya Google Pay native ən uyğundur.
+Kart yadda saxlama (card_id) ilə recurring ödənişlər mümkündür.

@@ -19,7 +19,7 @@ class AiJobSearchService {
       var jobs = snapshot.docs
           .where((d) => d.data() != null)
           .map((d) => JobModel.fromMap(d.data(), d.id))
-          .where((j) => j.isActive)
+          .where((j) => j.isActive && j.expiresAt.isAfter(DateTime.now())) // 45 gün kontrolü
           .toList();
 
       if (jobs.isEmpty) return [];

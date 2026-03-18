@@ -4,83 +4,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>İşTap - Qaydalar və Şərtlər</title>
+    <title>İş Tap AI - İş Elanları və CV</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        .links-container {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-top: 30px;
-        }
-
-        .link-card {
-            display: block;
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            text-decoration: none;
-            color: #1F2937;
-            border: 1px solid #E5E7EB;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            transition: all 0.2s;
-        }
-
-        .link-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            border-color: #2F6BFF;
-        }
-
-        .link-card h3 {
-            margin: 0 0 5px 0;
-            color: #2F6BFF;
-        }
-
-        .link-card p {
-            margin: 0;
-            color: #6B7280;
-            font-size: 14px;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 
 <body>
+    <!-- Cursor efekti -->
+    <div class="cursor-dot"></div>
+    <div class="cursor-ring"></div>
+
     <header class="header">
         <div class="container">
-            <h1>İşTap</h1>
-            <p>Qaydalar, Şərtlər və Kömək mərkəzi</p>
+            <div class="logo-container">
+                <img src="Logo.png" alt="İş Tap AI Logo">
+            </div>
+            <h1 class="glitch" data-text="İŞ TAP AI">İŞ TAP AI</h1>
+            <p>Azərbaycanın ən sürətli və ağıllı iş axtarış platforması</p>
+            
+            <div class="store-buttons">
+                <!-- Linkləri sonra öz App Store/Play Store linklərinlə dəyişə bilərsən -->
+                <a href="#" class="store-btn"><span class="store-icon">🍎</span> App Store</a>
+                <a href="#" class="store-btn"><span class="store-icon">🤖</span> Google Play</a>
+            </div>
         </div>
     </header>
 
+    <div class="tabs container">
+        <a href="privacy.html" class="tab-btn">Məxfilik Siyasəti</a>
+        <a href="terms.html" class="tab-btn">İstifadəçi Şərtləri</a>
+        <a href="support.html" class="tab-btn">Dəstək və Kömək</a>
+    </div>
+
     <main class="container">
-        <h2>Sənədlər</h2>
-        <p>İşTap tətbiqinin hüquqi sənədlərinə və dəstək kanalına aşağıdakı linklərdən daxil ola bilərsiniz:</p>
+        <div class="hero-section">
+            <h2>Karyeranızda Yeni Səhifə Açın!</h2>
+            <p>İş axtarmaq və ya işçi tapmaq indi daha asan və daha ağıllıdır! İş Tap AI platforması Azərbaycanın istənilən yerindən (Bakı, Gəncə, Sumqayıt və regionlar) ən yeni iş elanlarını, vakansiyaları və istedadlı namizədləri bir araya gətirir.</p>
+        </div>
 
-        <div class="links-container">
-            <a href="privacy.html" class="link-card">
-                <h3>Məxfilik Siyasəti (Privacy Policy)</h3>
-                <p>Məlumatlarınızın necə toplandığı və qorunduğu barədə öyrənin.</p>
-            </a>
+        <section class="about-section">
+            <h3 class="section-title">Haqqımızda - Qaf Studio</h3>
+            <div class="about-content">
+                <p>
+                    Biz, <strong>Qaf Studio</strong> olaraq süni intellekt (AI) əsaslı mobil tətbiqlərin hazırlanması üzrə ixtisaslaşmış komandayıq. 
+                    Məqsədimiz həm iOS, həm də Android istifadəçiləri üçün real problemləri həll edən, ağıllı və istifadəsi asan olan innovativ platformalar yaratmaqdır. 
+                    "İş Tap AI" bizim ölkə bazarı üçün yaratdığımız ən müasir həllərdən biridir.
+                </p>
+                
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <span class="icon">📧</span>
+                        <a href="mailto:qafsuport@gmail.com">qafsuport@gmail.com</a>
+                    </div>
+                    <div class="contact-item">
+                        <span class="icon">📱</span>
+                        <a href="tel:+994993269996">+994 99 326 99 96</a>
+                    </div>
+                    <div class="contact-item">
+                        <span class="icon">🌐</span>
+                        <a href="https://qafstudio.netlify.app" target="_blank">Qaf Studio Vebsaytı</a>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-            <a href="terms.html" class="link-card">
-                <h3>İstifadəçi Şərtləri (EULA)</h3>
-                <p>Tətbiqdən istifadə qaydaları və icazəsiz məzmun siyasəti (Zero Tolerance).</p>
-            </a>
+        <h3 style="text-align: center; margin-top: 50px; margin-bottom: 20px;">Niyə bizi seçməlisiniz?</h3>
+        
+        <div class="features-grid">
+            <div class="feature-card">
+                <span class="feature-icon">🤖</span>
+                <h3>Ağıllı "İşçi AI" Dəstəyi</h3>
+                <p>Süni intellekt profilinizi təhlil edir, peşəkar Bio və Bacarıqlar bölməsi əlavə edərək CV-nizi diqqətçəkən və peşəkar edir.</p>
+            </div>
 
-            <a href="support.html" class="link-card">
-                <h3>Dəstək və Kömək (Support)</h3>
-                <p>Şikayətlər, əlaqə vasitələri və hesabın silinməsi qaydaları.</p>
-            </a>
+            <div class="feature-card">
+                <span class="feature-icon">🎯</span>
+                <h3>Dəqiq İş Təklifləri</h3>
+                <p>AI yüzlərlə iş elanı arasından yalnız sizə uyğun, ən yüksək maaşlı vakansiyaları tapıb göstərir.</p>
+            </div>
+
+            <div class="feature-card">
+                <span class="feature-icon">⚡</span>
+                <h3>Sürətli Müraciət</h3>
+                <p>Bəyəndiyiniz işə saniyələr içində, birbaşa tətbiq daxilində müraciət edin. Mükəmməl iş bir klik uzaqlıqdadır.</p>
+            </div>
+
+            <div class="feature-card">
+                <span class="feature-icon">🏢</span>
+                <h3>İşəgötürənlər Üçün Asan</h3>
+                <p>Şirkətiniz üçün ən yaxşı namizədləri tapın, birbaşa əlaqə qurun. İş elanlarınızı dərhal və pulsuz yerləşdirin.</p>
+            </div>
         </div>
     </main>
 
     <footer>
         <div class="container">
-            <p>&copy; 2026 İşTap. Bütün hüquqlar qorunur.</p>
+            <p>#İşTapAI #İşElanları #Vakansiya #CV</p>
+            <p style="margin-top: 10px;">&copy; 2026 İş Tap AI. Bütün hüquqlar qorunur.</p>
         </div>
     </footer>
+
+    <script>
+        // Cursor efekti üçün sadə JavaScript
+        const cursorDot = document.querySelector('.cursor-dot');
+        const cursorRing = document.querySelector('.cursor-ring');
+
+        document.addEventListener('mousemove', (e) => {
+            cursorDot.style.transform = `translate(${e.clientX - 4}px, ${e.clientY - 4}px)`;
+            cursorRing.style.transform = `translate(${e.clientX - 20}px, ${e.clientY - 20}px)`;
+        });
+    </script>
 </body>
 
 </html>

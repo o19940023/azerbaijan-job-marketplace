@@ -1,0 +1,701 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Epoint.az
+
+Elektron öd?nis platformasi versiya 1.0.3
+
+
+
+
+
+
+
+
+
+
+
+
+
+Saytda onlayn öd?m? h?lli
+
+Münd?ricat
+Epoint öd?nis sisteminin isl?m? prinsipi	3
+API sorgusunun formalasdirilmasi	5
+Data v? signature formalasdirilmasi	5
+Sorgunun gönd?rilm?si	6
+Callback funksiyasinin icra edilm?si	7
+Öd?nis statusunun yoxlanilmasi	8
+Kart m?lumatlarini daxil etm?d?n öd?nisl?ri yerin? yetirm?k üçün kartin yadda saxlanilmasi. 11 Saxlanilan kartla öd?nis sorgusu	13
+Ilk öd?nisl? kart m?lumatlarini daxil etm?d?n öd?nis etm?k üçün kartin yadda saxlanilmasi sorgusu	14
+V?saitl?rin köçürülm?si sorgusu	16
+?m?liyyatin l?gvi sorgusu	17
+Bölünmüs öd?nis sorgusu	18
+Saxlanilan kartla bölünmüs öd?nisin h?yata keçirilm?si	20
+Ilk bölünmüs öd?nisl? kart m?lumatlarini daxil etm?d?n öd?nis etm?k üçün kartin yadda saxlanilmasi sorgusu	21
+API Preauth Sorgusunun Formalasdirilmasi	23
+Apple Pay & Google Pay	27
+Google Pay (mobil t?tbiql?r üçün inteqrasiya)	30
+Cüzdanlar	30
+Hesab-fakturalar	34
+Heartbeat API	37
+Bank cavab kodlari	38
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Epoint sistemi öd?nis q?bulunu saytiniza v? t?tbiqiniz? baglamaga imkan verir. Öd?nis düym?sini saytiniza v? yaxud t?tbiqiniz? ?lav? etm?k üçün Epoint.az saytindaki s?xsi kabinetinizd? öz saytinizin v? yaxud mobil t?tbiqinizin redirect URL-l?rini ?lav? etm?lisiniz.
+
+Epoint.az saytinda tacir yaratmaq üçün biz? asagidaki m?lumatlari t?qdim etm?lisiniz:
+- saytinizin ünvani;
+- ugurlu öd?nis s?hif?sinin URL- success_url;
+- ugursuz öd?nis s?hif?sinin URL - error_url;
+- öd?nis n?tic?sini gönd?rm?k üçün URL- result _url.
+Bu m?lumatlar yoxladiqdan sonra siz? giris açarlari veril?c?k: public key- sistemd?ki tacir identifikatoru v? private key- API giris açari. .
+
+
+
+
+Epoint öd?nis sisteminin isl?m? prinsipi
+
+1. Texniki s?n?dl?r? ?sas?n API Epoint üçün sorgu formalasdirilmalidir.
+2. Sorgunun yerin? yetirilm?si n?tic?sind? müst?ri bankin öd?nis s?hif?sin? yön?ldil?c?k.
+
+3. Müst?ri kart rekvizitl?rini doldurur v? öd?nisi t?sdiql?yir.
+4. Öd?nisin ugurlu icra edildiyi halda müst?ri success_url-?, ?ks halda is? error_url-? yönl?ndiril?c?k.
+5. Öd?nisin t?f?rrüatlari il? öd?nisin n?tic?si sizin qeyd etdiyiniz result_url-? gönd?ril?c?k.
+
+
+API sorgusunun formalasdirilmasi
+
+      Sorgunu formalasdirmaq üçün data v? signature parametrl?rini POST metodu il? https://epoint.az/api/1/request adresin? gönd?rm?k v? müst?rini https://epoint.az/api/1/checkout adresin? yön?ltm?k lazimdir. Burada:
+      data- base64, base64_encode (json_string) funksiyasi il? kodlasdirilmis API parametrl?rini özünd? birl?sdir?n json s?tridir.
+      signature- h?r base64_encode( sha1(private key + data + private key, 1) ) sorgusunun unikal yazisi
+base64_encode- MIME base 64 formatinda kodlasdirilmis s?tr qaytarir sha1 - 20 simvoldan ibar?d hash s?tri qaytarir
+
+Data v? signature formalasdirilmasi
+
+API çagiris üçün json_string parametrl?ri:
+
+
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringPublic key - yaradilan tacirin identifikatoru.
+M?s?l?n: i000000001amountRequiredNumberÖd?nis m?bl?gi. M?s?l?n, 100, 20.50currencyRequiredStringÖd?nis valyutasi. Mümkün d?y?rl?r: AZNlanguageRequiredStringS?hif? göst?rm? dili. Mümkün d?y?rl?r: az,
+en, ru.order_idRequiredStringT?tbiqinizd? unikal ID ?m?liyyati.
+Maksimal uzunlugu 255 simvoldur.descriptionOptionalStringÖd?nisin t?sviri. ?n çox 1000 simvol.is_installmentOptionalNumberÖd?nis növünü mü?yy?n ed?n
+parametr. Mümkün d?y?rl?r: 1
+(taksitl? öd?nis) v? ya 0 (standart
+öd?nis).success_redirect_
+urlOptionalStringMüv?ff?qiyy?tli öd?nis halinda yenid?n
+yönl?ndirm? URL-i.error_redirect_ urlOptionalStringUgursuz öd?nis halinda istiqam?tl?ndirm?
+URL-i.other_attrOptionalArray?lav? öd?m? parametrl?ri
+json_string nümun?si:
+
+    base64_encode funksiyasi il? json_string kodlasdirilmasi n?tic?sind? alinan data nümun?si:
+
+
+Signature yaradilmasi üçün private_key + data + private_key birl?sm?sini yerin? yetirm?k lazimdir. Bizim nümun? üçün bu cür olacaq:
+
+
+
+
+    Yaranan s?tird? base64_encode(sha1(sgn_string, 1)) t?tbiq olunmalidir. N?tic? asagidaki s?tir olacaq:
+
+
+Sorgunun gönd?rilm?si
+
+Epoint s?hif?sin? sorgu gönd?rm?k üçün bir forma yaratmaq lazimdir:
+
+V? ya alinmis data v? signature https://epoint.az/api/1/request URL-? gönd?rm?k
+
+
+lazimdir.
+
+
+    Bu halda status (success|error), transaction v? redirect_url d?y?ri olan bir json s?tri qaytarilacaqdir hansina ki kart m?lumatlarini daxil etm?k üçün istifad?çinin yönl?ndirilm?si lazimdir.
+    Kart m?lumatlari daxil edildikd?n sonra istifad?çi öd?nis statusundan asili olaraq success_redirect_url v? ya error_redirect_url-a yönl?ndiril?c?kdir. Bununla paralel olaraq, öd?nis detallari v? ?m?liyyat statusu il? result_url üçün POST sorgusu gönd?ril?c?k.
+
+Callback funksiyasinin icra edilm?si
+
+    ?m?liyyat Epoint t?r?find?n isl?ndikd?n v? bankdan öd?nis statusu alindiqdan sonra data v? signature parametrl?ri il? POST sorgusu serveriniz? (result_url) gönd?ril?c?kdir.
+Epoint serverind?n sorgunun h?qiqiliyini yoxlamaq üçün asagidakilari etm?lisiniz:
+1. Epoint-d?n alinan cavabdaki data v? private_key istifad? ed?r?k serverinizd? signature yaratmaq:
+
+
+    2. Alinan signature Epoint-d?n alinan il? müqayis? edilm?lidir, ?g?r signature uygun g?lirs?, üçüncü s?xs t?r?find?n d?yisdirilm?mis Epoint serverind?n orijinal cavab aldiniz.
+Data d?y?rinin decode etm?k üçün etm?k lazimdir:
+
+    ?m?liyyat statusu almaq üçün API funksiyasindan ist?nil?n vaxt istifad? ed? bil?rsiniz.
+
+Öd?nis n?tic?si parametrl?ri:
+
+ParameterDescriptionorder_idT?tbiqinizd? unikal ?m?liyyat ID.statusSuccessv? ya failed ?m?liyyatinin n?tic?sicodeBankin cavab kodumessageÖd?nisin icra statusu haqqinda mesajtransactionEpoint xidm?tinin ?m?liyyatibank_transactionBank öd?nis ?m?liyyatibank_responseÖd?nis icrasinin n?tic?si il? bankin cavabioperation_code001-kart qeydiyyati
+100- istifad?çi öd?nisirrnRetrieval Reference Number - unikal ?m?liyyat identifikatoru. Yalniz ugurlu bir ?m?liyyat üçün
+mövcuddurcard_nameÖd?nis s?hif?sind? göst?ril?n istifad?çi adicard_mask123456******1234 formatinda ?ks edil?n kart
+maskasiamountÖd?nis m?bl?giother_attr?lav? parametrl?r
+
+Öd?nis statusunun yoxlanilmasi
+
+    Epoint öd?nis statusunun yoxlanilmasina çagirilmasi üçün Data v? signature parametrl?rini POST metodu il? https://epoint.az/api/1/get-status ünvanina gönd?rm?k lazimdi. Burada:
+    data- API parametrl?rini özünd? birl?sdir?n v? base64,base64_encode(json_string) funksiyasi il? kodlasdirilmis json s?tridir
+    signature- h?r base64_encode (sha1 (private key + data + private key, 1) sorgusunun unikal yazisidir.
+json_string nümun?si:
+
+
+
+base64_encode funksiyasi il? json_string kodlasdirilmasi n?tic?sind? ?ld? edil?n data nümun?si
+
+    Signature yaratmaq üçün private_key + data + private_key birl?sm?sini yerin? yetirm?k lazimdir.
+
+Bizim nümun? üçün bu cür olacaq:
+
+    Yaranan s?tird? base64_encode(sha1(sgn_string, 1)) t?tbiq olunmalidir. N?tic? asagidaki s?tir olacaq:
+
+
+
+
+
+Cavab parametrl?ri:
+
+
+
+
+
+ParameterDescriptionstatusÖd?nis statusucodeBankin cavab kodumessageÖd?nis icra statusu mesajitransactionEpoint xidm?tinin ?m?liyyatibank_transactionBank öd?nis ?m?liyyatibank_responseÖd?nis emalinin n?tic?si il? bankin cavabioperation_code001-kart qeydiyyati
+100- istifad?çi öd?nisirrnRetrieval Reference Number - unikal ?m?liyyat
+identifikatoru. Yalniz ugurlu bir ?m?liyyat üçün mövcuddurcard_nameÖd?nis s?hif?sind? göst?ril?n istifad?çi adicard_mask123456******1234 formatinda ?ks edil?n kart maskasi
+amountÖd?nis m?bl?giother_attr?lav? parametrl?r
+Öd?nis statuslari:
+- new- öd?nis Epoint sistemind? qeyd? alinib ;
+- success- öd?nis ugurla icra edildi;
+- returned- öd?nisin geri qaytarilmasi icra edildi;
+- error- öd?nis zamani bir s?hv yarandi;
+
+
+- server_error- status dogrulama x?tasi
+
+
+Kart m?lumatlarini daxil etm?d?n öd?nisl?ri yerin? yetirm?k üçün kartin yadda
+saxlanilmasi
+
+    Epoint API çagirilmasi üçün data v? signature parametrl?rini POST metodu il? https://epoint.az/api/1/card-registration ünvanina ötürm?k lazimdi.
+json_string parametrl?ri:
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringPublic key - yaradilan tacirin identifikatoru.
+M?s?l?n: i000000001languageRequiredStringS?hif?nin ekran dili. Mümkün d?y?rl?r: az, en,
+ru.refundOptionalNumberKart növü: 0- öd?nis üçün kart; 1- v?saitl?rin
+köçürülm?si üçün kart.descriptionOptionalStringÖd?nis T?sviri. 1000 simvoldan çox deyil.success_
+redirect_urlOptionalStringUgurlu öd?nis halinda Yönl?ndirm? linki.error_redirect
+_urlOptionalStringUgursuz öd?nis halinda Yönl?ndirm? linki
+    Sorgunun icrasi n?tic?sind? status (success|error) d?y?ri olan json s?tri v? istifad?çinin kart m?lumatlarini daxil etm?k üçün yönl?ndirilm?si lazim olan redirect_url v? cart_id- öd?nisl?ri yerin? yetirm?k üçün istifad? edilm?si lazim olan unikal kart identifikatoru gönd?rilir.
+
+Müst?ri kart m?lumatlarini doldurur v? öd?nisi t?sdiql?yir.
+Ugurlu öd?nis halinda müst?ri success_url yönl?ndiril?c?k, ?ks halda is? error_url (göst?rildiyi t?qdird? success_redirect_url v? error_redirect_url).
+?m?liyyat Epoint xidm?ti il? isl?dikd?n v? bankdan öd?nis statusu alindiqdan sonra data v? signature parametrl?ri il? POST sorgusu göst?rdiyiniz result_url-a gönd?ril?c?kdir.
+    Epoint serverind?n alinan sorgunun h?qiqiliyini yoxlamaq üçün cavabda alinan data v? sizin tacirin private_key-d?n istifad? ed?r?k server t?r?finizd? signature yaratmalisiniz.
+
+
+    Alinan signature Epoint-d?n gönd?ril?n il? müqayis? edilm?lidir , ?g?r signature uygun g?lirs?, üçüncü s?xs t?r?find?n d?yisdirilm?mis Epoint serverind?n orijinal cavab aldiniz.
+
+Data d?y?rini desifr? etm?k üçün yerin? yetirm?k lazimdir:
+
+
+
+
+
+
+
+Cavab seçiml?ri:
+
+
+ParameterDescriptionstatusSucces
+sv? ya failed ?m?liyyatinin n?tic?sicode000-?m?liyyatin ugurlu icrasi,
+500- s?hvmessage?m?liyyat statusu mesajicard_idÖd?nisi yerin? yetirm?k üçün istifad? edilm?li
+olan unikal kart identifikatorubank_transactionBank ?m?liyyatibank_responseÖd?nis emalinin n?tic?si il? bank cavabi
+
+operation_code001- kart qeydiyyati
+100- istifad?çi öd?nisirrnRetrieval Reference Number - unikal ?m?liyyat identifikatoru. Yalniz ugurlu bir ?m?liyyat üçün
+mövcuddurcard_nameÖd?nis s?hif?sind? qeyd edilmis istifad?çi adicard_mask123456******1234 formatinda ?ks edil?n kart
+maskasi
+
+Saxlanilan kartla öd?nis sorgusu
+Saxlanilan kartla öd?nis etm?k üçün data v? signature POST parametrl?rini https://epoint.az/api/1/execute-pay ünvanina gönd?rm?k lazimdir.
+
+API çagirilmasi json_string parametrl?ri:
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringPublic key - yaradilan tacirin identifikatorudur.
+M?s?l?n: i000000001languageRequiredStringS?hif?nin ekran dili. Mümkün d?y?rl?r: az, en,
+ru.card_idRequiredStringKartin saxlanilmasi üsulu il? ?ld? edilmis kart
+identifikatoru.order_idRequiredStringT?tbiqinizd? unikal ?m?liyyat ID. Maksimum
+uzunlugu 255 simvoldur.amountRequiredNumberÖd?nis m?bl?gi. M?s?l?n: 100, 20.50currencyRequiredStringÖd?nis valyutasi. Mümkün d?y?rl?r: AZNdescriptionOptionalStringÖd?nis T?sviri. Maksimum 1000 simvol.
+    ?m?liyyat Epoint xidm?ti t?r?find?n isl?ndikd?n v? bankdan öd?nis statusu alindiqdan sonra cavab asagidaki parametrl?rl? qaytarilacaqdir:
+ParameterDescriptionstatusSucces
+sv? ya failed ?m?liyyatinin n?tic?sitransactionEpoint sistemind? ?m?liyyat identifikatorubank_transactionBank öd?nis ?m?liyyati
+bank_responseÖd?nis emalinin n?tic?si il? bankin cavabirrnRetrieval Reference Number - unikal ?m?liyyat identifikatoru. Yalniz ugurlu bir ?m?liyyat üçün
+mövcuddurcard_nameÖd?nis s?hif?sind? qeyd edilmis istifad?çi adicard_mask123456******1234 formatinda ?ks edil?n kart
+maskasiamountÖd?nis m?bl?gimessageS?hv mesaji
+Ilk öd?nisl? kart m?lumatlarini daxil etm?d?n öd?nis etm?k üçün kartin yadda
+saxlanilmasi sorgusu
+
+    Bu tip öd?nisl?rd?n istifad? edildikd?, kartin qeydiyyati il? birlikd? göst?ril?n m?bl?g öd?nil?c?kdir. API çagirilmasi üçün data v? signature parametrl?ri il? POST metod il? https://epoint.az/api/1/card-registration-with-pay adresin? gönd?rilm?lidir.
+json_string çagirilma api parametrl?ri:
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringIctimai açar yaradilan tacirin
+identifikatorudur. M?s?l?n: i000000001languageRequiredStringS?hif?nin ekran dili. Mümkün d?y?rl?r: az,
+en, ruorder_idRequiredStringT?tbiqinizd? unikal ?m?liyyat ID.
+Maksimum uzunlugu 255 simvoldur.amountRequiredNumberÖd?nis m?bl?gi. M?s?l?n: 100, 20.50currencyRequiredStringÖd?nis valyutasi. Mümkün d?y?rl?r: AZNdescriptionOptionalStringÖd?nis T?sviri. Maksimum 1000 simvol.success_redirect_urlOptionalStringUgurlu öd?nis halinda yönl?ndirm? linki.error_redirect_urlOptionalStringÖd?nis ugursuz olduqda yönl?ndirm? linki
+    Sorgunun icrasi n?tic?sind? status (success|error), transaction, kart m?lumatlarini daxil etm?k üçün istifad?çinin yönl?ndirilm?si lazim olan redirect_url v? öd?nisl?ri yerin? yetirm?k üçün istifad? edilm?li olan unikal kart identifikatoru (card_id) d?y?ri olan bir json s?tri qaytarilacaq.
+Müst?ri kart m?lumatlarini doldurur v? öd?nisi t?sdiql?yir.
+    Ugurlu öd?nis halinda müst?ri success_url yönd?ndirilir, ?ks t?qdird? is? error_url yönl?ndiril?c?k (göst?rildiyi halda success_redirect_url ya da error_redirect_url).
+?m?liyyat Epoint xidm?ti il? isl?dikd?n v? bankdan öd?nis statusu alindiqdan sonra data v? signature parametrl?ri il? POST sorgusu göst?rdiyiniz result_url-a gönd?ril?c?kdir.
+    Epoint serverind?n alinan sorgunun h?qiqiliyini yoxlamaq üçün cavabda alinan data v? sizin tacirin private_key-d?n istifad? ed?r?k server t?r?finizd? signature yaratmalisiniz.
+
+
+    Alinan signature Epoint-d?n gönd?ril?n il? müqayis? edilm?lidir , ?g?r signature uygun g?lirs?, üçüncü s?xs t?r?find?n d?yisdirilm?mis Epoint serverind?n orijinal cavab aldiniz.
+
+Data d?y?rini desifr? etm?k üçün yerin? yetirm?k lazimdir:
+
+
+
+
+
+Cavab parametrl?ri:
+
+
+ParameterDescriptionstatusSucces
+sv? ya failed ?m?liyyatinin n?tic?sicode000-?m?liyyatin ugurlu icrasicard_idÖd?nisi yerin? yetirm?k üçün istifad? edilm?li
+olan unikal kart identifikatoruorder_idT?tbiqinizd? unikal öd?nis identifikatorutransactionEpoint sistemind? ?m?liyyat identifikatorubank_transactionBank öd?nis ?m?liyyatibank_responseÖd?nis emalinin n?tic?si il? bankin cavabi
+operation_code200-ilk öd?nisl? kartin qeydiyyatirrnRetrieval Reference Number - unikal ?m?liyyat identifikatoru. Yalniz ugurlu bir ?m?liyyat üçün
+mövcuddurcard_mask123456******1234 formatinda ?ks edil?n kart
+maskasicard_nameKart sahibinin adiamountÖd?nis m?bl?giother_attr?lav? seçiml?r
+V?saitl?rin köçürülm?si sorgusu
+
+V?saitl?rin öd?nilm?si sorgusunun icrasi üçün https://epoint.az/api/1/refund-request ünvanina data v? signature parametrl?ri olan POST sorgu gönd?rilm?lidir.
+API çagirilma json_string parametrl?ri:
+
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringPublic key- yaradilan tacirin identifikatorudur.
+M?s?l?n: i000000001languageRequiredStringS?hif?nin ekran dili. Mümkün d?y?rl?r: az, en,
+ru.card_idRequiredStringKartin saxlanilma metodu il? ?ld? edilmis kart
+identifikatoru.order_idRequiredStringT?tbiqinizd? unikal ?m?liyyat ID. Maksimum
+uzunlugu 255 simvoldur.amountRequiredNumberÖd?nis m?bl?gi. M?s?l?n: 100, 20.50currencyRequiredStringÖd?nis valyutasi. Mümkün d?y?rl?r: AZNdescriptionOptionalStringÖd?nis T?sviri. Maksimum uzunlugu 1000
+simvoldur.
+    ?m?liyyat Epoint xidm?ti t?r?find?n isl?ndikd?n v? bankdan öd?nis statusu alindiqdan sonra cavab asagidaki parametrl?rl? qaytarilacaqdir:
+
+
+ParameterDescriptionstatusSucces
+sv? ya failed ?m?liyyatinin n?tic?si.transactionEpoint sistemind? ?m?liyyat identifikatoru.
+bank_transactionBank öd?nis ?m?liyyati.bank_responseÖd?nis emalinin n?tic?si il? bankin cavabi.rrnRetrieval	Reference	Number	-	unikal ?m?liyyat identifikatoru. Yalniz ugurlu bir
+?m?liyyat üçün mövcuddur.card_mask123456******1234 formatinda ?ks edil?n kart
+maskasi.card_nameKart sahibinin adi.amountÖd?nis m?bl?gi.messageS?hv mesaji.
+?m?liyyatin l?gvi sorgusu
+
+?m?liyyatin l?gv edilm?si sorgusunun icrasi üçün https://epoint.az/api/1/reverse ünvanina data v? signature parametrl?ri olan POST sorgu gönd?rilm?lidir.
+
+API çagirilma json_string parametrl?ri:
+
+
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringPublic key- yaradilan tacirin identifikatorudur.
+M?s?l?n: i000000001languageRequiredStringS?hif?nin ekran dili. Mümkün d?y?rl?r: az, en,
+ru.transactionRequiredStringEpoint sistemind? ?m?liyyat identifikatoru.amountOptionalNumberÖd?nis m?bl?gi. M?s?l?n: 100, 20.50.
+M?bl?gin qism?n qaytarilmasi göst?ril? bil?r.currencyRequiredStringÖd?nis valyutasi. Mümkün d?y?rl?r: AZN
+    ?m?liyyat Epoint xidm?ti t?r?find?n isl?ndikd?n v? bankdan öd?nis statusu alindiqdan sonra cavab asagidaki parametrl?rl? qaytarilacaqdir:
+
+
+ParameterDescriptionstatusSucces
+sv? ya failed ?m?liyyatinin n?tic?si.messageS?hv mesaji.
+Bölünmüs öd?nis sorgusu
+
+    Bölünmüs öd?nis yaratmaq üçün data v? signature parametrl?rini POST metodu il? https://epoint.az/api/1/split-request ünvanina gönd?rm?lisiniz.
+API çagirilma json_string parametrl?ri:
+
+
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringPublic key- yaradilan tacirin identifikatorudur.
+M?s?l?n: i000000001amountRequiredNumberÖd?nis m?bl?gi. M?s?l?n, 100, 20.50split_userRequiredStringEpoint sistemind?ki ikinci istifad?çi
+identifikatoru.split_amountRequiredNumberIkinci istifad?çi üçün öd?nis m?bl?gi.
+M?s?l?n, 100, 20.50currencyRequiredStringÖd?nis valyutasi. Mümkün d?y?rl?r: AZNlanguageRequiredStringS?hif?nin ekran dili. Mümkün d?y?rl?r: az,
+en, ru.order_idRequiredStringT?tbiqinizd? unikal ?m?liyyat ID. Maksimum
+uzunlugu 255 simvoldur.descriptionOptionalStringÖd?nis T?sviri. Maksimum uzunlugu 1000
+simvoldur.success_redirect_urlOptionalStringUgurlu öd?nis halinda yönl?ndirm? linki.error_redirect_ urlOptionalStringUgursuz öd?nis halinda yönl?ndirm? linkiother_attrOptionalArray?lav? seçiml?r
+
+    Sorgunun icrasi n?tic?sind? status (success|error), transaction v? kart m?lumatlarini daxil etm?k üçün istifad?çinin yönl?ndirilm?si lazim olan redirect_url d?y?ri olan bir json s?tri qaytarilacaq.
+Müst?ri kart m?lumatlarini doldurur v? öd?nisi t?sdiql?yir.
+    Epoint serverind?n alinan sorgunun h?qiqiliyini yoxlamaq üçün cavabda alinan data v? sizin tacirin private_key-d?n istifad? ed?r?k server t?r?finizd? signature yaratmalisiniz.
+
+
+    Alinan signature Epoint-d?n gönd?ril?n il? müqayis? edilm?lidir , ?g?r signature uygun g?lirs?, üçüncü s?xs t?r?find?n d?yisdirilm?mis Epoint serverind?n orijinal cavab aldiniz.
+Data d?y?rini desifr? etm?k üçün yerin? yetirm?k lazimdir
+
+
+
+ Qeyd ed?k ki, ikinci istifad?çi üçün öd?nil?n m?bl?g yalniz onun öd?nis siyahisinda görün?c?kdir.
+
+
+
+
+
+
+
+Öd?nis n?tic?si parametrl?ri:
+
+ParameterDescriptionorder_idT?tbiqinizd? unikal ?m?liyyat ID.statusSucces
+sv? ya failed ?m?liyyatinin n?tic?sicodeBankin cavab kodumessageÖd?nis icra statusu mesajitransactionEpoint sistemind? ?m?liyyat identifikatoru.bank_transactionBank öd?nis ?m?liyyati identifikatorubank_responseÖd?nis emalinin n?tic?si il? bankin cavabioperation_code001-kart qeydiyyati
+100-istifad?çi öd?nisirrnRetrieval Reference Number - unikal ?m?liyyat identifikatoru. Yalniz ugurlu bir ?m?liyyat üçün
+mövcuddurcard_nameÖd?nis s?hif?sind? göst?ril?n istifad?çi adi
+
+
+
+card_maskÖd?nis s?hif?sind? göst?ril?n istifad?çi adiamount123456******1234 formatinda ?ks edil?n kart
+maskasi.
+split_amountIkinci istifad?çi üçün öd?nis m?bl?giother_attr?lav? seçiml?r
+
+Saxlanilan kartla bölünmüs öd?nisin h?yata keçirilm?si
+
+    Saxlanilan kartla bölünmüs öd?nis yaratmaq üçün data v? signature parametrl?rini POST metodu il? https://epoint.az/api/1/split-execute-pay ünvanina gönd?rm?lisiniz.
+API çagirilma json_string parametrl?ri:
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringPublic key- yaradilan tacirin identifikatorudur.
+M?s?l?n: i000000001languageRequiredStringS?hif?nin ekran dili. Mümkün d?y?rl?r: az, en,
+ru.card_idRequiredStringKartin saxlanilma metodu il? ?ld? edilmis kart
+identifikatoru.order_idRequiredStringT?tbiqinizd? unikal ?m?liyyat ID. Maksimum
+uzunlugu 255 simvoldur.amountRequiredNumberÖd?nis m?bl?gi. M?s?l?n: 100, 20.50split_userRequiredStringIkinci istifad?çi üçün Epoint sistemind?ki
+identifikator.split_amountRequiredNumberIkinci istifad?çi üçün öd?nis m?bl?gi. M?s?l?n, 100,
+20.50currencyRequiredStringÖd?nis valyutasi. Mümkün d?y?rl?r: AZNdescriptionOptionalStringÖd?nis T?sviri. Maksimum uzunlugu 1000
+simvoldur.
+    ?m?liyyat Epoint Xidm?ti t?r?find?n isl?ndikd?n v? bankdan öd?nis statusu alindiqdan sonra cavab asagidaki parametrl?rl? qaytarilacaqdir:
+
+
+
+
+ParameterDescriptionstatusSucces
+sv? ya failed ?m?liyyatinin n?tic?sitransactionEpoint sistemind? ?m?liyyat identifikatoru.bank_transactionBank öd?nis ?m?liyyat identifikatoru.
+bank_responseÖd?nis emalinin n?tic?si il? bankin cavabirrnRetrieval Reference Number - unikal ?m?liyyat identifikatoru. Yalniz ugurlu bir ?m?liyyat üçün
+mövcuddurcard_mask123456******1234 formatinda ?ks edil?n kart
+maskasi.card_nameÖd?nis s?hif?sind? göst?ril?n istifad?çi adiamountÖd?nis m?bl?gimessageS?hv mesaji.split_amountIkinci istifad?çi üçün öd?nis m?bl?gi.
+
+
+
+Ilk bölünmüs öd?nisl? kart m?lumatlarini daxil etm?d?n öd?nis etm?k üçün kartin yadda saxlanilmasi sorgusu
+    Bu tip sorgudan istifad? edildikd?, kartin qeydiyyati il? birlikd? göst?ril?n m?bl?g öd?nil?c?kdir. Sorgu yaratmaq üçün data v? signature parametrl?rini POST metodu il? https://epoint.az/api/1/split-card-registration-with-pay ünvanina gönd?rm?lisiniz.
+
+API çagirilma json_string parametrl?ri:
+
+
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringIctimai açar yaradilan tacirin
+identifikatorudur. M?s?l?n: i000000001languageRequiredStringS?hif?nin ekran dili. Mümkün d?y?rl?r: az,
+en, ru.order_idRequiredStringT?tbiqinizd? unikal ?m?liyyat ID.
+Maksimum
+uzunlugu 255 simvoldur.amountRequiredNumberÖd?nis m?bl?gi. M?s?l?n: 100, 20.50split_userRequiredStringIkinci istifad?çi üçün Epoint sistemind?ki
+identifikatoru.split_amountRequiredNumberIkinci istifad?çi üçün öd?nis m?bl?gi.
+M?s?l?n, 100, 20.50currencyRequiredStringÖd?nis valyutasi. Mümkün d?y?rl?r: AZNdescriptionOptionalStringÖd?nis T?sviri. Maksimum uzunlugu 1000
+simvoldur.success_redirect_urlOptionalStringUgurlu öd?nis halinda yönl?ndirm? linki.error_redirect_urlOptionalStringUgursuz öd?nis halinda yönl?ndirm? linki.
+
+    Sorgunun icrasi n?tic?sind? status (success|error), transaction, kart m?lumatlarini daxil etm?k üçün istifad?çinin yönl?ndirilm?si lazim olan redirect_url v? öd?nisl?ri yerin? yetirm?k üçün istifad? edilm?li olan unikal kart identifikatoru (card_id) d?y?ri olan bir json s?tri qaytarilacaq.
+Müst?ri kart m?lumatlarini doldurur v? öd?nisi t?sdiql?yir.
+    Ugurlu öd?nis halinda müst?ri success_url yönd?ndirilir, ?ks t?qdird? is? error_url yönl?ndiril?c?k (göst?rildiyi halda success_redirect_url ya da error_redirect_url).
+?m?liyyat Epoint xidm?ti il? isl?dikd?n v? bankdan öd?nis statusu alindiqdan sonra data v? signature parametrl?ri il? POST sorgusu göst?rdiyiniz result_url-a gönd?ril?c?kdir.
+    Epoint serverind?n alinan sorgunun h?qiqiliyini yoxlamaq üçün cavabda alinan data v? sizin tacirin private_key-d?n istifad? ed?r?k server t?r?finizd? signature yaratmalisiniz.
+
+    Alinan signature Epoint-d?n gönd?ril?n il? müqayis? edilm?lidir , ?g?r signature uygun g?lirs?, üçüncü s?xs t?r?find?n d?yisdirilm?mis Epoint serverind?n orijinal cavab aldiniz.
+Data d?y?rini desifr? etm?k üçün yerin? yetirm?k lazimdir:
+
+
+
+
+
+Cavab parametrl?ri:
+
+
+ParameterDescriptionstatusSucces
+sv? ya failed ?m?liyyatinin n?tic?sicode000-?m?liyyatin ugurlu icrasi.card_idKartin saxlanilma metodu il? ?ld? edilmis kart
+identifikatoru.order_idT?tbiqinizd? unikal öd?nis identifikatoru.transactionEpoint sistemind? ?m?liyyat identifikatoru.bank_transactionBank öd?nis ?m?liyyatibank_responseÖd?nis emalinin n?tic?si il? bankin cavabioperation_code200-ilk öd?nisl? kartin qeydiyyatirrnRetrieval Reference Number - unikal ?m?liyyat identifikatoru. Yalniz ugurlu bir ?m?liyyat üçün
+mövcuddur
+
+
+
+card_mask123456******1234 formatinda ?ks edil?n kart
+maskasi.card_nameKart sahibinin adi.amountÖd?nis m?bl?gisplit_amountIkinci istifad?çi üçün öd?nis m?bl?gi.other_attr?lav? seçiml?r
+API Preauth Sorgusunun Formalasdirilmasi
+
+Epoint API-ni çagirmaq üçün data v? signature parametrl?rini POST metodu il? https://epoint.az/api/1/pre-auth-request ünvanina gönd?rm?lisiniz, burada: data - API parametrl?ri olan JSON s?tri, base64 funksiyasi il? kodlanmisdir: base64_encode(json_string)
+signature - h?r sorgu üçün unikal imza: base64_encode(sha1(private_key + data + private_key, 1))
+base64_encode funksiyasi MIME base64 formatinda sifr?l?nmis s?tri qaytarir, sha1 is? 20 simvoldan ibar?t hash qaytarir.
+
+Data v? signature formalasdirilmasi
+
+API çagirilma json_string parametrl?ri:
+
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringIctimai açar yaradilan tacirin
+identifikatorudur. M?s?l?n: i000000001amountRequiredNumberÖd?nis m?bl?gi. M?s?l?n: 100, 20.50currencyRequiredStringÖd?nis valyutasi. Mümkün d?y?rl?r: AZNlanguageRequiredStringS?hif?nin ekran dili.
+Mümkün d?y?rl?r: az, en, ru.order_idRequiredStringT?tbiqinizd? unikal ?m?liyyat ID.
+Maksimum
+uzunlugu 255 simvoldur.descriptionOptionalStringÖd?nis T?sviri. Maksimum uzunlugu 1000
+simvoldur.success_redirec
+t_urlOptionalStringUgurlu öd?nis halinda
+yönl?ndirm? linki.error_redirect_ urlOptionalStringUgursuz öd?nis halinda
+yönl?ndirm? linkiother_attrOptionalArray?lav? seçiml?r
+json_string nümun?si:
+
+
+
+base64_encode funksiyasi il? json_string sifr?l?ndikd?n sonra ?ld? edil?n data nümun?si:
+
+
+
+
+
+
+Signature formalasdirmaq üçün private_key + data + private_key birl?sdirm?liyik. Bizim halda bu asagidaki kimi olacaq:
+
+
+Alinan s?tir? base64_encode(sha1(sgn_string, 1)) t?tbiq etm?lisiniz. N?tic? asagidaki s?tir olacaq:
+
+
+Preauth sorgusunun gönd?rilm?si
+
+Alinan data v? signature https://epoint .az/api/1/pre-auth-request ünvanina gönd?rin.
+
+
+
+Bu halda, status (success|error), transaction v? istifad?çinin kart m?lumatlarini daxil etm?k üçün yönl?ndiril?c?yi redirect_url d?y?ri olan JSON s?tiri qaytarilacaq.
+Kart m?lumatlari daxil edildikd?n sonra istifad?çi öd?nisin statusuna gör? success_redirect_url v? ya error_redirect_url ünvanina yönl?ndiril?c?k.
+Bundan ?lav?, result_url ünvanina öd?nisin detallari v? tranzaksiya statusu il? POST sorgusu gönd?ril?c?k.
+
+Preauth sorgusunun tamamlanmasi
+
+    ?m?liyyat Epoint t?r?find?n isl?nib v? öd?nisin statusu bankdan alindiqdan sonra öd?nisi tamamlamalisiniz, ?ks halda o, Epoint balansiniza ?lav? edilm?y?c?k. Bu vaxta q?d?r o, biznes panelind? gözl?y?n balansinizda göst?ril?c?k.
+    Preauth sorgusunu tamamlamaq ist?dikd? h?r sey eyni, yalniz body m?lumatlari f?rqli olacaq.
+API çagirilma json_string parametrl?ri:
+
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringIctimai açar yaradilan tacirin
+identifikatorudur. M?s?l?n: i000000001amountRequiredNumberÖd?nis m?bl?gi. M?s?l?n: 100, 20.50transactionRequiredStringEpoint-d?n ?ld? etdiyiniz transaction id (Callback funksiyasinin icra edilm?si bölm?sin? n?z?r yetirin) (nümun?):
+te001111111)
+Preauth sorgusunu tamamlamak üçün asagidaki endpoint-i istifad? edin: https://epoint.az/api/1/pre-auth-complete
+
+Apple Pay & Google Pay
+
+Google Pay: Veb üçün inteqrasiya.
+
+Apple Pay: H?m veb, h?m d? mobil t?tbiql?r üçün inteqrasiya. Widget URL yaratmaq (POST Request)
+Widget URL-ni ?ld? etm?k üçün data v? signature parametrl?rini POST metodu il? https://epoint.az/api/1/token/widget ünvanina gönd?rm?lisiniz.
+
+json_string parametrl?ri:
+
+ParameterRequiredTypeDescription
+public_keyRequiredStringIctimai açar yaradilan tacirin
+identifikatorudur. M?s?l?n: i000000001amountRequiredNumberÖd?nis m?bl?gi. M?s?l?n: 100, 20.50order_idRequiredStringT?tbiqinizd? unikal ?m?liyyat ID.
+Maksimum
+uzunlugu 255 simvoldur.descriptionRequiredStringÖd?nis T?sviri. Maksimum uzunlugu 1000
+simvoldur.
+data = base64_encode(fields_in_json)
+
+
+
+signature_string = private_key + data + private_key signature = base64_encode(sha1(signature_string))
+Signature string
+
+
+Php (laravel) nümun?si:
+
+
+
+
+Response:
+
+
+
+
+Öd?nis iframe v? ya webview daxilind? tamamlandiqda, iframe mesajini q?bul ed? bil?rsiniz. Bunun üçün asagidaki JavaScript nümun?sind? bir misal verilmisdir:
+
+
+Google Pay (mobil t?tbiql?r üçün inteqrasiya)
+
+Google Pay-i mobil t?tbiqiniz? inteqrasiya etm?k üçün native inteqrasiyani h?yata keçirm?lisiniz.
+
+Inteqrasiya addimlari:
+
+1. Native inteqrasiyani Google Pay-in r?smi s?n?dl?sm?sin? uygun olaraq t?tbiq edin. https://developers.google.com/pay/api/android/overview
+2. Biz? asagidakilari göst?r?n ekran görüntül?rini t?qdim edin:
+? Google Pay düym?sinin t?tbiqinizin interfeysind? harada yerl?sdiyi.
+? Google Pay düym?sinin görünüsü.
+3. T?qdim etdiyiniz materiallar yoxlanildiqdan sonra, inteqrasiyani tamamlamaq üçün siz? Merchant ID t?qdim edil?c?k.
+Cüzdanlar
+Cüzdan API asagidaki endpointl?ri t?qdim edir:
+1. https://epoint.az/api/1/wallet/status - cüzdanlarin siyahisini ?ld? etm?k
+2. https://epoint.az/api/1/wallet/payment - cüzdan il? öd?nis yaratmaq
+
+
+Cüzdanlarin siyahisini ?ld? etm?k üçün public_key parametrini POST metodu il? https://epoint.az/api/1/wallet/status ünvanina gönd?rm?k lazimdi.
+
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringIctimai açar yaradilan tacirin
+identifikatorudur. M?s?l?n: i000000001
+Sorgu gönd?rilm?si:
+
+
+
+
+Dinamik düym?l?rin yaradilmasi v? isl?m? m?ntiqi:
+
+
+
+
+HTML-d? hazir struktur:
+
+
+
+Cüzdan il? öd?nis yaradilmasi üçün data v? signature POST parametrl?rini https://epoint.az/api/1/wallet/payment ünvanina gönd?rm?k lazimdi.
+json_string parametrl?ri:
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringPublic key - yaradilan tacirin identifikatoru.
+M?s?l?n: i000000001wallet_idRequiredStringSeçilmis cüzdan id-si.amountRequiredNumberÖd?nis m?bl?gi. M?s?l?n, 100, 20.50currencyRequiredStringÖd?nis valyutasi. Mümkün d?y?rl?r: AZNorder_idRequiredStringT?tbiqinizd? unikal ID ?m?liyyati.
+Maksimal uzunlugu 255 simvoldur.descriptionOptionalStringÖd?nisin t?sviri. ?n çox 1000 simvol.languageRequiredStringS?hif?nin ekran dili. Mümkün d?y?rl?r: az,
+en, ru.
+Sorgu m?lumatlarinin formalasdirilmasi:
+
+
+
+
+Sorgu gönd?rilm?si:
+
+
+
+
+
+
+Hesab-fakturalar
+
+
+Hesab-faktura API çagirilmasi üçün data v? signature parametrl?rini POST metodu il? https://epoint.az/api/1 ünvanina ötürm?k lazimdi.
+Hesab-faktura API asagidaki endpoitl?ri t?qdim edir:
+3. /invoices/create - hesab-faktura yaradilmasi
+4. /invoices/update - hesab-faktura m?lumatlarinin yenil?nm?si
+5. /invoices/view - hesab-faktura haqqinda m?lumatlara baxilmasi
+6. /invoices/list - bütün hesab-fakturalar haqqinda m?lumatlara baxilmasi
+7. /invoices/send-sms - hesab-faktura alicisina SMS gönd?rilm?si
+
+8. /invoices/send-email - hesab-faktura alicisina email gönd?rilm?si
+Hesab-faktura yaradilmasi v? yenil?nm?si üçün invoice_images[] adli ?lav? qeyri-m?cburi parametr mövcuddur. Bu parametr jpg,png,jpeg,svg,bmp formatlarinda s?kill?ri saxlayir.
+
+
+/invoices/create
+
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringPublic key - yaradilan tacirin
+identifikatoru. M?s?l?n: i000000001sumRequiredNumberÖd?nis m?bl?gi. M?s?l?n, 100, 20.50displayRequiredNumberHesab-fakturani ?ks etdirm?k. Mümkün
+d?y?rl?r: 1 v? ya 0save_as_templateRequiredNumberHesab-fakturani sablon kimi yadda
+saxlamaq. Mümkün d?y?rl?r: 1 v? ya 0status_installmentOptionalNumberTaksitl? öd?nisi aktiv edir.Mümkün
+d?y?rl?r: 1 v? ya 0nameOptionalStringAd.descriptionOptionalStringÖd?nisin t?sviri.phoneOptionalStringMobil nömr?.emailOptionalStringEmail.innOptionalStringVÖEN.contract_numberOptionalStringMüqavil? nömr?si.merchant_order_idOptionalStringSifaris nömr?si.period_fromRequiredDateHesab-fakturanin baslama tarixi.period_toRequiredDateHesab-fakturanin son istifad? tarixi.
+
+
+/invoices/update
+
+
+ParameterRequiredTypeDescription
+public_keyRequiredStringPublic key - yaradilan tacirin
+identifikatoru. M?s?l?n: i000000001IdRequiredNumberYenil?n?n hesab-fakturanin
+identifikatoru.sumRequiredNumberÖd?nis m?bl?gi. M?s?l?n, 100, 20.50displayRequiredNumberHesab-fakturani ?ks etdirm?k. Mümkün
+d?y?rl?r: 1 v? ya 0save_as_templateRequiredNumberHesab-fakturani sablon kimi yadda
+saxlamaq. Mümkün d?y?rl?r: 1 v? ya 0status_installmentOptionalNumberTaksitl? öd?nisi aktiv edir.Mümkün
+d?y?rl?r: 1 v? ya 0nameOptionalStringAd.descriptionOptionalStringÖd?nisin t?sviri.phoneOptionalStringMobil nömr?.emailOptionalStringEmail.innOptionalStringVÖEN.contract_numberOptionalStringMüqavil? nömr?si.merchant_order_idOptionalStringSifaris nömr?si.period_fromRequiredDateHesab-fakturanin baslama tarixi.period_toRequiredDateHesab-fakturanin son istifad? tarixi.
+
+
+/invoices/view
+
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringPublic key - yaradilan tacirin
+identifikatoru. M?s?l?n: i000000001idRequiredNumberHesab-fakturanin identifikatoru.
+
+
+/invoices/list
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringPublic key - yaradilan tacirin identifikatoru. M?s?l?n:
+i000000001typeOptionalStringHesab-faktura növü - daxil olan,
+gönd?ril?n, statik.orderOptionalStringArtan, azalan qaydada çesidl?m?
+/invoices/send-sms
+
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringPublic key - yaradilan tacirin
+identifikatoru. M?s?l?n: i000000001idRequiredNumberHesab-fakturanin identifikatoru.phoneRequiredStringMobil nömr?.
+
+
+/invoices/send-email
+
+
+ParameterRequiredTypeDescriptionpublic_keyRequiredStringPublic key - yaradilan tacirin
+identifikatoru. M?s?l?n: i000000001idRequiredNumberHesab-fakturanin identifikatoru.emailRequiredStringEmail.
+Heartbeat API
+Xidm?tin ?lçatanligini yoxlamaq üçün asagidaki ünvana GET sorgusu gönd?rin: https://epoint.az/api/heartbeat
+Bu endpoint, xidm?tin isl?k olub-olmadigini yoxlamaq üçün n?z?rd? tutulub. ?g?r cavab
+
+status: "ok" olarsa, bu, xidm?tin normal isl?diyini göst?rir.
+
+
+
+Bank cavab kodlari
+
+
+KodT?svir000T?sdiq edildi100Imtina (ümumi, s?rh yoxdur)101Imtina (kartin istifad? müdd?ti bitib)102Imtina (firildaqçiligdan sübh?)103Imtina (q?bul ed?n ekvayer bank il? ?laq? saxlasin)104Imtina (m?hdudlasdirilmis kart)105Imtina (q?bul ed?n ekvayer bankin t?hlük?sizlik söb?si il? ?laq?
+saxlasin)106Imtina (icaz? veril?n PIN c?htl?ri keçildi)107Imtina (kart emitentin? müraci?t edin)108Imtina (kart emitentinin xüsusi s?rtl?rin? müraci?t edin)109Imtina, etibarsiz tacir110Imtina, etibarsiz m?bl?g111Imtina, etibarsiz kart nömr?si112Imtina, PIN t?l?b olunur113Imtina, q?buledilm?z m?bl?g114Imtina, t?l?b edil?n hesab növü yoxdur115Imtina, t?l?b edil?n funksiya d?st?kl?nmir116Imtina, kifay?t q?d?r v?sait yoxdur117Imtina, s?hv PIN118Imtina, kart m?lumatlari yoxdur119Imtina, kart sahibin? ?m?liyyat üçün icaz? verilmir
+120Imtina, terminala ?m?liyyat üçün icaz? verilmir121Imtina, pul çixarma limiti keçib122Imtina, t?hlük?sizlik pozuntusu123Imtina, v?saitl?rin çixarilmasi tezliyinin limiti asilib
+
+
+
+124Imtina, qanun pozuntusu125Imtina, etibarsiz kart126Imtina, PIN bloku s?hvdir127Imtina, PIN uzunlugu x?tasi128Imtina, PIN sinxronizasiya x?tasi129Imtina, saxta kartdan sübh?l?nilir180Imtina, kart sahibinin ist?yi il?200Pick-up (ümumi, s?rhsiz)201Pick-up (kartin istifad? müdd?ti bitib)202Pick-up (d?l?duzlugdan sübh?)203Pick-up, q?bul ed?n bank ekvayer il? ?saq? saxlasin204Pick-up, m?hdudlasdirilmis kart205Pick-up (q?bul ed?n ekvayer bankin t?hlük?sizlik söb?si il? ?laq?
+saxlasin)206Pick-up (icaz? veril?n PIN c?htl?ri keçildi)207Pick-up, xüsusi s?rait208Pick-up, itirilmis kart209Pick-up, ogurlanmis kart210Pick-up, saxta kartdan sübh?l?nilir300Status mesaji: fayl ?m?liyyati ugurludur301Status mesaji: fayl ?m?liyyati q?buledici t?r?find?n d?st?kl?nmir302Status mesaji: faylda qeydi tapmaq mümkün deyil303Status mesaji: dublikat qeyd, köhn? qeyd d?yisdirildi304Status mesaji: fayl qeydi sah?sind? redakt? x?tasi
+305Status mesaji: fayl kilidl?nib306Status mesaji: fayl ?m?liyyati ugursuzdur307Status mesaji: fayl m?lumat formati x?tasi308Status mesaji: dublikat qeyd, yeni qeyd r?dd edildi309Status mesaji: nam?lum fayl400Q?bul edildi (qaytarma üçün)499T?sdiq edildi, orijinal mesaj datasi yoxdur500Status mesaji: tutusdurulub, balansdadir501Status mesaji: tutusdurulub, balansda deyil502Status mesaji: m?bl?g tutusdurulmayib, c?mi t?min edilib503Status mesaji: tutusdurulmaq üçün c?ml?r mövcud deyil504Status mesaji: tutusdurulmayib, c?mi t?min edilib
+
+
+
+600Q?bul edildi (administrativ m?lumat üçün)601Status mesaji: h?qiqi ?m?liyyati izl?m?k mümkün deyil602Status mesaji: ?m?liyyat üçün yanlis istinad nömr?si603Status mesaji: istinad nömr?si / PAN uygunsuzdur604Status mesaji: POS fotos?kili mövcud deyil605Status mesaji: t?l?b olunan element t?qdim edildi606Status mesaji: sorgu icra edil? bilm?z-t?l?b olunan s?n?dl?r
+mövcud deyil680Siyahi hazirdir681Siyahi hazir deyil700Q?bul edildi (öd?nis toplamaq üçün)800Q?bul edildi (s?b?k?y? n?zar?t üçün)900Tövsiy? n?z?r? alindi, heç bir maliyy? öhd?liyi q?bul edilm?di901Tövsiy?l?r n?z?r? alindi, maliyy? öhd?liyi q?bul edildi902Imtina s?b?bi ismarici: etibarsiz ?m?liyyat903Status ismarici: ?m?liyyatin yenid?n daxil edilm?si904Imtina s?b?bi ismarici: format s?hvi
+905Imtina s?b?bi ismarici: ekvayer kommutator t?r?find?n
+d?st?kl?nmir906Imtina s?b?bi ismarici: azalma prosesind?907Imtina s?b?bi ismarici: kart emitenti v? ya keçid isl?mir908Imtina s?b?bi ismarici: marsrutlasdirma üçün ?m?liyyat t?yinat
+yerini tapa bilmir909Imtina s?b?bi ismarici: sistem nasazligi910Imtina s?b?bi ismarici: kart emitenti söndürüldü911Imtina s?b?bi ismarici: kartin emitentinin gözl?m? müdd?ti
+bitmisdir912Imtina s?b?bi ismarici: kartin emitenti mövcud deyil913Imtina s?b?bi:dublikat ötürm?914Imtina s?b?bi: tranzaksiyalari izl?m?k mümkün deyil915Imtina s?b?bi:uygunlasdirma v? ya n?zar?t nöqt?sinin sönm?
+s?hvi916Imtina s?b?bi:Yalnis MAC917Imtina s?b?bi: MAC açarinin yalnis sinxronizasiyasi918Imtina s?b?bi:istifad? üçün baglayici açarlarin mövcudsuzlugu919Imtina s?b?bi:sifr?l?nm? açari sinxronlasmasi s?hvi920Imtina s?b?bi:proqram/donanim t?hlük?sizliyi s?hvi-bir daha
+sinayin921Imtina s?b?bi:proqram/donanim t?hlük?sizliyi s?hvi-f?aliyy?t
+yoxdur
+
+
+
+922Imtina s?b?bi:ismaric nömr?sinin ardicililiginin pozulmasi923Status ismarici:müraci?t prosesd?dir950Imtina s?b?bi:is razilasmasinin pozuntusuXXXKod kartlarin v?ziyy?ti kodu v? ya stop siyahisina daxil edilm?
+s?b?binin kodu il? ?v?z edilm?lidir0Y1T?sdiql?ndi, ICC oflayn rejimind?
+0Y3T?sdiql?ndi, ICC oflayn rejimind?1Q1Imtina,ICC oflayn rejimi s?b?bind?n1Z1Imtina,ICC oflayn rejimi s?b?bind?n1Z3Imtina,ICC oflayn rejimi s?b?bind?n

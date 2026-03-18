@@ -117,7 +117,8 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
     }
 
     // Acil ilan seçilmişse ama gün sayısı seçilmemişse
-    if (_isUrgent && (_urgentDays == null || ![1, 5, 10].contains(_urgentDays))) {
+    if (_isUrgent &&
+        (_urgentDays == null || ![1, 5, 10].contains(_urgentDays))) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Təcili elan üçün gün sayını seçin.'),
@@ -162,18 +163,25 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
           DateTime.now().millisecondsSinceEpoch.toString();
 
       // EĞER EDIT YAPILIYORSA VE ZATEN ACİL İLANSA, TEKRAR ÖDEME İSTEME!
-      final bool isEditingUrgentJob = widget.existingJob != null && widget.existingJob!.isUrgent;
-      
+      final bool isEditingUrgentJob =
+          widget.existingJob != null && widget.existingJob!.isUrgent;
+
       // EĞER ACİL İLAN SEÇİLMİŞSE VE YENİ İLANSA, ÖDEME YAPILACAK
       if (_isUrgent && _urgentDays != null && !isEditingUrgentJob) {
         await _handleUrgentPayment(jobId, currentUser.uid, companyName, phone);
       } else {
         // Normal ilan VEYA zaten acil olan ilan düzenleniyor - direkt kaydet
-        await _saveJobToFirestore(jobId, currentUser.uid, companyName, phone, _isUrgent);
-        
+        await _saveJobToFirestore(
+          jobId,
+          currentUser.uid,
+          companyName,
+          phone,
+          _isUrgent,
+        );
+
         if (!mounted) return;
         setState(() => _isSubmitting = false);
-        
+
         _showSuccessDialog(isUrgent: _isUrgent);
       }
     });
@@ -232,10 +240,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
     final jobMap = newJob.toMap();
     debugPrint('Saving job with isUrgent: ${jobMap['isUrgent']}');
 
-    await FirebaseFirestore.instance
-        .collection('jobs')
-        .doc(jobId)
-        .set(jobMap);
+    await FirebaseFirestore.instance.collection('jobs').doc(jobId).set(jobMap);
   }
 
   Future<void> _handleUrgentPayment(
@@ -257,7 +262,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
     try {
       // İlk önce ilanı NORMAL olarak kaydet
       await _saveJobToFirestore(jobId, employerId, companyName, phone, false);
-      
+
       if (!mounted) return;
 
       // Ödeme isteği gönder
@@ -285,7 +290,8 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
 
       final data = jsonDecode(resp.body) as Map<String, dynamic>;
       final redirectUrl = (data['redirect_url'] ?? '').toString();
-      final orderId = 'urgent_${jobId}_${DateTime.now().millisecondsSinceEpoch}';
+      final orderId =
+          'urgent_${jobId}_${DateTime.now().millisecondsSinceEpoch}';
       final transaction = (data['transaction'] ?? '').toString();
 
       if (redirectUrl.isEmpty) {
@@ -293,7 +299,9 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
           setState(() => _isSubmitting = false);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Ödəniş linki alınmadı: ${data['error'] ?? "Xəta"}'),
+              content: Text(
+                'Ödəniş linki alınmadı: ${data['error'] ?? "Xəta"}',
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -400,10 +408,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
         final statusUrl = Uri.parse(
           'https://istap-backend-1.onrender.com/api/checkPaymentStatus',
         );
-        final statusBody = {
-          'orderId': orderId,
-          'transaction': transaction,
-        };
+        final statusBody = {'orderId': orderId, 'transaction': transaction};
 
         final statusResp = await http.post(
           statusUrl,
@@ -412,7 +417,8 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
         );
 
         if (statusResp.statusCode == 200) {
-          final statusData = jsonDecode(statusResp.body) as Map<String, dynamic>;
+          final statusData =
+              jsonDecode(statusResp.body) as Map<String, dynamic>;
           debugPrint('Payment status response: $statusData');
 
           if (statusData['status'] == 'success') {
@@ -421,7 +427,8 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
             // Backend checkPaymentStatus içinde Firestore'u güncelledi
             isUpdated = true;
             break;
-          } else if (statusData['status'] == 'error' || statusData['status'] == 'failed') {
+          } else if (statusData['status'] == 'error' ||
+              statusData['status'] == 'failed') {
             // Ödeme başarısız - retry yapma, çık
             debugPrint('Payment failed: ${statusData['message']}');
             paymentActuallySucceeded = false;
@@ -448,8 +455,14 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          icon: const Icon(Icons.warning_rounded, color: Colors.orange, size: 60),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          icon: const Icon(
+            Icons.warning_rounded,
+            color: Colors.orange,
+            size: 60,
+          ),
           title: const Text('Ödəniş Alındı'),
           content: const Text(
             'Ödənişiniz uğurla alındı, lakin elanınız hələ təcili olaraq işarələnməyib.\n\n'
@@ -490,15 +503,15 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
           widget.existingJob != null
               ? 'Elan redaktə edildi! 🎉'
               : isUrgent
-                  ? 'Təcili Elan yerləşdirildi! 🔥'
-                  : 'Elan yerləşdirildi! 🎉',
+              ? 'Təcili Elan yerləşdirildi! 🔥'
+              : 'Elan yerləşdirildi! 🎉',
         ),
         content: Text(
           widget.existingJob != null
               ? 'Elanınız uğurla yeniləndi.'
               : isUrgent
-                  ? 'Ödənişiniz uğurla tamamlandı!\nElanınız təcili olaraq $_urgentDays gün ərzində aktiv olacaq.'
-                  : 'Elanınız uğurla yerləşdirildi.\n45 gün ərzində aktiv qalacaq.',
+              ? 'Ödənişiniz uğurla tamamlandı!\nElanınız təcili olaraq $_urgentDays gün ərzində aktiv olacaq.'
+              : 'Elanınız uğurla yerləşdirildi.\n45 gün ərzində aktiv qalacaq.',
           textAlign: TextAlign.center,
         ),
         actions: [
@@ -1086,17 +1099,17 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                       runSpacing: 8,
                       children: [
                         ChoiceChip(
-                          label: const Text('1 gün • 0.01 AZN'),
+                          label: const Text('1 gün • 1 AZN'),
                           selected: _urgentDays == 1,
                           onSelected: (_) => setState(() => _urgentDays = 1),
                         ),
                         ChoiceChip(
-                          label: const Text('5 gün • 3 AZN'),
+                          label: const Text('5 gün • 4 AZN'),
                           selected: _urgentDays == 5,
                           onSelected: (_) => setState(() => _urgentDays = 5),
                         ),
                         ChoiceChip(
-                          label: const Text('10 gün • 5 AZN'),
+                          label: const Text('10 gün • 7 AZN'),
                           selected: _urgentDays == 10,
                           onSelected: (_) => setState(() => _urgentDays = 10),
                         ),

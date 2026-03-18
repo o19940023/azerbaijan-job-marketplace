@@ -245,3 +245,43 @@ exports.urgentPaymentCallback = onRequest({secrets: [EPOINT_PUBLIC_KEY, EPOINT_P
     res.status(500).send("error");
   }
 });
+
+exports.checkPaymentStatus = onRequest({secrets: [EPOINT_PUBLIC_KEY, EPOINT_PRIVATE_KEY]}, async (req, res) => {
+  try {
+    const publicKey = EPOINT_PUBLIC_KEY.value() || "";
+    const privateKey = EPOINT_PRIVATE_KEY.value() || "";
+    if (!publicKey || !privateKey) {
+      res.status(500).json({error: "Epoint keys missing"});
+      return;
+    }
+
+    const incomingBody = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    const {orderId, transaction} = req.method === "GET" ? req.query : incomingBody;
+
+    if (!orderId && !transaction) {
+      res.status(400).json({error: "missing_params"});
+      return;
+    }
+
+    const dataPayload = {
+      public_key: publicKey,
+    };
+    if (orderId) dataPayload.order_id = orderId;
+    if (transaction) dataPayload.transaction = transaction;
+
+    const dataBase64 = toBase64Json(dataPayload);
+    const signature = buildEpointSignature(privateKey, dataBase64);
+
+    const body = new URLSearchParams({data: dataBase64, signature}).toString();
+    const resp = await fetch("https://epoint.az/api/1/get-status", {
+      method: "POST",
+      headers: {"Content-Type": "application/x-www-form-urlencoded"},
+      body,
+    });
+
+    const json = await resp.json().catch(() => ({}));
+    res.json(json);
+  } catch (e) {
+    res.status(500).json({error: String(e)});
+  }
+});

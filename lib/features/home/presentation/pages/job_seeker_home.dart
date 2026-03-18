@@ -142,63 +142,57 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
     if (!mounted) return;
     setState(() => _isLoadingJobs = true);
     try {
-      final nowUtc = DateTime.now().toUtc();
-      final nowIso = nowUtc.toIso8601String();
-      // 1. Fetch Urgent Jobs (Global, no filters)
-      final urgentSnapshot = await FirebaseFirestore.instance
-          .collection('jobs')
-          .where('isUrgent', isEqualTo: true)
-          .where('urgentUntil', isGreaterThan: nowIso)
-          .where('isActive', isEqualTo: true)
-          .get();
+      final now = DateTime.now();
+      final nowUtc = now.toUtc();
 
-      final urgentJobs = urgentSnapshot.docs
-          .where((d) => d.data() != null)
-          .map((d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
-          .toList();
-
-      // 2. Fetch Normal/Organic Jobs (With filters - though for MVP we fetch all active and filter locally or basic query)
-      // Note: In a real app with pagination, we'd query carefully. Here we fetch active jobs.
-      // We will exclude urgent jobs from organic list if they appear there to avoid duplicates,
-      // OR we just treat "organic" as "everything else".
-
-      // Let's fetch all active jobs for now and filter/sort in memory for the "organic" part,
-      // since the query logic for filters is complex to do purely in one Firestore call with '!='.
-      final organicSnapshot = await FirebaseFirestore.instance
+      // Fetch ALL active jobs in a single simple query to avoid Index error
+      final snapshot = await FirebaseFirestore.instance
           .collection('jobs')
           .where('isActive', isEqualTo: true)
-          .get();
+          .get(const GetOptions(source: Source.serverAndCache));
 
-      final allOrganicJobs = organicSnapshot.docs
+      final allActiveJobs = snapshot.docs
           .where((d) => d.data() != null)
           .map((d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
-          // Exclude jobs that are already in the urgent list to prevent duplicates?
-          // The prompt says "ilk 2 ilan acil... sonra 15 normal".
-          // If a job is urgent, it should probably ONLY appear in the urgent slots to make those slots valuable.
-          // So let's filter out isUrgent=true from organic list.
-          .where((job) {
-            final until = job.urgentUntil?.toUtc();
-            final isCurrentlyUrgent =
-                job.isUrgent && until != null && until.isAfter(nowUtc);
-            return !isCurrentlyUrgent;
-          })
+          .where((job) => job.expiresAt.isAfter(now))
           .toList();
+
+      // Split them in memory
+      final urgentJobs = allActiveJobs.where((job) {
+        final until = job.urgentUntil?.toUtc();
+        return job.isUrgent && until != null && until.isAfter(nowUtc);
+      }).toList();
+
+      final organicJobs = allActiveJobs.where((job) {
+        final until = job.urgentUntil?.toUtc();
+        final isCurrentlyUrgent =
+            job.isUrgent && until != null && until.isAfter(nowUtc);
+        return !isCurrentlyUrgent;
+      }).toList();
 
       if (!mounted) return;
 
-      // 3. Mix them
       setState(() {
-        _cachedJobs = _mixJobs(allOrganicJobs, urgentJobs);
+        _cachedJobs = _mixJobs(organicJobs, urgentJobs);
         _isLoadingJobs = false;
       });
 
-      // Calculate distances if location is already available
       if (_userPosition != null) {
         _recalculateDistances();
       }
     } catch (e) {
+      debugPrint('Firestore fetch error: $e');
       if (mounted) {
         setState(() => _isLoadingJobs = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Məlumat yenilənərkən xəta baş verdi: $e'),
+            action: SnackBarAction(
+              label: 'Təkrar yoxla',
+              onPressed: _fetchJobs,
+            ),
+          ),
+        );
       }
     }
   }
@@ -765,38 +759,25 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
             }
 
             // Separate urgent and normal jobs from cached mixed list
-            // Note: _cachedJobs already contains the mix (2 urgent, 10 normal, etc.)
-            // But if we want to filter normal jobs dynamically while keeping urgent ones,
-            // we need to re-mix or filter carefully.
-
-            // Current approach in _fetchJobs:
-            // 1. Fetches ALL urgent jobs
-            // 2. Fetches ALL normal jobs (no filter applied at query level except isActive)
-            // 3. Mixes them into _cachedJobs
-
-            // Problem: When user applies filters in UI (e.g. Category=Waiter),
-            // the _cachedJobs list is filtered below, potentially removing urgent jobs
-            // if they don't match the category.
-            // Requirement: "acil ilanlar ne olursa olsun gozukecek" (Urgent jobs must show regardless of filters)
-
-            // Solution:
-            // 1. Separate _cachedJobs back into organic and urgent pools locally
-            // 2. Filter ONLY organic jobs based on UI filters
-            // 3. Re-mix filtered organic jobs with ALL urgent jobs using the 2-10-2 pattern
-
             var allJobs = _cachedJobs ?? [];
-            final nowUtc = DateTime.now().toUtc();
+            final now = DateTime.now();
+            final nowUtc = now.toUtc();
+
             var urgentJobs = allJobs.where((j) {
               final until = j.urgentUntil?.toUtc();
-              return j.isUrgent && until != null && until.isAfter(nowUtc);
+              final isCurrentlyUrgent =
+                  j.isUrgent && until != null && until.isAfter(nowUtc);
+              final isNotExpired = j.expiresAt.isAfter(now);
+              return isCurrentlyUrgent && isNotExpired && j.isActive;
             }).toList();
-            // Dedup urgent jobs if any (though _fetchJobs handles this, better safe)
+
             final urgentIds = urgentJobs.map((j) => j.id).toSet();
 
             var organicJobs = allJobs
                 .where((j) => !urgentIds.contains(j.id))
                 .where((j) => !blockedUsers.contains(j.employerId))
                 .where((j) => j.isActive)
+                .where((j) => j.expiresAt.isAfter(now))
                 .toList();
 
             // Apply filters ONLY to organic jobs
@@ -807,7 +788,6 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
             }
             if (_selectedJobType != null) {
               if (_selectedJobType != 'urgent') {
-                // Urgent filter handled separately
                 organicJobs = organicJobs
                     .where((j) => j.jobType == _selectedJobType)
                     .toList();
@@ -885,18 +865,8 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
             } else if (_selectedSortMode == 'location' &&
                 _userPosition != null) {
               organicJobs.sort((a, b) {
-                final distA = Geolocator.distanceBetween(
-                  _userPosition!.latitude,
-                  _userPosition!.longitude,
-                  a.latitude,
-                  a.longitude,
-                );
-                final distB = Geolocator.distanceBetween(
-                  _userPosition!.latitude,
-                  _userPosition!.longitude,
-                  b.latitude,
-                  b.longitude,
-                );
+                final distA = a.distance ?? double.infinity;
+                final distB = b.distance ?? double.infinity;
                 return distA.compareTo(distB);
               });
             } else {
@@ -905,14 +875,9 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
 
             // Special case: If "Urgent" filter is explicitly selected by user
             if (_selectedJobType == 'urgent') {
-              // Show only urgent jobs
-              organicJobs = []; // Clear organic
-              // Urgent jobs are already in urgentJobs list
+              organicJobs = [];
             }
 
-            // Re-mix jobs for display
-            // If "Urgent" filter selected, we show only urgent jobs.
-            // Otherwise, we show mix of (Filtered Organic) + (All Urgent)
             final displayJobs = _selectedJobType == 'urgent'
                 ? urgentJobs
                 : _mixJobs(organicJobs, urgentJobs);

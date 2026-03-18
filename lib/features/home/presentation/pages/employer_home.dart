@@ -49,7 +49,7 @@ class _EmployerHomeState extends State<EmployerHome> {
 
       if (result == true && mounted) {
         setState(() {
-          _currentIndex = 5; // Switch to Profile tab for Employer
+          _currentIndex = 4; // Switch to Profile tab for Employer
         });
       }
     }
@@ -60,7 +60,6 @@ class _EmployerHomeState extends State<EmployerHome> {
     final pages = [
       _buildDashboard(),
       const CreateJobScreen(),
-      _buildMyJobs(),
       const EmployerApplicationsScreen(),
       const ChatListScreen(),
       const ProfileScreen(isEmployerView: true),
@@ -120,7 +119,7 @@ class _EmployerHomeState extends State<EmployerHome> {
                   type: BottomNavigationBarType.fixed,
                   currentIndex: _currentIndex,
                   onTap: (i) {
-                    if (i == 3) {
+                    if (i == 2) {
                       ApplicationsRepository().markAllApplicationsAsRead(
                         FirebaseAuth.instance.currentUser?.uid ?? '',
                       );
@@ -136,10 +135,6 @@ class _EmployerHomeState extends State<EmployerHome> {
                       icon: Icon(Icons.add_circle_outline_rounded),
                       activeIcon: Icon(Icons.add_circle_rounded),
                       label: 'Elan Ver',
-                    ),
-                    const BottomNavigationBarItem(
-                      icon: Icon(Icons.list_alt_rounded),
-                      label: 'Elanlarım',
                     ),
                     BottomNavigationBarItem(
                       icon: Badge(
@@ -223,6 +218,9 @@ class _EmployerHomeState extends State<EmployerHome> {
             .map(
               (d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id),
             )
+            .where(
+              (job) => job.expiresAt.isAfter(DateTime.now()),
+            ) // 45 gün kontrolü
             .toList();
         myJobs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
         final recentJobs = myJobs.take(4).toList();
@@ -392,7 +390,7 @@ class _EmployerHomeState extends State<EmployerHome> {
                       job.isUrgent &&
                       urgentUntilUtc != null &&
                       urgentUntilUtc.isAfter(nowUtc);
-                  
+
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     decoration: BoxDecoration(
@@ -436,7 +434,9 @@ class _EmployerHomeState extends State<EmployerHome> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.accentColor.withValues(alpha: 0.1),
+                                color: AppTheme.accentColor.withValues(
+                                  alpha: 0.1,
+                                ),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Text(
@@ -475,223 +475,6 @@ class _EmployerHomeState extends State<EmployerHome> {
                 }),
               ],
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildMyJobs() {
-    final stream = FirebaseFirestore.instance
-        .collection('jobs')
-        .where('employerId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-        .snapshots();
-
-    return StreamBuilder<QuerySnapshot>(
-      stream: stream,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData)
-          return const Center(child: CircularProgressIndicator());
-
-        final jobs = snapshot.data!.docs
-            .where((d) => d.data() != null) // Silinen ilanları filtrele
-            .map(
-              (d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id),
-            )
-            .toList();
-        jobs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-        return SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                child: Text(
-                  'Elanlarım',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: context.textPrimaryColor,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: jobs.length,
-                  itemBuilder: (context, index) {
-                    final job = jobs[index];
-                    final cat = JobCategories.getById(job.categoryId);
-                    final nowUtc = DateTime.now().toUtc();
-                    final urgentUntilUtc = job.urgentUntil?.toUtc();
-                    final isUrgentActive =
-                        job.isUrgent &&
-                        urgentUntilUtc != null &&
-                        urgentUntilUtc.isAfter(nowUtc);
-                    
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      decoration: BoxDecoration(
-                        color: context.cardColor,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isUrgentActive
-                              ? AppTheme.accentColor.withValues(alpha: 0.3)
-                              : context.dividerColor,
-                        ),
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
-                        ),
-                        leading: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: cat.color.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(cat.icon, color: cat.color, size: 22),
-                        ),
-                        title: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                job.title,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ),
-                            if (isUrgentActive)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.accentColor.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  'Təcili',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppTheme.accentColor,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        subtitle: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: job.isActive
-                                    ? AppTheme.successColor.withValues(
-                                        alpha: 0.1,
-                                      )
-                                    : Colors.grey.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                job.isActive ? 'Aktiv' : 'Deaktiv',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: job.isActive
-                                      ? AppTheme.successColor
-                                      : Colors.grey,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              job.timeAgo,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: context.textHintColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                        trailing: PopupMenuButton(
-                          icon: Icon(
-                            Icons.more_vert_rounded,
-                            color: context.textHintColor,
-                          ),
-                          onSelected: (value) {
-                            if (value == 'delete') {
-                              FirebaseFirestore.instance
-                                  .collection('jobs')
-                                  .doc(job.id)
-                                  .delete();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Elan silindi')),
-                              );
-                            } else if (value == 'edit') {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Redaktə səhifəsi tezliklə!'),
-                                ),
-                              );
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'edit',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.edit_rounded, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Redaktə et'),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuItem(
-                              value: 'delete',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.delete_rounded,
-                                    size: 18,
-                                    color: Colors.red,
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Sil',
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ApplicantsListScreen(job: job),
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
           ),
         );
       },

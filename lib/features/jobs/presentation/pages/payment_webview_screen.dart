@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 class PaymentWebViewScreen extends StatefulWidget {
   final String url;
@@ -11,67 +11,33 @@ class PaymentWebViewScreen extends StatefulWidget {
 }
 
 class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
-  late final WebViewController _controller;
+  late InAppWebViewController _webViewController;
   bool _isProcessingPayment = false;
   bool _paymentCompleted = false;
+  double _progress = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onNavigationRequest: (NavigationRequest request) {
-            final url = request.url;
-            debugPrint("Navigating to: $url");
-
-            // Duplicate navigation'ları önle
-            if (_isProcessingPayment || _paymentCompleted) {
-              return NavigationDecision.prevent;
-            }
-
-            // Success URL pattern'leri
-            if (url.contains('payment-success.html') ||
-                url.contains('success') ||
-                url.contains('pay-successful')) {
-              _handlePaymentSuccess();
-              return NavigationDecision.prevent;
-            }
-            
-            // Error URL pattern'leri
-            if (url.contains('payment-error.html') ||
-                url.contains('error') ||
-                url.contains('fail')) {
-              _handlePaymentError();
-              return NavigationDecision.prevent;
-            }
-
-            return NavigationDecision.navigate;
-          },
-          onPageFinished: (String url) {
-            debugPrint("Page finished loading: $url");
-            
-            // Sayfa yüklendikten sonra tekrar kontrol et
-            if (_paymentCompleted) return;
-            
-            // Success pattern'leri
-            if (url.contains('payment-success.html') ||
-                url.contains('success') ||
-                url.contains('pay-successful')) {
-              _handlePaymentSuccess();
-            }
-            // Error pattern'leri
-            else if (url.contains('payment-error.html') ||
-                url.contains('error') ||
-                url.contains('fail')) {
-              _handlePaymentError();
-            }
-          },
-        ),
-      )
-      ..loadRequest(Uri.parse(widget.url));
-  }
+  final InAppWebViewSettings _settings = InAppWebViewSettings(
+    useShouldOverrideUrlLoading: false,
+    mediaPlaybackRequiresUserGesture: false,
+    allowsInlineMediaPlayback: true,
+    iframeAllow: "camera; microphone",
+    iframeAllowFullscreen: true,
+    javaScriptEnabled: true,
+    javaScriptCanOpenWindowsAutomatically: true,
+    supportMultipleWindows: true,
+    domStorageEnabled: true,
+    databaseEnabled: true,
+    clearSessionCache: true,
+    cacheEnabled: false,
+    transparentBackground: true,
+    mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+    thirdPartyCookiesEnabled: true,
+    allowUniversalAccessFromFileURLs: true,
+    allowFileAccessFromFileURLs: true,
+    useOnLoadResource: true,
+    userAgent:
+        "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36",
+  );
 
   void _handlePaymentSuccess() {
     if (_paymentCompleted) return;
@@ -100,9 +66,9 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
         title: const Text('Ödəniş'),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: _paymentCompleted 
-              ? null 
-              : () => Navigator.pop(context, false), // Ləğv edildi
+          onPressed: _paymentCompleted
+              ? null
+              : () => Navigator.pop(context, false),
         ),
       ),
       body: _isProcessingPayment
@@ -116,7 +82,141 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                 ],
               ),
             )
-          : WebViewWidget(controller: _controller),
+          : Stack(
+              children: [
+                InAppWebView(
+                  initialUrlRequest: URLRequest(url: WebUri(widget.url)),
+                  initialSettings: _settings,
+                  onWebViewCreated: (controller) {
+                    _webViewController = controller;
+                  },
+                  onLoadStart: (controller, url) async {
+                    debugPrint("Started loading: $url");
+                    final urlStr = url?.toString() ?? "";
+
+                    // Eger Papara ACS xeta verirse veya challenge_result donerse POST metodunu qorumaq
+                    // Bu hisse esasen izleme ucundur
+
+                    if (urlStr.contains('payment-success.html') ||
+                        urlStr.contains('pay-successful') ||
+                        (urlStr.contains('netlify.app') &&
+                            urlStr.contains('success'))) {
+                      _handlePaymentSuccess();
+                    } else if (urlStr.contains('payment-error.html') ||
+                        urlStr.contains('pay-error') ||
+                        (urlStr.contains('netlify.app') &&
+                            urlStr.contains('error'))) {
+                      _handlePaymentError();
+                    }
+                  },
+                  onLoadStop: (controller, url) async {
+                    debugPrint("Finished loading: $url");
+                    final urlStr = url?.toString() ?? "";
+
+                    if (urlStr.contains('payment-success.html') ||
+                        urlStr.contains('pay-successful') ||
+                        (urlStr.contains('netlify.app') &&
+                            urlStr.contains('success'))) {
+                      _handlePaymentSuccess();
+                    } else if (urlStr.contains('payment-error.html') ||
+                        urlStr.contains('pay-error') ||
+                        (urlStr.contains('netlify.app') &&
+                            urlStr.contains('error'))) {
+                      _handlePaymentError();
+                    }
+                  },
+                  onProgressChanged: (controller, progress) {
+                    setState(() {
+                      _progress = progress / 100;
+                    });
+                  },
+                  onConsoleMessage: (controller, consoleMessage) {
+                    debugPrint("WebView Console: ${consoleMessage.message}");
+                  },
+                  onCreateWindow: (controller, createWindowAction) async {
+                    debugPrint("3DSecure/Bank popup window requested.");
+
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          contentPadding: EdgeInsets.zero,
+                          content: SizedBox(
+                            width: MediaQuery.of(context).size.width,
+                            height: MediaQuery.of(context).size.height * 0.8,
+                            child: InAppWebView(
+                              windowId: createWindowAction.windowId,
+                              initialSettings: _settings,
+                              onCloseWindow: (controller) async {
+                                if (Navigator.canPop(context)) {
+                                  Navigator.pop(context);
+                                }
+                              },
+                              onLoadStart: (controller, url) async {
+                                final urlStr = url?.toString() ?? "";
+                                debugPrint("Popup Started loading: $url");
+                                if (urlStr.contains('payment-success.html') ||
+                                    urlStr.contains('pay-successful') ||
+                                    (urlStr.contains('netlify.app') &&
+                                        urlStr.contains('success'))) {
+                                  if (Navigator.canPop(context)) {
+                                    Navigator.pop(context);
+                                  }
+                                  _handlePaymentSuccess();
+                                } else if (urlStr.contains(
+                                      'payment-error.html',
+                                    ) ||
+                                    urlStr.contains('pay-error') ||
+                                    (urlStr.contains('netlify.app') &&
+                                        urlStr.contains('error'))) {
+                                  if (Navigator.canPop(context)) {
+                                    Navigator.pop(context);
+                                  }
+                                  _handlePaymentError();
+                                }
+                              },
+                              onLoadStop: (controller, url) async {
+                                final urlStr = url?.toString() ?? "";
+                                debugPrint("Popup Finished loading: $url");
+                                if (urlStr.contains('payment-success.html') ||
+                                    urlStr.contains('pay-successful') ||
+                                    (urlStr.contains('netlify.app') &&
+                                        urlStr.contains('success'))) {
+                                  if (Navigator.canPop(context)) {
+                                    Navigator.pop(context);
+                                  }
+                                  _handlePaymentSuccess();
+                                } else if (urlStr.contains(
+                                      'payment-error.html',
+                                    ) ||
+                                    urlStr.contains('pay-error') ||
+                                    (urlStr.contains('netlify.app') &&
+                                        urlStr.contains('error'))) {
+                                  if (Navigator.canPop(context)) {
+                                    Navigator.pop(context);
+                                  }
+                                  _handlePaymentError();
+                                }
+                              },
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pop(context);
+                              },
+                              child: const Text("Bağla"),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                    return true;
+                  },
+                ),
+                if (_progress < 1.0) LinearProgressIndicator(value: _progress),
+              ],
+            ),
     );
   }
 }

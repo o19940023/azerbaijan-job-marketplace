@@ -589,42 +589,90 @@ Daha ətraflı məlumat üçün Azərbaycan İş Bazarı (İş Tap AI) tətbiqin
                     if (currentJob.latitude != 0 && currentJob.longitude != 0)
                       _SectionCard(
                         title: 'İşin Mövqeyi',
-                        child: Container(
-                          height: 200,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: context.dividerColor),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: IgnorePointer(
-                              child: FlutterMap(
-                                options: MapOptions(
-                                  initialCenter: LatLng(currentJob.latitude, currentJob.longitude),
-                                  initialZoom: 15.0,
+                        child: GestureDetector(
+                          onTap: () async {
+                            final lat = currentJob.latitude;
+                            final lng = currentJob.longitude;
+                            // iOS üçün Apple Maps, Android üçün Google Maps linki
+                            final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+                            
+                            if (await canLaunchUrl(url)) {
+                              await launchUrl(url, mode: LaunchMode.externalApplication);
+                            } else {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Xəritə tətbiqi açıla bilmədi.')),
+                                );
+                              }
+                            }
+                          },
+                          child: Stack(
+                            children: [
+                              Container(
+                                height: 200,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: context.dividerColor),
                                 ),
-                                children: [
-                                  TileLayer(
-                                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                    userAgentPackageName: 'com.is.tap',
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: IgnorePointer(
+                                    child: FlutterMap(
+                                      options: MapOptions(
+                                        initialCenter: LatLng(currentJob.latitude, currentJob.longitude),
+                                        initialZoom: 15.0,
+                                      ),
+                                      children: [
+                                        TileLayer(
+                                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                          userAgentPackageName: 'com.is.tap',
+                                        ),
+                                        MarkerLayer(
+                                          markers: [
+                                            Marker(
+                                              point: LatLng(currentJob.latitude, currentJob.longitude),
+                                              width: 40,
+                                              height: 40,
+                                              child: const Icon(
+                                                Icons.location_on,
+                                                color: Colors.red,
+                                                size: 40,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  MarkerLayer(
-                                    markers: [
-                                      Marker(
-                                        point: LatLng(currentJob.latitude, currentJob.longitude),
-                                        width: 40,
-                                        height: 40,
-                                        child: const Icon(
-                                          Icons.location_on,
-                                          color: Colors.red,
-                                          size: 40,
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 8,
+                                right: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.7),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.directions_rounded, color: Colors.white, size: 16),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        'Yol tarifi al',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ],
                                   ),
-                                ],
+                                ),
                               ),
-                            ),
+                            ],
                           ),
                         ),
                       ),
