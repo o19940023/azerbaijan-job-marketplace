@@ -28,20 +28,27 @@ class _MapViewScreenState extends State<MapViewScreen> {
           }
 
           final jobs = snapshot.data!.docs
-              .map((d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+              .where((d) => d.data() != null)
+              .map(
+                (d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id),
+              )
               .toList();
 
           return Stack(
             children: [
               FlutterMap(
                 options: MapOptions(
-                  initialCenter: const LatLng(40.4093, 49.8671), // Default center
+                  initialCenter: const LatLng(
+                    40.4093,
+                    49.8671,
+                  ), // Default center
                   initialZoom: 12.0,
                   onTap: (_, __) => setState(() => _selectedJobIndex = null),
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.is.tap',
                   ),
                   MarkerLayer(
@@ -52,8 +59,12 @@ class _MapViewScreenState extends State<MapViewScreen> {
                       final isSelected = _selectedJobIndex == idx;
 
                       // Use actual job coordinates, fallback to mock near center if missing
-                      final lat = job.latitude != 0 ? job.latitude : 40.4093 + (idx * 0.005);
-                      final lng = job.longitude != 0 ? job.longitude : 49.8671 + (idx * 0.005);
+                      final lat = job.latitude != 0
+                          ? job.latitude
+                          : 40.4093 + (idx * 0.005);
+                      final lng = job.longitude != 0
+                          ? job.longitude
+                          : 49.8671 + (idx * 0.005);
 
                       return Marker(
                         point: LatLng(lat, lng),
@@ -67,7 +78,9 @@ class _MapViewScreenState extends State<MapViewScreen> {
                               color: isSelected ? cat.color : context.cardColor,
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: isSelected ? context.scaffoldBackgroundColor : cat.color,
+                                color: isSelected
+                                    ? context.scaffoldBackgroundColor
+                                    : cat.color,
                                 width: 2,
                               ),
                               boxShadow: [
@@ -106,8 +119,10 @@ class _MapViewScreenState extends State<MapViewScreen> {
                     decoration: InputDecoration(
                       hintText: 'Bu ərazidə axtar...',
                       hintStyle: TextStyle(color: context.textHintColor),
-                      prefixIcon: Icon(Icons.search_rounded,
-                          color: context.textHintColor),
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                        color: context.textHintColor,
+                      ),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -119,8 +134,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
               ),
 
               // Selected Job Card at bottom
-              if (_selectedJobIndex != null &&
-                  _selectedJobIndex! < jobs.length)
+              if (_selectedJobIndex != null && _selectedJobIndex! < jobs.length)
                 Positioned(
                   bottom: 16,
                   left: 16,
@@ -150,16 +164,19 @@ class _MapViewScreenState extends State<MapViewScreen> {
     final nowUtc = DateTime.now().toUtc();
     final urgentUntilUtc = job.urgentUntil?.toUtc();
     final isUrgentActive =
-        job.isUrgent && urgentUntilUtc != null && urgentUntilUtc.isAfter(nowUtc);
+        job.isUrgent &&
+        urgentUntilUtc != null &&
+        urgentUntilUtc.isAfter(nowUtc);
     return Container(
-      padding: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: context.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: context.isDarkMode ? Colors.black.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.1),
+            color: context.isDarkMode
+                ? Colors.black.withValues(alpha: 0.5)
+                : Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -226,8 +243,11 @@ class _MapViewScreenState extends State<MapViewScreen> {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(Icons.monetization_on_outlined,
-                        size: 14, color: AppTheme.successColor),
+                    Icon(
+                      Icons.monetization_on_outlined,
+                      size: 14,
+                      color: AppTheme.successColor,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       job.salaryText,
@@ -238,8 +258,11 @@ class _MapViewScreenState extends State<MapViewScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Icon(Icons.near_me_outlined,
-                        size: 14, color: AppTheme.primaryColor),
+                    Icon(
+                      Icons.near_me_outlined,
+                      size: 14,
+                      color: AppTheme.primaryColor,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       job.distanceText,
@@ -253,10 +276,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
               ],
             ),
           ),
-          Icon(
-            Icons.chevron_right_rounded,
-            color: context.textHintColor,
-          ),
+          Icon(Icons.chevron_right_rounded, color: context.textHintColor),
         ],
       ),
     );

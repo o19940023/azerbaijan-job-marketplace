@@ -17,6 +17,7 @@ class AiJobSearchService {
     try {
       final snapshot = await _firestore.collection('jobs').get();
       var jobs = snapshot.docs
+          .where((d) => d.data() != null)
           .map((d) => JobModel.fromMap(d.data(), d.id))
           .where((j) => j.isActive)
           .toList();

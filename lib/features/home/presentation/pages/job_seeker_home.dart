@@ -153,6 +153,7 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
           .get();
 
       final urgentJobs = urgentSnapshot.docs
+          .where((d) => d.data() != null)
           .map((d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
           .toList();
 
@@ -169,6 +170,7 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
           .get();
 
       final allOrganicJobs = organicSnapshot.docs
+          .where((d) => d.data() != null)
           .map((d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
           // Exclude jobs that are already in the urgent list to prevent duplicates?
           // The prompt says "ilk 2 ilan acil... sonra 15 normal".

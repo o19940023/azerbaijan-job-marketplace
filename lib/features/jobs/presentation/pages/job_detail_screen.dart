@@ -158,7 +158,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance.collection('jobs').doc(job.id).snapshots(),
         builder: (context, snapshot) {
-          final currentJob = snapshot.hasData 
+          final currentJob = snapshot.hasData && snapshot.data!.data() != null
               ? JobModel.fromMap(snapshot.data!.data() as Map<String, dynamic>, snapshot.data!.id)
               : job;
           final nowUtc = DateTime.now().toUtc();

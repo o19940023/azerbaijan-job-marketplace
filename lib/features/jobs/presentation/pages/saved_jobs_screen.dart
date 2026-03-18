@@ -25,8 +25,9 @@ class _SavedJobsScreenState extends State<SavedJobsScreen> {
           .collection('jobs')
           .where(FieldPath.documentId, whereIn: chunk)
           .get();
-      jobs.addAll(querySnapshot.docs.map(
-          (d) => JobModel.fromMap(d.data(), d.id)));
+      jobs.addAll(querySnapshot.docs
+          .where((d) => d.data() != null)
+          .map((d) => JobModel.fromMap(d.data(), d.id)));
     }
     return jobs;
   }
