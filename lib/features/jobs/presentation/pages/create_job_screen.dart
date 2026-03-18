@@ -392,7 +392,10 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
         }
 
         // Firestore güncel değilse, backend'den status kontrol et
-        await Future.delayed(Duration(seconds: retryCount * 2)); // 2, 4, 6 saniye bekle
+        // İlk denemede hemen kontrol et, sonraki denemelerde 1 saniye bekle
+        if (retryCount > 1) {
+          await Future.delayed(const Duration(seconds: 1));
+        }
 
         final statusUrl = Uri.parse(
           'https://istap-backend-1.onrender.com/api/checkPaymentStatus',
