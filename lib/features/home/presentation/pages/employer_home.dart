@@ -385,12 +385,23 @@ class _EmployerHomeState extends State<EmployerHome> {
                   ),
                 ...recentJobs.map((job) {
                   final cat = JobCategories.getById(job.categoryId);
+                  final nowUtc = DateTime.now().toUtc();
+                  final urgentUntilUtc = job.urgentUntil?.toUtc();
+                  final isUrgentActive =
+                      job.isUrgent &&
+                      urgentUntilUtc != null &&
+                      urgentUntilUtc.isAfter(nowUtc);
+                  
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     decoration: BoxDecoration(
                       color: context.cardColor,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: context.dividerColor),
+                      border: Border.all(
+                        color: isUrgentActive
+                            ? AppTheme.accentColor.withValues(alpha: 0.3)
+                            : context.dividerColor,
+                      ),
                     ),
                     child: ListTile(
                       contentPadding: const EdgeInsets.symmetric(
@@ -406,12 +417,37 @@ class _EmployerHomeState extends State<EmployerHome> {
                         ),
                         child: Icon(cat.icon, color: cat.color, size: 22),
                       ),
-                      title: Text(
-                        job.title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
+                      title: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              job.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                          if (isUrgentActive)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accentColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'Təcili',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.accentColor,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       subtitle: Text(
                         '${job.applicationCount} müraciət · ${job.viewCount} baxış',
@@ -485,12 +521,23 @@ class _EmployerHomeState extends State<EmployerHome> {
                   itemBuilder: (context, index) {
                     final job = jobs[index];
                     final cat = JobCategories.getById(job.categoryId);
+                    final nowUtc = DateTime.now().toUtc();
+                    final urgentUntilUtc = job.urgentUntil?.toUtc();
+                    final isUrgentActive =
+                        job.isUrgent &&
+                        urgentUntilUtc != null &&
+                        urgentUntilUtc.isAfter(nowUtc);
+                    
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
                       decoration: BoxDecoration(
                         color: context.cardColor,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: context.dividerColor),
+                        border: Border.all(
+                          color: isUrgentActive
+                              ? AppTheme.accentColor.withValues(alpha: 0.3)
+                              : context.dividerColor,
+                        ),
                       ),
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(
@@ -506,12 +553,37 @@ class _EmployerHomeState extends State<EmployerHome> {
                           ),
                           child: Icon(cat.icon, color: cat.color, size: 22),
                         ),
-                        title: Text(
-                          job.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                          ),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                job.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                            if (isUrgentActive)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.accentColor.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'Təcili',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.accentColor,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         subtitle: Row(
                           children: [
