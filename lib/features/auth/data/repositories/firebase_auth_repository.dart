@@ -51,8 +51,14 @@ class FirebaseAuthRepository {
       throw Exception('E-poçt ünvanınız təsdiqlənməyib. E-poçtunuza yeni təsdiq linki göndərildi. Zəhmət olmasa təsdiqləyib daxil olun.');
     }
 
-    // Fetch user type from Firestore
-    final doc = await _firestore.collection('users').doc(user.uid).get();
+    // Fetch user type from Firestore (add timeout to avoid infinite wait on bad network)
+    final doc = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .get()
+        .timeout(const Duration(seconds: 8), onTimeout: () {
+      throw Exception('Şəbəkə gecikməsi. Zəhmət olmasa interneti yoxlayın və yenidən cəhd edin.');
+    });
     if (!doc.exists) {
       await _auth.signOut();
       throw Exception('İstifadəçi tapılmadı. Zəhmət olmasa qeydiyyatdan keçin.');
