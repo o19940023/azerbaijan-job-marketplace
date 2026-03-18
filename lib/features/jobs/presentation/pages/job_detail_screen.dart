@@ -161,6 +161,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           final currentJob = snapshot.hasData 
               ? JobModel.fromMap(snapshot.data!.data() as Map<String, dynamic>, snapshot.data!.id)
               : job;
+          final nowUtc = DateTime.now().toUtc();
+          final urgentUntilUtc = currentJob.urgentUntil?.toUtc();
+          final isUrgentActive =
+              currentJob.isUrgent && urgentUntilUtc != null && urgentUntilUtc.isAfter(nowUtc);
 
           return CustomScrollView(
             slivers: [
@@ -431,7 +435,7 @@ Daha ətraflı məlumat üçün Azərbaycan İş Bazarı (İş Tap AI) tətbiqin
                     ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
 
                     // Urgent badge
-                    if (currentJob.isUrgent)
+                    if (isUrgentActive)
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 16),
                         padding: const EdgeInsets.symmetric(

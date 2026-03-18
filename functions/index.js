@@ -1,12 +1,18 @@
 const {setGlobalOptions} = require("firebase-functions/v2");
 const {onDocumentCreated, onDocumentUpdated} = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
+const {onRequest} = require("firebase-functions/v2/https");
+const {defineSecret} = require("firebase-functions/params");
+const crypto = require("crypto");
 
 setGlobalOptions({maxInstances: 10, region: "us-central1"});
 
 admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
+
+const EPOINT_PUBLIC_KEY = defineSecret("EPOINT_PUBLIC_KEY");
+const EPOINT_PRIVATE_KEY = defineSecret("EPOINT_PRIVATE_KEY");
 
 async function sendPushToUser(userId, title, body, data = {}) {
   const userDoc = await db.collection("users").doc(userId).get();
@@ -132,4 +138,110 @@ exports.onApplicationStatusChanged = onDocumentUpdated("applications/{applicatio
   });
 
   await event.data.after.ref.update({statusNotificationSent: true});
+});
+
+function buildEpointSignature(privateKey, dataBase64) {
+  const s = `${privateKey}${dataBase64}${privateKey}`;
+  return crypto.createHash("sha1").update(s).digest("base64");
+}
+
+function toBase64Json(obj) {
+  return Buffer.from(JSON.stringify(obj)).toString("base64");
+}
+
+exports.createUrgentPayment = onRequest({secrets: [EPOINT_PUBLIC_KEY, EPOINT_PRIVATE_KEY]}, async (req, res) => {
+  try {
+    const publicKey = EPOINT_PUBLIC_KEY.value() || "";
+    const privateKey = EPOINT_PRIVATE_KEY.value() || "";
+    if (!publicKey || !privateKey) {
+      res.status(500).json({error: "Epoint keys missing"});
+      return;
+    }
+
+    const incomingBody = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    const {jobId, employerId, days} = req.method === "GET" ? req.query : incomingBody;
+    const d = Number(days);
+    if (!jobId || !employerId || !d || ![1, 5, 10].includes(d)) {
+      res.status(400).json({error: "invalid_params"});
+      return;
+    }
+
+    const amount = d === 1 ? 1 : d === 5 ? 3 : 5;
+    const orderId = `urgent_${jobId}_${Date.now()}`;
+    const otherAttr = [{key: "jobId", value: jobId}, {key: "employerId", value: employerId}, {key: "days", value: String(d)}];
+
+    const dataPayload = {
+      public_key: publicKey,
+      amount,
+      currency: "AZN",
+      language: "az",
+      order_id: orderId,
+      description: `Təcili elan ${d} gün`,
+      success_redirect_url: "https://istapapp.netlify.app/support.html",
+      error_redirect_url: "https://istapapp.netlify.app/support.html",
+      other_attr: otherAttr,
+    };
+    const dataBase64 = toBase64Json(dataPayload);
+    const signature = buildEpointSignature(privateKey, dataBase64);
+
+    const body = new URLSearchParams({data: dataBase64, signature}).toString();
+    const resp = await fetch("https://epoint.az/api/1/request", {
+      method: "POST",
+      headers: {"Content-Type": "application/x-www-form-urlencoded"},
+      body,
+    });
+    const json = await resp.json().catch(() => ({}));
+    if (!json || !json.redirect_url) {
+      res.status(502).json({error: "epoint_error", response: json});
+      return;
+    }
+    res.json({redirect_url: json.redirect_url, transaction: json.transaction, status: json.status || "success"});
+  } catch (e) {
+    res.status(500).json({error: String(e)});
+  }
+});
+
+exports.urgentPaymentCallback = onRequest({secrets: [EPOINT_PUBLIC_KEY, EPOINT_PRIVATE_KEY]}, async (req, res) => {
+  try {
+    const publicKey = EPOINT_PUBLIC_KEY.value() || "";
+    const privateKey = EPOINT_PRIVATE_KEY.value() || "";
+    if (!publicKey || !privateKey) {
+      res.status(500).send("Epoint keys missing");
+      return;
+    }
+    const incomingBody = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    const dataBase64 = (incomingBody && incomingBody.data) || (req.query && req.query.data) || "";
+    const signature = (incomingBody && incomingBody.signature) || (req.query && req.query.signature) || "";
+    if (!dataBase64 || !signature) {
+      res.status(400).send("invalid");
+      return;
+    }
+    const expectedSig = buildEpointSignature(privateKey, dataBase64);
+    if (expectedSig !== signature) {
+      res.status(403).send("forbidden");
+      return;
+    }
+    const decoded = JSON.parse(Buffer.from(dataBase64, "base64").toString("utf8"));
+    const status = (decoded && decoded.status) || "";
+    const otherAttr = (decoded && decoded.other_attr) || [];
+    const kv = {};
+    if (Array.isArray(otherAttr)) {
+      otherAttr.forEach((x) => {
+        if (x && x.key) kv[x.key] = x.value;
+      });
+    }
+    const jobId = kv.jobId;
+    const days = Number(kv.days || 0);
+    if (status === "success" && jobId && [1, 5, 10].includes(days)) {
+      const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+      await db.collection("jobs").doc(jobId).update({
+        isUrgent: true,
+        urgentUntil: until,
+        urgentTransaction: (decoded && decoded.transaction) || "",
+      }).catch(() => {});
+    }
+    res.status(200).send("ok");
+  } catch (e) {
+    res.status(500).send("error");
+  }
 });

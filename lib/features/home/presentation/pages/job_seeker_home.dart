@@ -142,10 +142,13 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
     if (!mounted) return;
     setState(() => _isLoadingJobs = true);
     try {
+      final nowUtc = DateTime.now().toUtc();
+      final nowIso = nowUtc.toIso8601String();
       // 1. Fetch Urgent Jobs (Global, no filters)
       final urgentSnapshot = await FirebaseFirestore.instance
           .collection('jobs')
           .where('isUrgent', isEqualTo: true)
+          .where('urgentUntil', isGreaterThan: nowIso)
           .where('isActive', isEqualTo: true)
           .get();
 
@@ -171,7 +174,12 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
           // The prompt says "ilk 2 ilan acil... sonra 15 normal".
           // If a job is urgent, it should probably ONLY appear in the urgent slots to make those slots valuable.
           // So let's filter out isUrgent=true from organic list.
-          .where((job) => !job.isUrgent)
+          .where((job) {
+            final until = job.urgentUntil?.toUtc();
+            final isCurrentlyUrgent =
+                job.isUrgent && until != null && until.isAfter(nowUtc);
+            return !isCurrentlyUrgent;
+          })
           .toList();
 
       if (!mounted) return;
@@ -775,14 +783,16 @@ class _JobSeekerHomeState extends State<JobSeekerHome> {
             // 3. Re-mix filtered organic jobs with ALL urgent jobs using the 2-10-2 pattern
 
             var allJobs = _cachedJobs ?? [];
-            var urgentJobs = allJobs.where((j) => j.isUrgent).toList();
+            final nowUtc = DateTime.now().toUtc();
+            var urgentJobs = allJobs.where((j) {
+              final until = j.urgentUntil?.toUtc();
+              return j.isUrgent && until != null && until.isAfter(nowUtc);
+            }).toList();
             // Dedup urgent jobs if any (though _fetchJobs handles this, better safe)
             final urgentIds = urgentJobs.map((j) => j.id).toSet();
 
             var organicJobs = allJobs
-                .where(
-                  (j) => !j.isUrgent && !urgentIds.contains(j.id),
-                ) // Ensure pure organic
+                .where((j) => !urgentIds.contains(j.id))
                 .where((j) => !blockedUsers.contains(j.employerId))
                 .where((j) => j.isActive)
                 .toList();

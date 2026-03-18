@@ -147,7 +147,12 @@ class _MapViewScreenState extends State<MapViewScreen> {
 
   Widget _buildJobCard(job) {
     final cat = JobCategories.getById(job.categoryId);
+    final nowUtc = DateTime.now().toUtc();
+    final urgentUntilUtc = job.urgentUntil?.toUtc();
+    final isUrgentActive =
+        job.isUrgent && urgentUntilUtc != null && urgentUntilUtc.isAfter(nowUtc);
     return Container(
+      padding: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: context.cardColor,
@@ -189,7 +194,7 @@ class _MapViewScreenState extends State<MapViewScreen> {
                         ),
                       ),
                     ),
-                    if (job.isUrgent)
+                    if (isUrgentActive)
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,

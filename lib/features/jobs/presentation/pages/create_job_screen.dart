@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/constants/app_constants.dart';
@@ -10,6 +11,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../map/presentation/pages/map_picker_screen.dart';
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 class CreateJobScreen extends StatefulWidget {
   final JobModel? existingJob;
@@ -54,6 +57,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
   bool _allowCallIfAccepted = true;
   String _applicationMethod = 'in_app';
   final _externalUrlController = TextEditingController();
+  int? _urgentDays;
 
   @override
   void initState() {
@@ -181,7 +185,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
         externalUrl: _applicationMethod == 'redirect'
             ? _externalUrlController.text.trim()
             : null,
-        isUrgent: _isUrgent, // Explicitly pass the value
+        isUrgent: false,
       );
 
       final jobMap = newJob.toMap();
@@ -219,7 +223,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(ctx);
                   if (widget.existingJob != null) {
                     Navigator.pop(context); // Go back to detail screen
@@ -236,6 +240,39 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                     _selectedLocation = null;
                     _selectedExperience = 'Təcrübəsiz';
                     _selectedEducation = 'Vacib deyil';
+                  }
+                  if (_isUrgent == true &&
+                      (_urgentDays == 1 ||
+                          _urgentDays == 5 ||
+                          _urgentDays == 10)) {
+                    final employerId = currentUser.uid;
+                    final days = _urgentDays!;
+                    final Uri url = Uri.parse(
+                      'https://us-central1-jobmarketplaceaz.cloudfunctions.net/createUrgentPayment',
+                    );
+                    final body = {
+                      'jobId': jobId,
+                      'employerId': employerId,
+                      'days': days.toString(),
+                    };
+                    try {
+                      final resp = await http.post(
+                        url,
+                        headers: {'Content-Type': 'application/json'},
+                        body: jsonEncode(body),
+                      );
+                      final data =
+                          jsonDecode(resp.body) as Map<String, dynamic>;
+                      final redirectUrl = (data['redirect_url'] ?? '')
+                          .toString();
+                      if (redirectUrl.isNotEmpty) {
+                        final uri = Uri.parse(redirectUrl);
+                        await launchUrl(
+                          uri,
+                          mode: LaunchMode.externalApplication,
+                        );
+                      }
+                    } catch (_) {}
                   }
                 },
                 child: const Text('Tamam'),
@@ -771,9 +808,48 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                     ),
                     value: _isUrgent,
                     activeColor: AppTheme.accentColor,
-                    onChanged: (v) => setState(() => _isUrgent = v),
+                    onChanged: (v) {
+                      setState(() {
+                        _isUrgent = v;
+                        if (!_isUrgent) {
+                          _urgentDays = null;
+                        } else {
+                          _urgentDays ??= 1;
+                        }
+                      });
+                    },
                   ),
                 ),
+                const SizedBox(height: 12),
+                if (_isUrgent) ...[
+                  Row(
+                    children: [
+                      ChoiceChip(
+                        label: const Text('1 gün • 1 AZN'),
+                        selected: _urgentDays == 1,
+                        onSelected: (_) => setState(() => _urgentDays = 1),
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text('5 gün • 3 AZN'),
+                        selected: _urgentDays == 5,
+                        onSelected: (_) => setState(() => _urgentDays = 5),
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text('10 gün • 5 AZN'),
+                        selected: _urgentDays == 10,
+                        onSelected: (_) => setState(() => _urgentDays = 10),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (_urgentDays == null)
+                    Text(
+                      'Təcili gün sayını seçin',
+                      style: TextStyle(color: AppTheme.errorColor),
+                    ),
+                ],
                 const SizedBox(height: 24),
 
                 // Allow call if accepted toggle
