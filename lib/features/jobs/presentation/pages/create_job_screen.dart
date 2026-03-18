@@ -13,6 +13,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../map/presentation/pages/map_picker_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:azerbaijan_job_marketplace/features/jobs/presentation/pages/payment_webview_screen.dart';
 
 class CreateJobScreen extends StatefulWidget {
   final JobModel? existingJob;
@@ -111,6 +112,17 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
       return;
     }
 
+    // Acil ilan seçilmişse ama gün sayısı seçilmemişse
+    if (_isUrgent && (_urgentDays == null || ![1, 5, 10].contains(_urgentDays))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Təcili elan üçün gün sayını seçin.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     Future.delayed(const Duration(seconds: 1), () async {
@@ -145,143 +157,359 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
           widget.existingJob?.id ??
           DateTime.now().millisecondsSinceEpoch.toString();
 
-      // Log urgent status for debugging
-      debugPrint('Submitting job with isUrgent: $_isUrgent');
+      // EĞER ACİL İLAN SEÇİLMİŞSE, ÖNCE ÖDEME YAPILACAK
+      if (_isUrgent && _urgentDays != null) {
+        await _handleUrgentPayment(jobId, currentUser.uid, companyName, phone);
+      } else {
+        // Normal ilan - direkt kaydet
+        await _saveJobToFirestore(jobId, currentUser.uid, companyName, phone, false);
+        
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+        
+        _showSuccessDialog(isUrgent: false);
+      }
+    });
+  }
 
-      final newJob = JobModel(
-        id: jobId,
-        title: _titleController.text,
-        companyName: companyName,
-        city: _selectedCity,
-        district: '',
-        salaryMin: double.tryParse(_salaryMinController.text) ?? 0,
-        salaryMax: double.tryParse(_salaryMaxController.text),
-        salaryPeriod: _selectedSalaryPeriod,
-        jobType: _selectedJobType,
-        workingHours: _workingHoursController.text.isNotEmpty
-            ? _workingHoursController.text
-            : null,
-        address: null,
-        description: _descriptionController.text,
-        requirements: List.from(_requirements),
-        benefits: List.from(_selectedBenefits),
-        categoryId: _selectedCategory,
-        employerId: currentUser.uid,
-        isActive: true, // or preserve widget.existingJob?.isActive ?? true
-        latitude: _selectedLocation!.latitude,
-        longitude: _selectedLocation!.longitude,
-        contactPhone: phone,
-        createdAt: widget.existingJob?.createdAt ?? DateTime.now(),
-        expiresAt:
-            widget.existingJob?.expiresAt ??
-            DateTime.now().add(const Duration(days: 45)),
-        companyLogo: _companyLogoUrl,
-        educationLevel: _selectedEducation,
-        experienceLevel: _selectedExperience,
-        viewCount: widget.existingJob?.viewCount ?? 0,
-        applicationCount: widget.existingJob?.applicationCount ?? 0,
-        allowCallIfAccepted: _allowCallIfAccepted,
-        applicationMethod: _applicationMethod,
-        externalUrl: _applicationMethod == 'redirect'
-            ? _externalUrlController.text.trim()
-            : null,
-        isUrgent: false,
+  Future<void> _saveJobToFirestore(
+    String jobId,
+    String employerId,
+    String companyName,
+    String phone,
+    bool isUrgent,
+  ) async {
+    final newJob = JobModel(
+      id: jobId,
+      title: _titleController.text,
+      companyName: companyName,
+      city: _selectedCity,
+      district: '',
+      salaryMin: double.tryParse(_salaryMinController.text) ?? 0,
+      salaryMax: double.tryParse(_salaryMaxController.text),
+      salaryPeriod: _selectedSalaryPeriod,
+      jobType: _selectedJobType,
+      workingHours: _workingHoursController.text.isNotEmpty
+          ? _workingHoursController.text
+          : null,
+      address: null,
+      description: _descriptionController.text,
+      requirements: List.from(_requirements),
+      benefits: List.from(_selectedBenefits),
+      categoryId: _selectedCategory,
+      employerId: employerId,
+      isActive: true,
+      latitude: _selectedLocation!.latitude,
+      longitude: _selectedLocation!.longitude,
+      contactPhone: phone,
+      createdAt: widget.existingJob?.createdAt ?? DateTime.now(),
+      expiresAt:
+          widget.existingJob?.expiresAt ??
+          DateTime.now().add(const Duration(days: 45)),
+      companyLogo: _companyLogoUrl,
+      educationLevel: _selectedEducation,
+      experienceLevel: _selectedExperience,
+      viewCount: widget.existingJob?.viewCount ?? 0,
+      applicationCount: widget.existingJob?.applicationCount ?? 0,
+      allowCallIfAccepted: _allowCallIfAccepted,
+      applicationMethod: _applicationMethod,
+      externalUrl: _applicationMethod == 'redirect'
+          ? _externalUrlController.text.trim()
+          : null,
+      isUrgent: isUrgent,
+    );
+
+    final jobMap = newJob.toMap();
+    debugPrint('Saving job with isUrgent: ${jobMap['isUrgent']}');
+
+    await FirebaseFirestore.instance
+        .collection('jobs')
+        .doc(jobId)
+        .set(jobMap);
+  }
+
+  Future<void> _handleUrgentPayment(
+    String jobId,
+    String employerId,
+    String companyName,
+    String phone,
+  ) async {
+    final days = _urgentDays!;
+    final Uri url = Uri.parse(
+      'https://istap-backend-1.onrender.com/api/createUrgentPayment',
+    );
+    final body = {
+      'jobId': jobId,
+      'employerId': employerId,
+      'days': days.toString(),
+    };
+
+    try {
+      // İlk önce ilanı NORMAL olarak kaydet
+      await _saveJobToFirestore(jobId, employerId, companyName, phone, false);
+      
+      if (!mounted) return;
+
+      // Ödeme isteği gönder
+      final resp = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
       );
 
-      final jobMap = newJob.toMap();
-      debugPrint('Job map isUrgent value: ${jobMap['isUrgent']}');
+      debugPrint('Payment request status: ${resp.statusCode}');
+      debugPrint('Payment request body: ${resp.body}');
 
-      await FirebaseFirestore.instance
-          .collection('jobs')
-          .doc(jobId)
-          .set(jobMap);
+      if (resp.statusCode != 200) {
+        if (mounted) {
+          setState(() => _isSubmitting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ödəniş xətası: Status ${resp.statusCode}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
 
-      setState(() => _isSubmitting = false);
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+      final redirectUrl = (data['redirect_url'] ?? '').toString();
+      final orderId = 'urgent_${jobId}_${DateTime.now().millisecondsSinceEpoch}';
+      final transaction = (data['transaction'] ?? '').toString();
+
+      if (redirectUrl.isEmpty) {
+        if (mounted) {
+          setState(() => _isSubmitting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ödəniş linki alınmadı: ${data['error'] ?? "Xəta"}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (!mounted) return;
+
+      // WebView'i aç
+      final paymentResult = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaymentWebViewScreen(url: redirectUrl),
+        ),
+      );
+
+      if (!mounted) return;
+
+      if (paymentResult == true) {
+        // Ödeme başarılı - Firestore güncellemesini kontrol et
+        await _verifyAndUpdateUrgentStatus(jobId, orderId, transaction, days);
+      } else {
+        // Ödeme iptal veya başarısız
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ödəniş ləğv edildi və ya uğursuz oldu.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Payment error: $e');
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ödəniş xətası: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _verifyAndUpdateUrgentStatus(
+    String jobId,
+    String orderId,
+    String transaction,
+    int days,
+  ) async {
+    if (!mounted) return;
+
+    // Loading göster
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: Colors.white),
+            SizedBox(height: 16),
+            Text(
+              'Ödəniş təsdiqlənir...',
+              style: TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // Retry mekanizması ile checkPaymentStatus çağır
+    bool isUpdated = false;
+    int retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries && !isUpdated) {
+      retryCount++;
+      debugPrint('Checking payment status, attempt $retryCount/$maxRetries');
+
+      try {
+        // Önce Firestore'u kontrol et - belki webhook zaten güncelledi
+        final jobDoc = await FirebaseFirestore.instance
+            .collection('jobs')
+            .doc(jobId)
+            .get();
+
+        if (jobDoc.exists && jobDoc.data()?['isUrgent'] == true) {
+          debugPrint('Job already marked as urgent by webhook');
+          isUpdated = true;
+          break;
+        }
+
+        // Firestore güncel değilse, backend'den status kontrol et
+        await Future.delayed(Duration(seconds: retryCount * 2)); // 2, 4, 6 saniye bekle
+
+        final statusUrl = Uri.parse(
+          'https://istap-backend-1.onrender.com/api/checkPaymentStatus',
+        );
+        final statusBody = {
+          'orderId': orderId,
+          'transaction': transaction,
+        };
+
+        final statusResp = await http.post(
+          statusUrl,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(statusBody),
+        );
+
+        if (statusResp.statusCode == 200) {
+          final statusData = jsonDecode(statusResp.body) as Map<String, dynamic>;
+          debugPrint('Payment status response: $statusData');
+
+          if (statusData['status'] == 'success') {
+            // Backend checkPaymentStatus içinde Firestore'u güncelledi
+            isUpdated = true;
+            break;
+          }
+        }
+      } catch (e) {
+        debugPrint('Error checking payment status (attempt $retryCount): $e');
+      }
+    }
+
+    if (!mounted) return;
+
+    // Loading'i kapat
+    Navigator.of(context, rootNavigator: true).pop();
+
+    setState(() => _isSubmitting = false);
+
+    if (isUpdated) {
+      // Başarılı
+      _showSuccessDialog(isUrgent: true);
+    } else {
+      // Güncelleme başarısız ama para çekildi
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          icon: const Icon(
-            Icons.check_circle_rounded,
-            color: AppTheme.successColor,
-            size: 60,
-          ),
-          title: Text(
-            widget.existingJob != null
-                ? 'Elan redaktə edildi! 🎉'
-                : 'Elan yerləşdirildi! 🎉',
-          ),
-          content: Text(
-            widget.existingJob != null
-                ? 'Elanınız uğurla yeniləndi.'
-                : 'Elanınız uğurla yerləşdirildi.\n45 gün ərzində aktiv qalacaq.',
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          icon: const Icon(Icons.warning_rounded, color: Colors.orange, size: 60),
+          title: const Text('Ödəniş Alındı'),
+          content: const Text(
+            'Ödənişiniz uğurla alındı, lakin elanınız hələ təcili olaraq işarələnməyib.\n\n'
+            'Narahatlıq etməyin, elanınız 24 saat ərzində təcili olaraq işarələnəcək.\n\n'
+            'Əgər problem davam edərsə, dəstək komandası ilə əlaqə saxlayın.',
             textAlign: TextAlign.center,
           ),
           actions: [
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () async {
+                onPressed: () {
                   Navigator.pop(ctx);
-                  if (widget.existingJob != null) {
-                    Navigator.pop(context); // Go back to detail screen
-                  } else {
-                    _formKey.currentState!.reset();
-                    _titleController.clear();
-                    _descriptionController.clear();
-                    _salaryMinController.clear();
-                    _salaryMaxController.clear();
-                    _workingHoursController.clear();
-                    _requirementController.clear();
-                    _selectedBenefits.clear();
-                    _requirements.clear();
-                    _selectedLocation = null;
-                    _selectedExperience = 'Təcrübəsiz';
-                    _selectedEducation = 'Vacib deyil';
-                  }
-                  if (_isUrgent == true &&
-                      (_urgentDays == 1 ||
-                          _urgentDays == 5 ||
-                          _urgentDays == 10)) {
-                    final employerId = currentUser.uid;
-                    final days = _urgentDays!;
-                    final Uri url = Uri.parse(
-                      'https://us-central1-jobmarketplaceaz.cloudfunctions.net/createUrgentPayment',
-                    );
-                    final body = {
-                      'jobId': jobId,
-                      'employerId': employerId,
-                      'days': days.toString(),
-                    };
-                    try {
-                      final resp = await http.post(
-                        url,
-                        headers: {'Content-Type': 'application/json'},
-                        body: jsonEncode(body),
-                      );
-                      final data =
-                          jsonDecode(resp.body) as Map<String, dynamic>;
-                      final redirectUrl = (data['redirect_url'] ?? '')
-                          .toString();
-                      if (redirectUrl.isNotEmpty) {
-                        final uri = Uri.parse(redirectUrl);
-                        await launchUrl(
-                          uri,
-                          mode: LaunchMode.externalApplication,
-                        );
-                      }
-                    } catch (_) {}
-                  }
+                  Navigator.pop(context);
                 },
-                child: const Text('Tamam'),
+                child: const Text('Anladım'),
               ),
             ),
           ],
         ),
       );
-    });
+    }
+  }
+
+  void _showSuccessDialog({required bool isUrgent}) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        icon: const Icon(
+          Icons.check_circle_rounded,
+          color: AppTheme.successColor,
+          size: 60,
+        ),
+        title: Text(
+          widget.existingJob != null
+              ? 'Elan redaktə edildi! 🎉'
+              : isUrgent
+                  ? 'Təcili Elan yerləşdirildi! 🔥'
+                  : 'Elan yerləşdirildi! 🎉',
+        ),
+        content: Text(
+          widget.existingJob != null
+              ? 'Elanınız uğurla yeniləndi.'
+              : isUrgent
+                  ? 'Ödənişiniz uğurla tamamlandı!\nElanınız təcili olaraq $_urgentDays gün ərzində aktiv olacaq.'
+                  : 'Elanınız uğurla yerləşdirildi.\n45 gün ərzində aktiv qalacaq.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                if (widget.existingJob != null) {
+                  Navigator.pop(context);
+                } else {
+                  // Form'u temizle
+                  _formKey.currentState!.reset();
+                  _titleController.clear();
+                  _descriptionController.clear();
+                  _salaryMinController.clear();
+                  _salaryMaxController.clear();
+                  _workingHoursController.clear();
+                  _requirementController.clear();
+                  _selectedBenefits.clear();
+                  _requirements.clear();
+                  _selectedLocation = null;
+                  _selectedExperience = 'Təcrübəsiz';
+                  _selectedEducation = 'Vacib deyil';
+                  _isUrgent = false;
+                  _urgentDays = null;
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Tamam'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -822,20 +1050,20 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                 ),
                 const SizedBox(height: 12),
                 if (_isUrgent) ...[
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       ChoiceChip(
                         label: const Text('1 gün • 1 AZN'),
                         selected: _urgentDays == 1,
                         onSelected: (_) => setState(() => _urgentDays = 1),
                       ),
-                      const SizedBox(width: 8),
                       ChoiceChip(
                         label: const Text('5 gün • 3 AZN'),
                         selected: _urgentDays == 5,
                         onSelected: (_) => setState(() => _urgentDays = 5),
                       ),
-                      const SizedBox(width: 8),
                       ChoiceChip(
                         label: const Text('10 gün • 5 AZN'),
                         selected: _urgentDays == 10,
