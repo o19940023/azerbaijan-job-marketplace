@@ -94,9 +94,6 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                     debugPrint("Started loading: $url");
                     final urlStr = url?.toString() ?? "";
 
-                    // Eger Papara ACS xeta verirse veya challenge_result donerse POST metodunu qorumaq
-                    // Bu hisse esasen izleme ucundur
-
                     if (urlStr.contains('payment-success.html') ||
                         urlStr.contains('pay-successful') ||
                         (urlStr.contains('netlify.app') &&

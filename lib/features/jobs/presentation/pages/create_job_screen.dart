@@ -290,8 +290,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
 
       final data = jsonDecode(resp.body) as Map<String, dynamic>;
       final redirectUrl = (data['redirect_url'] ?? '').toString();
-      final orderId =
-          'urgent_${jobId}_${DateTime.now().millisecondsSinceEpoch}';
+      final orderId = (data['order_id'] ?? '').toString();
       final transaction = (data['transaction'] ?? '').toString();
 
       if (redirectUrl.isEmpty) {
@@ -321,15 +320,21 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
 
       if (!mounted) return;
 
-      if (paymentResult == true) {
-        // Ödeme başarılı - Firestore güncellemesini kontrol et
-        await _verifyAndUpdateUrgentStatus(jobId, orderId, transaction, days);
-      } else {
-        // Ödeme iptal veya başarısız
-        setState(() => _isSubmitting = false);
+      final verified = await _verifyAndUpdateUrgentStatus(
+        jobId,
+        orderId,
+        transaction,
+        days,
+      );
+
+      if (!verified && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Ödəniş ləğv edildi və ya uğursuz oldu.'),
+          SnackBar(
+            content: Text(
+              paymentResult == null
+                  ? 'Ödəniş ləğv edildi.'
+                  : 'Ödəniş təsdiqlənmədi və ya uğursuz oldu.',
+            ),
             backgroundColor: Colors.orange,
           ),
         );
@@ -348,13 +353,13 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
     }
   }
 
-  Future<void> _verifyAndUpdateUrgentStatus(
+  Future<bool> _verifyAndUpdateUrgentStatus(
     String jobId,
     String orderId,
     String transaction,
     int days,
   ) async {
-    if (!mounted) return;
+    if (!mounted) return false;
 
     // Loading göster
     showDialog(
@@ -440,7 +445,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
       }
     }
 
-    if (!mounted) return;
+    if (!mounted) return false;
 
     // Loading'i kapat
     Navigator.of(context, rootNavigator: true).pop();
@@ -450,6 +455,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
     if (isUpdated) {
       // Başarılı - hem ödeme başarılı hem Firestore güncellendi
       _showSuccessDialog(isUrgent: true);
+      return true;
     } else if (paymentActuallySucceeded) {
       // Ödeme başarılı AMA Firestore güncellemesi başarısız
       showDialog(
@@ -484,9 +490,11 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
           ],
         ),
       );
+      return true;
     }
     // Eğer paymentActuallySucceeded = false ise, hiçbir dialog gösterme
     // Kullanıcı zaten WebView'den hata mesajını gördü
+    return false;
   }
 
   void _showSuccessDialog({required bool isUrgent}) {
