@@ -24,6 +24,7 @@ class JobModel {
   final DateTime expiresAt;
   final bool isUrgent;
   final DateTime? urgentUntil;
+  final String? urgentTransaction;
   final bool isActive;
   final int viewCount;
   final int applicationCount;
@@ -60,6 +61,7 @@ class JobModel {
     required this.expiresAt,
     this.isUrgent = false,
     this.urgentUntil,
+    this.urgentTransaction,
     this.isActive = true,
     this.viewCount = 0,
     this.applicationCount = 0,
@@ -121,6 +123,7 @@ class JobModel {
     DateTime? expiresAt,
     bool? isUrgent,
     DateTime? urgentUntil,
+    String? urgentTransaction,
     bool? isActive,
     int? viewCount,
     int? applicationCount,
@@ -157,6 +160,7 @@ class JobModel {
       expiresAt: expiresAt ?? this.expiresAt,
       isUrgent: isUrgent ?? this.isUrgent,
       urgentUntil: urgentUntil ?? this.urgentUntil,
+      urgentTransaction: urgentTransaction ?? this.urgentTransaction,
       isActive: isActive ?? this.isActive,
       applicationCount: applicationCount ?? this.applicationCount,
       educationLevel: educationLevel ?? this.educationLevel,
@@ -195,6 +199,7 @@ class JobModel {
       'expiresAt': expiresAt.toIso8601String(),
       'isUrgent': isUrgent,
       'urgentUntil': urgentUntil?.toUtc().toIso8601String(),
+      'urgentTransaction': urgentTransaction,
       'isActive': isActive,
       'viewCount': viewCount,
       'applicationCount': applicationCount,
@@ -233,6 +238,7 @@ class JobModel {
       expiresAt: map['expiresAt'] != null ? DateTime.parse(map['expiresAt']) : DateTime.now(),
       isUrgent: map['isUrgent'] ?? false,
       urgentUntil: map['urgentUntil'] != null ? DateTime.tryParse(map['urgentUntil'].toString()) : null,
+      urgentTransaction: map['urgentTransaction'],
       isActive: map['isActive'] ?? true,
       viewCount: map['viewCount']?.toInt() ?? 0,
       applicationCount: map['applicationCount']?.toInt() ?? 0,
