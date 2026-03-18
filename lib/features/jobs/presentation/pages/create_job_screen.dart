@@ -366,6 +366,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
 
     // Retry mekanizması ile checkPaymentStatus çağır
     bool isUpdated = false;
+    bool paymentActuallySucceeded = false;
     int retryCount = 0;
     const maxRetries = 3;
 
@@ -383,6 +384,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
         if (jobDoc.exists && jobDoc.data()?['isUrgent'] == true) {
           debugPrint('Job already marked as urgent by webhook');
           isUpdated = true;
+          paymentActuallySucceeded = true;
           break;
         }
 
@@ -408,8 +410,15 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
           debugPrint('Payment status response: $statusData');
 
           if (statusData['status'] == 'success') {
+            // Ödeme gerçekten başarılı
+            paymentActuallySucceeded = true;
             // Backend checkPaymentStatus içinde Firestore'u güncelledi
             isUpdated = true;
+            break;
+          } else if (statusData['status'] == 'error' || statusData['status'] == 'failed') {
+            // Ödeme başarısız - retry yapma, çık
+            debugPrint('Payment failed: ${statusData['message']}');
+            paymentActuallySucceeded = false;
             break;
           }
         }
@@ -426,10 +435,10 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
     setState(() => _isSubmitting = false);
 
     if (isUpdated) {
-      // Başarılı
+      // Başarılı - hem ödeme başarılı hem Firestore güncellendi
       _showSuccessDialog(isUrgent: true);
-    } else {
-      // Güncelleme başarısız ama para çekildi
+    } else if (paymentActuallySucceeded) {
+      // Ödeme başarılı AMA Firestore güncellemesi başarısız
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -457,6 +466,8 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
         ),
       );
     }
+    // Eğer paymentActuallySucceeded = false ise, hiçbir dialog gösterme
+    // Kullanıcı zaten WebView'den hata mesajını gördü
   }
 
   void _showSuccessDialog({required bool isUrgent}) {
