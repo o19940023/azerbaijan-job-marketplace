@@ -219,6 +219,7 @@ class _EmployerHomeState extends State<EmployerHome> {
           return const Center(child: CircularProgressIndicator());
 
         final myJobs = snapshot.data!.docs
+            .where((d) => d.data() != null) // Silinen ilanları filtrele
             .map(
               (d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id),
             )
@@ -493,6 +494,7 @@ class _EmployerHomeState extends State<EmployerHome> {
           return const Center(child: CircularProgressIndicator());
 
         final jobs = snapshot.data!.docs
+            .where((d) => d.data() != null) // Silinen ilanları filtrele
             .map(
               (d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id),
             )
