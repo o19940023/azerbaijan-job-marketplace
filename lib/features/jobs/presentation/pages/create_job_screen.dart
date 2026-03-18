@@ -157,17 +157,20 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
           widget.existingJob?.id ??
           DateTime.now().millisecondsSinceEpoch.toString();
 
-      // EĞER ACİL İLAN SEÇİLMİŞSE, ÖNCE ÖDEME YAPILACAK
-      if (_isUrgent && _urgentDays != null) {
+      // EĞER EDIT YAPILIYORSA VE ZATEN ACİL İLANSA, TEKRAR ÖDEME İSTEME!
+      final bool isEditingUrgentJob = widget.existingJob != null && widget.existingJob!.isUrgent;
+      
+      // EĞER ACİL İLAN SEÇİLMİŞSE VE YENİ İLANSA, ÖDEME YAPILACAK
+      if (_isUrgent && _urgentDays != null && !isEditingUrgentJob) {
         await _handleUrgentPayment(jobId, currentUser.uid, companyName, phone);
       } else {
-        // Normal ilan - direkt kaydet
-        await _saveJobToFirestore(jobId, currentUser.uid, companyName, phone, false);
+        // Normal ilan VEYA zaten acil olan ilan düzenleniyor - direkt kaydet
+        await _saveJobToFirestore(jobId, currentUser.uid, companyName, phone, _isUrgent);
         
         if (!mounted) return;
         setState(() => _isSubmitting = false);
         
-        _showSuccessDialog(isUrgent: false);
+        _showSuccessDialog(isUrgent: _isUrgent);
       }
     });
   }
@@ -1028,7 +1031,9 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                       ),
                     ),
                     subtitle: Text(
-                      'Elanınız axtarışlarda daha yuxarıda görünəcək',
+                      widget.existingJob?.isUrgent == true
+                          ? 'Bu elan artıq təcili elan olaraq yerləşdirilib'
+                          : 'Elanınız axtarışlarda daha yuxarıda görünəcək',
                       style: TextStyle(
                         color: context.textSecondaryColor,
                         fontSize: 13,
@@ -1036,16 +1041,18 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                     ),
                     value: _isUrgent,
                     activeColor: AppTheme.accentColor,
-                    onChanged: (v) {
-                      setState(() {
-                        _isUrgent = v;
-                        if (!_isUrgent) {
-                          _urgentDays = null;
-                        } else {
-                          _urgentDays ??= 1;
-                        }
-                      });
-                    },
+                    onChanged: widget.existingJob?.isUrgent == true
+                        ? null // Zaten acil olan ilan düzenlenirken değiştirilemez
+                        : (v) {
+                            setState(() {
+                              _isUrgent = v;
+                              if (!_isUrgent) {
+                                _urgentDays = null;
+                              } else {
+                                _urgentDays ??= 1;
+                              }
+                            });
+                          },
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1055,7 +1062,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                     runSpacing: 8,
                     children: [
                       ChoiceChip(
-                        label: const Text('1 gün • 1 AZN'),
+                        label: const Text('1 gün • 0.01 AZN'),
                         selected: _urgentDays == 1,
                         onSelected: (_) => setState(() => _urgentDays = 1),
                       ),
