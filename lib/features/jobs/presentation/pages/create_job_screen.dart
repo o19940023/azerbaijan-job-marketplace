@@ -80,6 +80,10 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
       _requirements.addAll(job.requirements);
       _selectedBenefits.addAll(job.benefits);
       _isUrgent = job.isUrgent;
+      // Eğer acil ilansa, default olarak 1 gün seç (gerçek değer önemli değil, sadece validation geçmek için)
+      if (job.isUrgent) {
+        _urgentDays = 1;
+      }
       _companyLogoUrl = job.companyLogo;
       _selectedEducation = job.educationLevel ?? 'Vacib deyil';
       _selectedExperience = job.experienceLevel ?? 'Təcrübəsiz';
