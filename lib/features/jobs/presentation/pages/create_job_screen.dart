@@ -224,6 +224,9 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
           ? _externalUrlController.text.trim()
           : null,
       isUrgent: isUrgent,
+      // EĞER MEVCUT İŞ ACİLSE, urgentUntil VE urgentTransaction ALANLARINI KORU!
+      urgentUntil: widget.existingJob?.urgentUntil,
+      urgentTransaction: widget.existingJob?.urgentTransaction,
     );
 
     final jobMap = newJob.toMap();
