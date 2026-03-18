@@ -485,26 +485,32 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                Navigator.pop(ctx);
+                Navigator.pop(ctx); // Dialog'u kapat
                 if (widget.existingJob != null) {
+                  // Edit modunda: Önceki ekrana dön
                   Navigator.pop(context);
                 } else {
-                  // Form'u temizle
-                  _formKey.currentState!.reset();
-                  _titleController.clear();
-                  _descriptionController.clear();
-                  _salaryMinController.clear();
-                  _salaryMaxController.clear();
-                  _workingHoursController.clear();
-                  _requirementController.clear();
-                  _selectedBenefits.clear();
-                  _requirements.clear();
-                  _selectedLocation = null;
-                  _selectedExperience = 'Təcrübəsiz';
-                  _selectedEducation = 'Vacib deyil';
-                  _isUrgent = false;
-                  _urgentDays = null;
-                  Navigator.pop(context);
+                  // Yeni ilan modunda: Sadece formu temizle, pop etme (tab içindeyiz)
+                  setState(() {
+                    _formKey.currentState!.reset();
+                    _titleController.clear();
+                    _descriptionController.clear();
+                    _salaryMinController.clear();
+                    _salaryMaxController.clear();
+                    _workingHoursController.clear();
+                    _requirementController.clear();
+                    _selectedBenefits.clear();
+                    _requirements.clear();
+                    _selectedLocation = null;
+                    _selectedExperience = 'Təcrübəsiz';
+                    _selectedEducation = 'Vacib deyil';
+                    _isUrgent = false;
+                    _urgentDays = null;
+                    _companyLogoUrl = null;
+                    _applicationMethod = 'in_app';
+                    _externalUrlController.clear();
+                    _allowCallIfAccepted = true;
+                  });
                 }
               },
               child: const Text('Tamam'),
