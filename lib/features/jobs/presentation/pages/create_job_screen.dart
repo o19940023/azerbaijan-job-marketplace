@@ -1026,87 +1026,85 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Urgent Switch
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: context.inputFillColor,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _isUrgent
-                          ? AppTheme.accentColor
-                          : Colors.transparent,
-                      width: 1.5,
+                // Urgent Switch - SADECE ZATEN ACİL OLMAYAN İLANLARDA GÖSTER
+                if (widget.existingJob?.isUrgent != true) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
-                  ),
-                  child: SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(
-                      'Təcili Elan 🔥',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
+                    decoration: BoxDecoration(
+                      color: context.inputFillColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _isUrgent
+                            ? AppTheme.accentColor
+                            : Colors.transparent,
+                        width: 1.5,
                       ),
                     ),
-                    subtitle: Text(
-                      widget.existingJob?.isUrgent == true
-                          ? 'Bu elan artıq təcili elan olaraq yerləşdirilib'
-                          : 'Elanınız axtarışlarda daha yuxarıda görünəcək',
-                      style: TextStyle(
-                        color: context.textSecondaryColor,
-                        fontSize: 13,
+                    child: SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Təcili Elan 🔥',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
                       ),
+                      subtitle: Text(
+                        'Elanınız axtarışlarda daha yuxarıda görünəcək',
+                        style: TextStyle(
+                          color: context.textSecondaryColor,
+                          fontSize: 13,
+                        ),
+                      ),
+                      value: _isUrgent,
+                      activeColor: AppTheme.accentColor,
+                      onChanged: (v) {
+                        setState(() {
+                          _isUrgent = v;
+                          if (!_isUrgent) {
+                            _urgentDays = null;
+                          } else {
+                            _urgentDays ??= 1;
+                          }
+                        });
+                      },
                     ),
-                    value: _isUrgent,
-                    activeColor: AppTheme.accentColor,
-                    onChanged: widget.existingJob?.isUrgent == true
-                        ? null // Zaten acil olan ilan düzenlenirken değiştirilemez
-                        : (v) {
-                            setState(() {
-                              _isUrgent = v;
-                              if (!_isUrgent) {
-                                _urgentDays = null;
-                              } else {
-                                _urgentDays ??= 1;
-                              }
-                            });
-                          },
                   ),
-                ),
-                const SizedBox(height: 12),
-                if (_isUrgent) ...[
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('1 gün • 0.01 AZN'),
-                        selected: _urgentDays == 1,
-                        onSelected: (_) => setState(() => _urgentDays = 1),
-                      ),
-                      ChoiceChip(
-                        label: const Text('5 gün • 3 AZN'),
-                        selected: _urgentDays == 5,
-                        onSelected: (_) => setState(() => _urgentDays = 5),
-                      ),
-                      ChoiceChip(
-                        label: const Text('10 gün • 5 AZN'),
-                        selected: _urgentDays == 10,
-                        onSelected: (_) => setState(() => _urgentDays = 10),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  if (_urgentDays == null)
-                    Text(
-                      'Təcili gün sayını seçin',
-                      style: TextStyle(color: AppTheme.errorColor),
+                  const SizedBox(height: 12),
+                  if (_isUrgent) ...[
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('1 gün • 0.01 AZN'),
+                          selected: _urgentDays == 1,
+                          onSelected: (_) => setState(() => _urgentDays = 1),
+                        ),
+                        ChoiceChip(
+                          label: const Text('5 gün • 3 AZN'),
+                          selected: _urgentDays == 5,
+                          onSelected: (_) => setState(() => _urgentDays = 5),
+                        ),
+                        ChoiceChip(
+                          label: const Text('10 gün • 5 AZN'),
+                          selected: _urgentDays == 10,
+                          onSelected: (_) => setState(() => _urgentDays = 10),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 8),
+                    if (_urgentDays == null)
+                      Text(
+                        'Təcili gün sayını seçin',
+                        style: TextStyle(color: AppTheme.errorColor),
+                      ),
+                  ],
+                  const SizedBox(height: 24),
                 ],
-                const SizedBox(height: 24),
 
                 // Allow call if accepted toggle
                 Container(
