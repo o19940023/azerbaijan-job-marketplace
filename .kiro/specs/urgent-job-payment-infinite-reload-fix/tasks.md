@@ -1,0 +1,142 @@
+# Implementation Plan
+
+- [ ] 1. Write bug condition exploration test
+  - **Property 1: Bug Condition** - Ödeme Başarılı Olduğunda WebView Düzgün Kapanmalı ve Firestore Güncellemesi Yapılmalı
+  - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: This test encodes the expected behavior - it will validate the fix when it passes after implementation
+  - **GOAL**: Surface counterexamples that demonstrate the bug exists
+  - **Scoped PBT Approach**: Scope the property to concrete failing cases: payment successful (money charged), Epoint redirects to success URL, but WebView shows black screen and Firestore is not updated
+  - Test that when payment is successful (paymentStatus == 'success' AND moneyCharged == true), the WebView should close properly (webViewState != 'black_screen' AND webViewState != 'frozen') AND Firestore should be updated (firestoreUpdated == true AND jobIsUrgent == true)
+  - Simulate Epoint payment flow: redirect to payment-success.html or ClientHandler page
+  - Mock WebView navigation events and verify navigation delegate behavior
+  - Check Firestore update after payment completion
+  - Run test on UNFIXED code
+  - **EXPECTED OUTCOME**: Test FAILS (this is correct - it proves the bug exists)
+  - Document counterexamples found:
+    - WebView navigation delegate fails to detect success URL
+    - WebView does not close, shows black screen
+    - Firestore is not updated with isUrgent: true
+    - checkPaymentStatus may not be called or fails
+  - Mark task complete when test is written, run, and failure is documented
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.4, 2.5_
+
+- [ ] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - İptal ve Hata Durumları Korunmalı, Normal İlan Oluşturma Etkilenmemeli
+  - **IMPORTANT**: Follow observation-first methodology
+  - Observe behavior on UNFIXED code for non-buggy inputs (payment cancelled, payment failed, normal job creation without urgent option)
+  - Observe: When user cancels payment (presses back button), WebView closes with result=false and shows "Ödəniş ləğv edildi" message
+  - Observe: When payment fails (card declined), error URL is detected, WebView closes with result=false, and error message is shown
+  - Observe: When normal job is created (urgent option not selected), payment flow is not initiated and job is created normally
+  - Observe: When webhook succeeds, Firestore is updated with isUrgent: true (existing behavior)
+  - Write property-based tests capturing observed behavior patterns:
+    - For all payment cancellation inputs (user presses back), WebView SHALL close with false result and show cancellation message
+    - For all payment error inputs (card issues), WebView SHALL detect error redirect and close with false result
+    - For all normal job creation inputs (urgent not selected), payment flow SHALL be bypassed
+    - For all successful webhook calls, Firestore SHALL be updated correctly
+  - Verify tests pass on UNFIXED code
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+
+- [ ] 3. Fix for acil ilan ödeme infinite reload bug
+
+  - [ ] 3.1 Fix WebView navigation logic in PaymentWebViewScreen
+    - File: `lib/features/jobs/presentation/pages/payment_webview_screen.dart`
+    - Improve `onNavigationRequest` callback:
+      - Expand success URL pattern matching: check for 'payment-success.html', 'success', 'pay-successful'
+      - Handle ClientHandler page specially: when detected, wait 2-3 seconds then treat as success
+      - Add `_isProcessingPayment` flag to prevent duplicate navigation handling
+      - Add `_paymentCompleted` flag to prevent re-processing after success detected
+    - Implement `onPageFinished` callback:
+      - Check URL again when page load completes
+      - If success pattern found, close WebView with result=true
+      - If ClientHandler page and stayed for 3 seconds, auto-treat as success
+      - Show loading indicator to user
+    - Add timeout mechanism:
+      - 30-second timeout if no success/error detected
+      - Show dialog to user: "Ödeme işleniyor, lütfen bekleyin" or "Manuel kontrol gerekli"
+      - Provide "Ödeme durumunu kontrol et" button
+    - Improve dispose method: properly clean up WebView controller
+    - _Bug_Condition: isBugCondition(input) where input.paymentStatus == 'success' AND input.moneyCharged == true AND (input.webViewState == 'black_screen' OR input.webViewState == 'frozen') AND input.firestoreUpdated == false_
+    - _Expected_Behavior: WebView SHALL detect success redirect, close properly without black screen, and return true result (from Property 1)_
+    - _Preservation: Payment cancellation and error handling SHALL remain unchanged (from Property 2)_
+    - _Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.5, 3.1, 3.2_
+
+  - [ ] 3.2 Add checkPaymentStatus retry mechanism in CreateJobScreen
+    - File: `lib/features/jobs/presentation/pages/create_job_screen.dart`
+    - Function: `_submitJob` method payment flow
+    - Replace single checkPaymentStatus call with retry logic:
+      - First call after 2 seconds
+      - If fails, retry after 5 seconds
+      - Maximum 3 attempts
+      - Check Firestore after each attempt: if already updated (webhook succeeded), stop retrying
+    - Add Firestore update verification:
+      - Read job document after checkPaymentStatus
+      - Check `isUrgent` field
+      - If still false, show warning: "Ödeme alındı ama işlem tamamlanmadı, destek ekibiyle iletişime geçin"
+    - Improve loading state:
+      - Show "Ödeme işleniyor..." loading dialog
+      - After WebView closes, show "Ödeme doğrulanıyor..." message
+      - Show progress during checkPaymentStatus calls
+    - Add error recovery:
+      - If payment successful but update fails, show: "Ödemeniz alındı, ilan 24 saat içinde acil olarak işaretlenecek"
+      - Display transaction ID to user for support reference
+    - _Bug_Condition: isBugCondition(input) where Firestore update fails after successful payment_
+    - _Expected_Behavior: checkPaymentStatus SHALL retry with proper timeout and guarantee Firestore update (from Property 1)_
+    - _Preservation: Normal job creation flow SHALL remain unchanged (from Property 2)_
+    - _Requirements: 1.4, 2.4, 2.5, 3.3, 3.5_
+
+  - [ ] 3.3 Improve backend checkPaymentStatus endpoint
+    - File: `backend/index.js`
+    - Function: `/api/checkPaymentStatus` endpoint
+    - Add idempotency guarantee:
+      - Check Firestore before updating: is it already updated?
+      - If already updated, return success without re-updating
+      - Prevent duplicate updates for same payment
+    - Improve logging:
+      - Log each checkPaymentStatus call: timestamp, orderId, transaction
+      - Log Firestore update success/failure
+      - Log webhook calls: which call came first?
+    - Add webhook timeout handling:
+      - When checkPaymentStatus called, don't wait for webhook
+      - Query Epoint API directly for payment status
+      - If Epoint returns success, update Firestore immediately
+      - If webhook arrives later, skip duplicate update (idempotency)
+    - _Bug_Condition: isBugCondition(input) where webhook fails or times out_
+    - _Expected_Behavior: checkPaymentStatus SHALL guarantee Firestore update even if webhook fails (from Property 1)_
+    - _Preservation: Webhook success behavior SHALL remain unchanged (from Property 2)_
+    - _Requirements: 1.4, 2.4, 3.4_
+
+  - [ ] 3.4 Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - Ödeme Başarılı Olduğunda WebView Düzgün Kapanmalı ve Firestore Güncellemesi Yapılmalı
+    - **IMPORTANT**: Re-run the SAME test from task 1 - do NOT write a new test
+    - The test from task 1 encodes the expected behavior
+    - When this test passes, it confirms the expected behavior is satisfied
+    - Run bug condition exploration test from step 1
+    - **EXPECTED OUTCOME**: Test PASSES (confirms bug is fixed)
+    - Verify:
+      - WebView closes properly when payment succeeds (no black screen)
+      - Firestore is updated with isUrgent: true and correct urgentUntil timestamp
+      - checkPaymentStatus retry mechanism works correctly
+      - Timeout handling works as expected
+    - _Requirements: 2.1, 2.2, 2.4, 2.5_
+
+  - [ ] 3.5 Verify preservation tests still pass
+    - **Property 2: Preservation** - İptal ve Hata Durumları Korunmalı, Normal İlan Oluşturma Etkilenmemeli
+    - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
+    - Run preservation property tests from step 2
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
+    - Verify:
+      - Payment cancellation still works: WebView closes with false, shows cancellation message
+      - Payment error handling still works: error URL detected, proper error message shown
+      - Normal job creation still works: no payment flow initiated
+      - Webhook success still works: Firestore updated correctly
+    - Confirm all tests still pass after fix (no regressions)
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+
+- [ ] 4. Checkpoint - Ensure all tests pass
+  - Run all unit tests for WebView navigation logic
+  - Run all property-based tests for bug condition and preservation
+  - Run integration tests for full payment flow
+  - Verify Firestore updates correctly in all scenarios
+  - Test with real Epoint test environment if possible
+  - Ensure all tests pass, ask the user if questions arise

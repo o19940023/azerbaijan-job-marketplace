@@ -310,7 +310,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
 
       if (!mounted) return;
 
-      // WebView'i aç
+      // WebView'i aç - uygulama içinde ödəmə
       final paymentResult = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
@@ -325,6 +325,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
         orderId,
         transaction,
         days,
+        paymentResult,
       );
 
       if (!verified && mounted) {
@@ -333,9 +334,12 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
             content: Text(
               paymentResult == null
                   ? 'Ödəniş ləğv edildi.'
-                  : 'Ödəniş təsdiqlənmədi və ya uğursuz oldu.',
+                  : paymentResult == false
+                  ? 'Ödəniş uğursuz oldu. Kart məlumatlarınızı və balansınızı yoxlayın.'
+                  : 'Ödəniş təsdiqlənmədi. Zəhmət olmasa bir neçə dəqiqə sonra yenidən cəhd edin.',
             ),
             backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -358,6 +362,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
     String orderId,
     String transaction,
     int days,
+    bool? paymentResult,
   ) async {
     if (!mounted) return false;
 
@@ -405,9 +410,13 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
         }
 
         // Firestore güncel değilse, backend'den status kontrol et
-        // İlk denemede hemen kontrol et, sonraki denemelerde 1 saniye bekle
-        if (retryCount > 1) {
-          await Future.delayed(const Duration(seconds: 1));
+        // Daha uzun bekleme süreleri: 3 saniye, 5 saniye, 8 saniye
+        if (retryCount == 1) {
+          await Future.delayed(const Duration(seconds: 3));
+        } else if (retryCount == 2) {
+          await Future.delayed(const Duration(seconds: 5));
+        } else if (retryCount == 3) {
+          await Future.delayed(const Duration(seconds: 8));
         }
 
         final statusUrl = Uri.parse(
@@ -439,6 +448,7 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
             paymentActuallySucceeded = false;
             break;
           }
+          // Eğer status hala "new" ise, retry devam eder
         }
       } catch (e) {
         debugPrint('Error checking payment status (attempt $retryCount): $e');
