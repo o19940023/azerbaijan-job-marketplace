@@ -260,22 +260,35 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
     };
 
     try {
+      debugPrint('🔵 [PAYMENT_START] ========================================');
+      debugPrint('🔵 [PAYMENT_START] JobID: $jobId');
+      debugPrint('🔵 [PAYMENT_START] EmployerID: $employerId');
+      debugPrint('🔵 [PAYMENT_START] Days: $days');
+      debugPrint('🔵 [PAYMENT_START] ========================================');
+
       // İlk önce ilanı NORMAL olarak kaydet
       await _saveJobToFirestore(jobId, employerId, companyName, phone, false);
+      debugPrint('✅ [PAYMENT_FIRESTORE] Job saved to Firestore as normal');
 
       if (!mounted) return;
 
       // Ödeme isteği gönder
+      debugPrint('🟡 [PAYMENT_REQUEST] Sending payment request to backend...');
+      debugPrint('🟡 [PAYMENT_REQUEST] URL: $url');
+      debugPrint('🟡 [PAYMENT_REQUEST] Body: ${jsonEncode(body)}');
+      
       final resp = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(body),
       );
 
-      debugPrint('Payment request status: ${resp.statusCode}');
-      debugPrint('Payment request body: ${resp.body}');
+      debugPrint('🟢 [PAYMENT_RESPONSE] Status: ${resp.statusCode}');
+      debugPrint('🟢 [PAYMENT_RESPONSE] Body: ${resp.body}');
 
       if (resp.statusCode != 200) {
+        debugPrint('🔴 [PAYMENT_ERROR] Backend returned non-200 status');
+        debugPrint('🔴 [PAYMENT_ERROR] Status: ${resp.statusCode}');
         if (mounted) {
           setState(() => _isSubmitting = false);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -293,7 +306,13 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
       final orderId = (data['order_id'] ?? '').toString();
       final transaction = (data['transaction'] ?? '').toString();
 
+      debugPrint('📦 [PAYMENT_DATA] Redirect URL: $redirectUrl');
+      debugPrint('📦 [PAYMENT_DATA] Order ID: $orderId');
+      debugPrint('📦 [PAYMENT_DATA] Transaction: $transaction');
+
       if (redirectUrl.isEmpty) {
+        debugPrint('🔴 [PAYMENT_ERROR] Redirect URL is empty');
+        debugPrint('🔴 [PAYMENT_ERROR] Error: ${data['error']}');
         if (mounted) {
           setState(() => _isSubmitting = false);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -311,15 +330,19 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
       if (!mounted) return;
 
       // WebView'i aç - uygulama içinde ödəmə
+      debugPrint('🌐 [PAYMENT_WEBVIEW] Opening WebView with URL: $redirectUrl');
       final paymentResult = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
           builder: (context) => PaymentWebViewScreen(url: redirectUrl),
         ),
       );
+      
+      debugPrint('🔙 [PAYMENT_WEBVIEW] WebView closed with result: $paymentResult');
 
       if (!mounted) return;
 
+      debugPrint('🔍 [PAYMENT_VERIFY] Starting payment verification...');
       final verified = await _verifyAndUpdateUrgentStatus(
         jobId,
         orderId,
@@ -328,7 +351,10 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
         paymentResult,
       );
 
+      debugPrint('✅ [PAYMENT_VERIFY] Verification result: $verified');
+
       if (!verified && mounted) {
+        debugPrint('⚠️ [PAYMENT_VERIFY] Payment not verified, showing error');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -343,8 +369,13 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
           ),
         );
       }
-    } catch (e) {
-      debugPrint('Payment error: $e');
+      
+      debugPrint('🔵 [PAYMENT_END] ========================================');
+    } catch (e, stackTrace) {
+      debugPrint('🔴 [PAYMENT_EXCEPTION] ========================================');
+      debugPrint('🔴 [PAYMENT_EXCEPTION] Error: $e');
+      debugPrint('🔴 [PAYMENT_EXCEPTION] StackTrace: $stackTrace');
+      debugPrint('🔴 [PAYMENT_EXCEPTION] ========================================');
       if (mounted) {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -366,144 +397,38 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
   ) async {
     if (!mounted) return false;
 
-    // Loading göster
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: Colors.white),
-            SizedBox(height: 16),
-            Text(
-              'Ödəniş təsdiqlənir...',
-              style: TextStyle(color: Colors.white),
-            ),
-          ],
-        ),
-      ),
-    );
+    // WebView pay-successful gördüsə — ödəniş keçibdir, polling lazım deyil
+    if (paymentResult == true) {
+      debugPrint('✅ [MANUAL_CONFIRM] WebView reported success, calling manualConfirm...');
+      
+      // Backend-ə fire-and-forget göndər (gözləmirik)
+      http.post(
+        Uri.parse('https://istap-backend-1.onrender.com/api/manualConfirm'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'transaction': transaction,
+          'jobId': jobId,
+          'days': days,
+          'successRedirect': true,
+        }),
+      ).then((resp) {
+        debugPrint('📥 [MANUAL_CONFIRM] Response: ${resp.body}');
+      }).catchError((e) {
+        debugPrint('⚠️ [MANUAL_CONFIRM] Failed: $e');
+      });
 
-    // Retry mekanizması ile checkPaymentStatus çağır
-    bool isUpdated = false;
-    bool paymentActuallySucceeded = false;
-    int retryCount = 0;
-    const maxRetries = 3;
-
-    while (retryCount < maxRetries && !isUpdated) {
-      retryCount++;
-      debugPrint('Checking payment status, attempt $retryCount/$maxRetries');
-
-      try {
-        // Önce Firestore'u kontrol et - belki webhook zaten güncelledi
-        final jobDoc = await FirebaseFirestore.instance
-            .collection('jobs')
-            .doc(jobId)
-            .get();
-
-        if (jobDoc.exists && jobDoc.data()?['isUrgent'] == true) {
-          debugPrint('Job already marked as urgent by webhook');
-          isUpdated = true;
-          paymentActuallySucceeded = true;
-          break;
-        }
-
-        // Firestore güncel değilse, backend'den status kontrol et
-        // Daha uzun bekleme süreleri: 3 saniye, 5 saniye, 8 saniye
-        if (retryCount == 1) {
-          await Future.delayed(const Duration(seconds: 3));
-        } else if (retryCount == 2) {
-          await Future.delayed(const Duration(seconds: 5));
-        } else if (retryCount == 3) {
-          await Future.delayed(const Duration(seconds: 8));
-        }
-
-        final statusUrl = Uri.parse(
-          'https://istap-backend-1.onrender.com/api/checkPaymentStatus',
-        );
-        final statusBody = {'orderId': orderId, 'transaction': transaction};
-
-        final statusResp = await http.post(
-          statusUrl,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode(statusBody),
-        );
-
-        if (statusResp.statusCode == 200) {
-          final statusData =
-              jsonDecode(statusResp.body) as Map<String, dynamic>;
-          debugPrint('Payment status response: $statusData');
-
-          if (statusData['status'] == 'success') {
-            // Ödeme gerçekten başarılı
-            paymentActuallySucceeded = true;
-            // Backend checkPaymentStatus içinde Firestore'u güncelledi
-            isUpdated = true;
-            break;
-          } else if (statusData['status'] == 'error' ||
-              statusData['status'] == 'failed') {
-            // Ödeme başarısız - retry yapma, çık
-            debugPrint('Payment failed: ${statusData['message']}');
-            paymentActuallySucceeded = false;
-            break;
-          }
-          // Eğer status hala "new" ise, retry devam eder
-        }
-      } catch (e) {
-        debugPrint('Error checking payment status (attempt $retryCount): $e');
+      // Dərhal uğurlu göstər — backend async işləyəcək
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        _showSuccessDialog(isUrgent: true);
       }
-    }
-
-    if (!mounted) return false;
-
-    // Loading'i kapat
-    Navigator.of(context, rootNavigator: true).pop();
-
-    setState(() => _isSubmitting = false);
-
-    if (isUpdated) {
-      // Başarılı - hem ödeme başarılı hem Firestore güncellendi
-      _showSuccessDialog(isUrgent: true);
-      return true;
-    } else if (paymentActuallySucceeded) {
-      // Ödeme başarılı AMA Firestore güncellemesi başarısız
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          icon: const Icon(
-            Icons.warning_rounded,
-            color: Colors.orange,
-            size: 60,
-          ),
-          title: const Text('Ödəniş Alındı'),
-          content: const Text(
-            'Ödənişiniz uğurla alındı, lakin elanınız hələ təcili olaraq işarələnməyib.\n\n'
-            'Narahatlıq etməyin, elanınız 24 saat ərzində təcili olaraq işarələnəcək.\n\n'
-            'Əgər problem davam edərsə, dəstək komandası ilə əlaqə saxlayın.',
-            textAlign: TextAlign.center,
-          ),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.pop(context);
-                },
-                child: const Text('Anladım'),
-              ),
-            ),
-          ],
-        ),
-      );
       return true;
     }
-    // Eğer paymentActuallySucceeded = false ise, hiçbir dialog gösterme
-    // Kullanıcı zaten WebView'den hata mesajını gördü
+
+    // paymentResult == false → ödəniş uğursuz, heç nə etmə
+    if (mounted) {
+      setState(() => _isSubmitting = false);
+    }
     return false;
   }
 
@@ -1117,17 +1042,17 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
                       runSpacing: 8,
                       children: [
                         ChoiceChip(
-                          label: const Text('1 gün • 1 AZN'),
+                          label: const Text('1 gün • 0.50 AZN'),
                           selected: _urgentDays == 1,
                           onSelected: (_) => setState(() => _urgentDays = 1),
                         ),
                         ChoiceChip(
-                          label: const Text('5 gün • 4 AZN'),
+                          label: const Text('5 gün • 2.20 AZN'),
                           selected: _urgentDays == 5,
                           onSelected: (_) => setState(() => _urgentDays = 5),
                         ),
                         ChoiceChip(
-                          label: const Text('10 gün • 7 AZN'),
+                          label: const Text('10 gün • 4.00 AZN'),
                           selected: _urgentDays == 10,
                           onSelected: (_) => setState(() => _urgentDays = 10),
                         ),
