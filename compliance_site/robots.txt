@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://istapai.az/sitemap.xml
+
+# Crawl-delay for politeness
+Crawl-delay: 1
