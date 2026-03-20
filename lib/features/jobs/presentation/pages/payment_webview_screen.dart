@@ -330,13 +330,10 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with Widget
                     // Eğer EPoint hata sayfasına düşerse direkt yakala
                     if (_isErrorUrl(urlString)) {
                       debugPrint(
-                        "🚨 Error URL matched in shouldOverride, deferring close until onLoadStop",
+                        "🚨 Error URL matched in shouldOverride, closing WebView immediately",
                       );
-                      setState(() {
-                        _isProcessingPayment = true;
-                        _errorPending = true;
-                      });
-                      return NavigationActionPolicy.ALLOW;
+                      _handlePaymentError();
+                      return NavigationActionPolicy.CANCEL;
                     }
 
                     if (_isSuccessUrl(urlString)) {
