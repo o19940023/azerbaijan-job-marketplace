@@ -195,7 +195,13 @@ exports.createUrgentPayment = onRequest({secrets: [EPOINT_PUBLIC_KEY, EPOINT_PRI
       res.status(502).json({error: "epoint_error", response: json});
       return;
     }
-    res.json({redirect_url: json.redirect_url, transaction: json.transaction, status: json.status || "success"});
+    // Important: return order_id to client so it can confirm status reliably.
+    res.json({
+      redirect_url: json.redirect_url,
+      transaction: json.transaction,
+      order_id: orderId,
+      status: json.status || "success",
+    });
   } catch (e) {
     res.status(500).json({error: String(e)});
   }
@@ -283,5 +289,101 @@ exports.checkPaymentStatus = onRequest({secrets: [EPOINT_PUBLIC_KEY, EPOINT_PRIV
     res.json(json);
   } catch (e) {
     res.status(500).json({error: String(e)});
+  }
+});
+
+// Manually confirm urgent payment after WebView reports "successRedirect".
+// If Epoint status is still "new", we poll get-status for a short window.
+// IMPORTANT: We only return ok=true (and mark job as urgent) when Epoint status is truly success/confirmed.
+exports.manualConfirm = onRequest({secrets: [EPOINT_PUBLIC_KEY, EPOINT_PRIVATE_KEY]}, async (req, res) => {
+  try {
+    const publicKey = EPOINT_PUBLIC_KEY.value() || "";
+    const privateKey = EPOINT_PRIVATE_KEY.value() || "";
+    if (!publicKey || !privateKey) {
+      res.status(500).json({error: "Epoint keys missing"});
+      return;
+    }
+
+    const incomingBody = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    const {transaction, orderId, order_id, jobId, days} = incomingBody || {};
+
+    const d = Number(days);
+    const normalizedOrderId = orderId || order_id || "";
+    if (!jobId || !transaction || !d || ![1, 5, 10].includes(d)) {
+      res.status(400).json({ok: false, status: "invalid_params"});
+      return;
+    }
+
+    const maxAttempts = 10; // was 3; increase to avoid premature autoreverse
+    const delayMs = 2000;
+
+    const pollOnce = async () => {
+      const dataPayload = { public_key: publicKey };
+      // get-status supports either order_id or transaction; we only have transaction on mobile.
+      if (normalizedOrderId) dataPayload.order_id = normalizedOrderId;
+      dataPayload.transaction = transaction;
+
+      const dataBase64 = toBase64Json(dataPayload);
+      const signature = buildEpointSignature(privateKey, dataBase64);
+      const body = new URLSearchParams({data: dataBase64, signature}).toString();
+
+      const resp = await fetch("https://epoint.az/api/1/get-status", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body,
+      });
+      const json = await resp.json().catch(() => ({}));
+
+      return json;
+    };
+
+    const normalizeStatus = (json) => {
+      const s =
+        (json && (json.status || json.payment_status || json.state)) ||
+        "";
+      return String(s).toLowerCase();
+    };
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const json = await pollOnce();
+      const status = normalizeStatus(json);
+
+      // Log for debugging/traceability
+      console.log(`====== MANUAL CONFIRM ATTEMPT ${attempt}/${maxAttempts} ======`);
+      console.log(`transaction=${transaction}, jobId=${jobId}, status=${status || "unknown"}`);
+      console.log(`raw=${JSON.stringify(json)}`);
+
+      // Epoint can return different status strings; treat common ones as success.
+      const isSuccess = ["success", "confirmed", "paid", "completed", "approved"].includes(status);
+      if (isSuccess) {
+        const until = new Date(Date.now() + d * 24 * 60 * 60 * 1000).toISOString();
+        await db.collection("jobs").doc(jobId).update({
+          isUrgent: true,
+          urgentUntil: until,
+          urgentTransaction: transaction || "",
+        }).catch(() => {});
+
+        res.status(200).json({ok: true, status: status || "success"});
+        return;
+      }
+
+      // If it's already failed/autoreversed we can stop early.
+      const isFailed = ["failed", "autoreversed", "reversed", "reversed_failed"].includes(status);
+      if (isFailed) {
+        res.status(200).json({ok: false, status: status || "failed"});
+        return;
+      }
+
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
+
+    // Still not confirmed after polling window.
+    res.status(200).json({ok: false, status: "not_confirmed"});
+  } catch (e) {
+    console.log("====== MANUAL CONFIRM ERROR ======");
+    console.log(e);
+    res.status(500).json({ok: false, status: "error", error: String(e)});
   }
 });

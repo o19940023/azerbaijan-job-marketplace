@@ -399,30 +399,76 @@ class _CreateJobScreenState extends State<CreateJobScreen> {
 
     // WebView pay-successful gördüsə — ödəniş keçibdir, polling lazım deyil
     if (paymentResult == true) {
-      debugPrint('✅ [MANUAL_CONFIRM] WebView reported success, calling manualConfirm...');
-      
-      // Backend-ə fire-and-forget göndər (gözləmirik)
-      http.post(
-        Uri.parse('https://istap-backend-1.onrender.com/api/manualConfirm'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'transaction': transaction,
-          'jobId': jobId,
-          'days': days,
-          'successRedirect': true,
-        }),
-      ).then((resp) {
-        debugPrint('📥 [MANUAL_CONFIRM] Response: ${resp.body}');
-      }).catchError((e) {
-        debugPrint('⚠️ [MANUAL_CONFIRM] Failed: $e');
-      });
+      debugPrint(
+        '✅ [MANUAL_CONFIRM] WebView reported success, calling manualConfirm...',
+      );
 
-      // Dərhal uğurlu göstər — backend async işləyəcək
-      if (mounted) {
+      try {
+        final resp = await http.post(
+          Uri.parse('https://istap-backend-1.onrender.com/api/manualConfirm'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'transaction': transaction,
+              'orderId': orderId,
+            'jobId': jobId,
+            'days': days,
+            'successRedirect': true,
+          }),
+        );
+
+        debugPrint(
+          '📥 [MANUAL_CONFIRM] Status: ${resp.statusCode}, Body: ${resp.body}',
+        );
+
+        if (!mounted) return false;
+
+        bool ok = false;
+        String? status;
+        try {
+          final decoded = jsonDecode(resp.body);
+          if (decoded is Map<String, dynamic>) {
+            ok = decoded['ok'] == true;
+            status = decoded['status']?.toString();
+          }
+        } catch (_) {
+          // If backend returns non-JSON, treat it as not confirmed.
+        }
+
+        if (!ok) {
+          // Backend says payment isn't confirmed yet (or failed); do NOT show success UI.
+          setState(() => _isSubmitting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                status == 'not_confirmed'
+                    ? 'Ödəniş təsdiqlənmədi. Xahiş edirik bir neçə dəqiqə sonra yenidən yoxlayın.'
+                    : 'Ödəniş hazırda təsdiqlənmir. İlan daha sonra avtomatik yenilənəcək.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 6),
+            ),
+          );
+          return false;
+        }
+
+        // Confirmed: now show success UI.
         setState(() => _isSubmitting = false);
         _showSuccessDialog(isUrgent: true);
+        return true;
+      } catch (e, st) {
+        debugPrint('⚠️ [MANUAL_CONFIRM] Failed: $e');
+        debugPrint('⚠️ [MANUAL_CONFIRM] StackTrace: $st');
+        if (mounted) {
+          setState(() => _isSubmitting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ödəniş təsdiqlənərkən xəta baş verdi.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return false;
       }
-      return true;
     }
 
     // paymentResult == false → ödəniş uğursuz, heç nə etmə
