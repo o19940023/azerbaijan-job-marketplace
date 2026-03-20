@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -11,11 +12,12 @@ class PaymentWebViewScreen extends StatefulWidget {
   State<PaymentWebViewScreen> createState() => _PaymentWebViewScreenState();
 }
 
-class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
+class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with WidgetsBindingObserver {
   late InAppWebViewController _webViewController;
   bool _isProcessingPayment = false;
   bool _paymentCompleted = false;
   double _progress = 0;
+  Timer? _timeoutTimer;
 
   final InAppWebViewSettings _settings = InAppWebViewSettings(
     useShouldOverrideUrlLoading: true,
@@ -42,9 +44,20 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
     domStorageEnabled: true,
     databaseEnabled: true,
     mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+    // Epoint-recommended settings for 3DS2
+    allowContentAccess: true,
+    allowFileAccess: true,
+    useWideViewPort: true,
+    loadWithOverviewMode: true,
+    supportZoom: true,
+    builtInZoomControls: false,
+    displayZoomControls: false,
+    verticalScrollBarEnabled: true,
+    horizontalScrollBarEnabled: true,
+    geolocationEnabled: true,
+    // Chrome 120 user agent for 3DS2 compatibility
     userAgent:
-        "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36",
-    // Ekstra donanım ve render ayarları (bazı cihazlarda beyaz sayfa kalmasını önler)
+        "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
     hardwareAcceleration: true,
   );
 
@@ -64,17 +77,24 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
       _isProcessingPayment = true;
       _paymentCompleted = true;
     });
-    debugPrint("Payment ERROR detected, closing WebView");
-    // Kullanıcıya hata mesajı göster
+    debugPrint("❌ [PAYMENT_ERROR] Payment ERROR detected, closing WebView");
+    
+    // Kullanıcıya detaylı hata mesajı göster
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Ödəniş uğursuz oldu. Zəhmət olmasa kartınızı və 3D Secure kodunu yoxlayın.',
+              '❌ Ödəniş uğursuz oldu!\n\n'
+              'Səbəblər:\n'
+              '• Kartda kifayət qədər balans yoxdur\n'
+              '• Kartın online ödəniş limiti bağlıdır\n'
+              '• 3D Secure kodu yanlış daxil edilib\n'
+              '• Bank ödənişi təhlükəsizlik səbəbindən rədd edib\n\n'
+              'Zəhmət olmasa kartınızı yoxlayın və ya başqa kart sınayın.',
             ),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 4),
+            duration: Duration(seconds: 8),
           ),
         );
       }
@@ -84,37 +104,205 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
 
   bool _isSuccessUrl(String url) {
     if (url.isEmpty || url.trim().isEmpty) return false;
-    return url.contains('payment-success.html') ||
+    
+    // Netlify success pages
+    if (url.contains('payment-success.html') ||
         url.contains('pay-successful') ||
         url.contains('pay-success') ||
-        url.contains('success=true') ||
         url.contains('istapapp.netlify.app/payment-success') ||
-        (url.contains('netlify.app') && url.contains('success'));
+        (url.contains('netlify.app') && url.contains('success'))) {
+      return true;
+    }
+    
+    // Pasha Bank success patterns
+    if (url.contains('pashabank.az') && 
+        (url.contains('status=success') || 
+         url.contains('result=success'))) {
+      return true;
+    }
+    
+    // Epoint success patterns - CRITICAL FIX
+    if (url.contains('epoint.az')) {
+      if (url.contains('success') ||
+          url.contains('pay-success') ||
+          url.contains('/success') ||
+          url.contains('payment-success')) {
+        return true;
+      }
+    }
+    
+    // Query parameter checks
+    if (url.contains('success=true') ||
+        url.contains('status=completed') ||
+        url.contains('status=approved')) {
+      return true;
+    }
+    
+    return false;
   }
 
   bool _isErrorUrl(String url) {
     if (url.isEmpty || url.trim().isEmpty) return false;
-    // Epoint'in kendi error sayfasını da kontrol et
-    return url.contains('payment-error.html') ||
+    
+    // Netlify error pages
+    if (url.contains('payment-error.html') ||
         url.contains('pay-error') ||
-        url.contains('error=true') ||
         url.contains('istapapp.netlify.app/payment-error') ||
-        (url.contains('epoint.az') && url.contains('error')) ||
-        (url.contains('netlify.app') && url.contains('error'));
+        (url.contains('netlify.app') && url.contains('error'))) {
+      return true;
+    }
+    
+    // Pasha Bank error patterns
+    if (url.contains('pashabank.az') && 
+        (url.contains('status=error') || 
+         url.contains('status=failed') ||
+         url.contains('result=error'))) {
+      return true;
+    }
+    
+    // Epoint error patterns - CRITICAL FIX
+    if (url.contains('epoint.az')) {
+      if (url.contains('error') || 
+          url.contains('fail') ||
+          url.contains('pay-error') ||
+          url.contains('/error') ||
+          url.contains('payment-error')) {
+        return true;
+      }
+    }
+    
+    // Query parameter checks
+    if (url.contains('error=true') ||
+        url.contains('status=cancelled') ||
+        url.contains('status=declined')) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  void _startTimeoutTimer() {
+    _timeoutTimer?.cancel();
+    _timeoutTimer = Timer(const Duration(minutes: 5), () {
+      if (!_paymentCompleted && mounted) {
+        debugPrint('⏰ [PAYMENT_TIMEOUT] Payment timeout after 5 minutes');
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Vaxt bitdi'),
+            content: const Text(
+              'Ödəniş prosesi çox uzun çəkdi. Zəhmət olmasa yenidən cəhd edin.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context, false);
+                },
+                child: const Text('Bağla'),
+              ),
+            ],
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _startTimeoutTimer();
+    debugPrint('🚀 [PAYMENT_WEBVIEW_INIT] Payment WebView initialized with URL: ${widget.url}');
+  }
+
+  @override
+  void dispose() {
+    _timeoutTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    debugPrint('🔚 [PAYMENT_WEBVIEW_DISPOSE] Payment WebView disposed');
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    debugPrint('🔄 [PAYMENT_LIFECYCLE] App lifecycle changed to: $state');
+    if (state == AppLifecycleState.paused) {
+      debugPrint('⏸️ [PAYMENT_LIFECYCLE] App went to background during payment');
+    } else if (state == AppLifecycleState.resumed) {
+      debugPrint('▶️ [PAYMENT_LIFECYCLE] App returned to foreground during payment');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ödəniş'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: _paymentCompleted
-              ? null
-              : () => Navigator.pop(context, false),
+    return PopScope(
+      canPop: false, // Asla direkt kapanmasın
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        
+        // Ödeme tamamlandıysa çıkışa izin verme
+        if (_paymentCompleted) {
+          debugPrint('🔒 [PAYMENT_BACK_BUTTON] Payment completed, blocking back button');
+          return;
+        }
+        
+        // WebView'da geri gidilecek sayfa var mı kontrol et
+        try {
+          final canGoBack = await _webViewController.canGoBack();
+          if (canGoBack) {
+            await _webViewController.goBack();
+            debugPrint('🔙 [PAYMENT_BACK_BUTTON] WebView went back in history');
+            return;
+          }
+        } catch (e) {
+          debugPrint('⚠️ [PAYMENT_BACK_BUTTON] Error checking canGoBack: $e');
+        }
+        
+        // WebView'da geri gidilecek sayfa yoksa, kullanıcıya sor
+        if (!mounted) return;
+        final shouldPop = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Ödənişdən çıxmaq istəyirsiniz?'),
+            content: const Text(
+              'Ödəniş prosesi yarımçıq qalacaq və ödəniş alınmayacaq.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Xeyr, davam et'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Bəli, çıx'),
+              ),
+            ],
+          ),
+        );
+        
+        if (shouldPop == true && mounted) {
+          debugPrint('❌ [PAYMENT_BACK_BUTTON] User confirmed exit, closing WebView');
+          Navigator.pop(context, false);
+        } else {
+          debugPrint('↩️ [PAYMENT_BACK_BUTTON] User cancelled exit');
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Ödəniş'),
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: _paymentCompleted
+                ? null
+                : () {
+                    debugPrint('❌ [PAYMENT_CLOSE_BUTTON] User pressed close button');
+                    Navigator.pop(context, false);
+                  },
+          ),
         ),
-      ),
       body: _isProcessingPayment
           ? const Center(
               child: Column(
@@ -138,7 +326,14 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                     var uri = navigationAction.request.url!;
                     final urlString = uri.toString();
 
-                    debugPrint("🌐 Intercepting URL: $urlString");
+                    // Detailed URL logging
+                    debugPrint("🌐 [WEBVIEW_NAVIGATION] Full URL: $urlString");
+                    debugPrint("🌐 [WEBVIEW_NAVIGATION] Scheme: ${uri.scheme}");
+                    debugPrint("🌐 [WEBVIEW_NAVIGATION] Host: ${uri.host}");
+                    debugPrint("🌐 [WEBVIEW_NAVIGATION] Path: ${uri.path}");
+                    if (uri.queryParameters.isNotEmpty) {
+                      debugPrint("🌐 [WEBVIEW_NAVIGATION] Query params: ${uri.queryParameters}");
+                    }
 
                     // Banka uygulaması veya diğer intent/custom scheme linkleri
                     if (![
@@ -209,8 +404,8 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                     return NavigationActionPolicy.ALLOW;
                   },
                   onLoadStart: (controller, url) async {
-                    debugPrint("Started loading: $url");
                     final urlStr = url?.toString() ?? "";
+                    debugPrint("🌐 [WEBVIEW_NAVIGATION] onLoadStart: $urlStr");
 
                     // Ecomm2 fingerprinting sayfasını atlattırmak için script enjekte edelim
                     if (urlStr.contains(
@@ -236,8 +431,8 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                     }
                   },
                   onLoadStop: (controller, url) async {
-                    debugPrint("Finished loading: $url");
                     final urlStr = url?.toString() ?? "";
+                    debugPrint("🌐 [WEBVIEW_NAVIGATION] onLoadStop: $urlStr");
 
                     if (_isSuccessUrl(urlStr)) {
                       _handlePaymentSuccess();
@@ -249,28 +444,52 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                     // Ignore favicon errors and main frame loading errors for intents
                     if (request.url.toString().contains('favicon.ico')) return;
                     debugPrint(
-                      "🔴 WebView Error: ${error.description} for URL: ${request.url}",
+                      "🔴 [WEBVIEW_ERROR] Error: ${error.description}",
+                    );
+                    debugPrint(
+                      "🔴 [WEBVIEW_ERROR] Error code: ${error.type}",
+                    );
+                    debugPrint(
+                      "🔴 [WEBVIEW_ERROR] URL: ${request.url}",
                     );
                   },
                   onReceivedHttpError: (controller, request, errorResponse) {
                     if (request.url.toString().contains('favicon.ico')) return;
                     debugPrint(
-                      "🔴 WebView HTTP Error: ${errorResponse.statusCode} - ${errorResponse.reasonPhrase} for URL: ${request.url}",
+                      "🔴 [WEBVIEW_HTTP_ERROR] Status: ${errorResponse.statusCode}",
+                    );
+                    debugPrint(
+                      "🔴 [WEBVIEW_HTTP_ERROR] Reason: ${errorResponse.reasonPhrase}",
+                    );
+                    debugPrint(
+                      "🔴 [WEBVIEW_HTTP_ERROR] URL: ${request.url}",
                     );
                   },
                   onProgressChanged: (controller, progress) {
+                    debugPrint("📊 [WEBVIEW_PROGRESS] Loading: $progress%");
                     setState(() {
                       _progress = progress / 100;
                     });
                   },
                   onConsoleMessage: (controller, consoleMessage) {
                     debugPrint(
-                      "🟡 WebView Console [${consoleMessage.messageLevel}]: ${consoleMessage.message}",
+                      "🟡 [WEBVIEW_CONSOLE] [${consoleMessage.messageLevel}]: ${consoleMessage.message}",
                     );
                   },
                   onCreateWindow: (controller, createWindowAction) async {
-                    debugPrint("3DSecure/Bank popup window requested.");
+                    debugPrint("🪟 [WEBVIEW_POPUP] 3DSecure/Bank popup window requested.");
+                    debugPrint("🪟 [WEBVIEW_POPUP] Window ID: ${createWindowAction.windowId}");
 
+                    // Epoint recommendation: Load request in same WebView first
+                    if (createWindowAction.request != null) {
+                      debugPrint("🪟 [WEBVIEW_POPUP] Loading request in same WebView");
+                      await _webViewController.loadUrl(
+                        urlRequest: createWindowAction.request!,
+                      );
+                      return true;
+                    }
+
+                    // Fallback to dialog if no request
                     showDialog(
                       context: context,
                       builder: (context) {
@@ -375,7 +594,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                               },
                               onLoadStart: (controller, url) async {
                                 final urlStr = url?.toString() ?? "";
-                                debugPrint("Popup Started loading: $url");
+                                debugPrint("🌐 [POPUP_NAVIGATION] onLoadStart: $urlStr");
                                 if (_isSuccessUrl(urlStr)) {
                                   if (Navigator.canPop(context)) {
                                     Navigator.pop(context);
@@ -390,7 +609,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                               },
                               onLoadStop: (controller, url) async {
                                 final urlStr = url?.toString() ?? "";
-                                debugPrint("Popup Finished loading: $url");
+                                debugPrint("🌐 [POPUP_NAVIGATION] onLoadStop: $urlStr");
                                 if (_isSuccessUrl(urlStr)) {
                                   if (Navigator.canPop(context)) {
                                     Navigator.pop(context);
@@ -409,7 +628,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                                 ))
                                   return;
                                 debugPrint(
-                                  "🔴 Popup WebView Error: ${error.description} for URL: ${request.url}",
+                                  "🔴 [POPUP_ERROR] ${error.description} for URL: ${request.url}",
                                 );
                               },
                               onReceivedHttpError:
@@ -419,12 +638,12 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                                     ))
                                       return;
                                     debugPrint(
-                                      "🔴 Popup WebView HTTP Error: ${errorResponse.statusCode} - ${errorResponse.reasonPhrase} for URL: ${request.url}",
+                                      "🔴 [POPUP_HTTP_ERROR] ${errorResponse.statusCode} - ${errorResponse.reasonPhrase} for URL: ${request.url}",
                                     );
                                   },
                               onConsoleMessage: (controller, consoleMessage) {
                                 debugPrint(
-                                  "🟡 Popup WebView Console: ${consoleMessage.message}",
+                                  "🟡 [POPUP_CONSOLE] ${consoleMessage.message}",
                                 );
                               },
                             ),
@@ -446,6 +665,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                 if (_progress < 1.0) LinearProgressIndicator(value: _progress),
               ],
             ),
+      ),
     );
   }
 }
