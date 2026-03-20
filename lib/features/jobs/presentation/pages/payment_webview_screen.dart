@@ -16,6 +16,8 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with Widget
   late InAppWebViewController _webViewController;
   bool _isProcessingPayment = false;
   bool _paymentCompleted = false;
+  bool _successPending = false;
+  bool _errorPending = false;
   double _progress = 0;
   Timer? _timeoutTimer;
 
@@ -243,7 +245,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with Widget
         if (didPop) return;
         
         // Ödeme tamamlandıysa çıkışa izin verme
-        if (_paymentCompleted) {
+        if (_paymentCompleted || _isProcessingPayment) {
           debugPrint('🔒 [PAYMENT_BACK_BUTTON] Payment completed, blocking back button');
           return;
         }
@@ -295,7 +297,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with Widget
           title: const Text('Ödəniş'),
           leading: IconButton(
             icon: const Icon(Icons.close),
-            onPressed: _paymentCompleted
+            onPressed: (_paymentCompleted || _isProcessingPayment)
                 ? null
                 : () {
                     debugPrint('❌ [PAYMENT_CLOSE_BUTTON] User pressed close button');
@@ -386,19 +388,24 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with Widget
                     // Eğer EPoint hata sayfasına düşerse direkt yakala
                     if (_isErrorUrl(urlString)) {
                       debugPrint(
-                        "🚨 Error URL matched in shouldOverride, triggering handlePaymentError",
+                        "🚨 Error URL matched in shouldOverride, deferring close until onLoadStop",
                       );
-                      _handlePaymentError();
-                      return NavigationActionPolicy
-                          .CANCEL; // Veya ALLOW, ama genelde CANCEL edip kapatmak iyidir
+                      setState(() {
+                        _isProcessingPayment = true;
+                        _errorPending = true;
+                      });
+                      return NavigationActionPolicy.ALLOW;
                     }
 
                     if (_isSuccessUrl(urlString)) {
                       debugPrint(
-                        "✅ Success URL matched in shouldOverride, triggering handlePaymentSuccess",
+                        "✅ Success URL matched in shouldOverride, deferring close until onLoadStop",
                       );
-                      _handlePaymentSuccess();
-                      return NavigationActionPolicy.CANCEL;
+                      setState(() {
+                        _isProcessingPayment = true;
+                        _successPending = true;
+                      });
+                      return NavigationActionPolicy.ALLOW;
                     }
 
                     return NavigationActionPolicy.ALLOW;
@@ -424,19 +431,18 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with Widget
                       );
                     }
 
-                    if (_isSuccessUrl(urlStr)) {
-                      _handlePaymentSuccess();
-                    } else if (_isErrorUrl(urlStr)) {
-                      _handlePaymentError();
-                    }
+                    // Do not close the WebView on loadStart.
+                    // We'll close only after the success/error page fully loads (onLoadStop).
                   },
                   onLoadStop: (controller, url) async {
                     final urlStr = url?.toString() ?? "";
                     debugPrint("🌐 [WEBVIEW_NAVIGATION] onLoadStop: $urlStr");
 
-                    if (_isSuccessUrl(urlStr)) {
+                    if (_successPending && _isSuccessUrl(urlStr)) {
+                      _successPending = false;
                       _handlePaymentSuccess();
-                    } else if (_isErrorUrl(urlStr)) {
+                    } else if (_errorPending && _isErrorUrl(urlStr)) {
+                      _errorPending = false;
                       _handlePaymentError();
                     }
                   },
