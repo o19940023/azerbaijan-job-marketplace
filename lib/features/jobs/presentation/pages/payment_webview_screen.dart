@@ -16,6 +16,8 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with Widget
   late InAppWebViewController _webViewController;
   bool _isProcessingPayment = false;
   bool _paymentCompleted = false;
+  bool _merchantSuccessSeen = false;
+  bool _merchantErrorSeen = false;
   double _progress = 0;
   Timer? _timeoutTimer;
 
@@ -127,6 +129,18 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with Widget
     _timeoutTimer?.cancel();
     _timeoutTimer = Timer(const Duration(minutes: 5), () {
       if (!_paymentCompleted && mounted) {
+        // If we already loaded the merchant success/error pages, don't treat it as a real timeout.
+        if (_merchantSuccessSeen) {
+          debugPrint('⏰ [PAYMENT_TIMEOUT] Merchant success page already seen, returning success');
+          _handlePaymentSuccess();
+          return;
+        }
+        if (_merchantErrorSeen) {
+          debugPrint('⏰ [PAYMENT_TIMEOUT] Merchant error page already seen, returning failure');
+          _handlePaymentError();
+          return;
+        }
+
         debugPrint('⏰ [PAYMENT_TIMEOUT] Payment timeout after 5 minutes');
         showDialog(
           context: context,
@@ -330,6 +344,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with Widget
                       debugPrint(
                         "🚨 Error URL matched in shouldOverride, closing WebView immediately",
                       );
+                      _merchantErrorSeen = true;
                       _handlePaymentError();
                       return NavigationActionPolicy.CANCEL;
                     }
@@ -338,6 +353,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with Widget
                       debugPrint(
                         "✅ Success URL matched in shouldOverride, closing WebView",
                       );
+                      _merchantSuccessSeen = true;
                       _handlePaymentSuccess();
                       return NavigationActionPolicy.CANCEL;
                     }
@@ -371,6 +387,10 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with Widget
                   onLoadStop: (controller, url) async {
                     final urlStr = url?.toString() ?? "";
                     debugPrint("🌐 [WEBVIEW_NAVIGATION] onLoadStop: $urlStr");
+
+                    // Track merchant pages in case navigation delegate missed the callback.
+                    if (_isSuccessUrl(urlStr)) _merchantSuccessSeen = true;
+                    if (_isErrorUrl(urlStr)) _merchantErrorSeen = true;
                   },
                   onReceivedError: (controller, request, error) {
                     // Ignore favicon errors and main frame loading errors for intents
