@@ -16,8 +16,6 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with Widget
   late InAppWebViewController _webViewController;
   bool _isProcessingPayment = false;
   bool _paymentCompleted = false;
-  bool _successPending = false;
-  bool _errorPending = false;
   double _progress = 0;
   Timer? _timeoutTimer;
 
@@ -338,13 +336,10 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with Widget
 
                     if (_isSuccessUrl(urlString)) {
                       debugPrint(
-                        "✅ Success URL matched in shouldOverride, deferring close until onLoadStop",
+                        "✅ Success URL matched in shouldOverride, closing WebView",
                       );
-                      setState(() {
-                        _isProcessingPayment = true;
-                        _successPending = true;
-                      });
-                      return NavigationActionPolicy.ALLOW;
+                      _handlePaymentSuccess();
+                      return NavigationActionPolicy.CANCEL;
                     }
 
                     return NavigationActionPolicy.ALLOW;
@@ -376,14 +371,6 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with Widget
                   onLoadStop: (controller, url) async {
                     final urlStr = url?.toString() ?? "";
                     debugPrint("🌐 [WEBVIEW_NAVIGATION] onLoadStop: $urlStr");
-
-                    if (_successPending && _isSuccessUrl(urlStr)) {
-                      _successPending = false;
-                      _handlePaymentSuccess();
-                    } else if (_errorPending && _isErrorUrl(urlStr)) {
-                      _errorPending = false;
-                      _handlePaymentError();
-                    }
                   },
                   onReceivedError: (controller, request, error) {
                     // Ignore favicon errors and main frame loading errors for intents
