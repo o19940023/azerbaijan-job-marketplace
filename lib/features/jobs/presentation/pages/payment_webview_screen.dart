@@ -107,79 +107,21 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> with Widget
   bool _isSuccessUrl(String url) {
     if (url.isEmpty || url.trim().isEmpty) return false;
     
-    // Netlify success pages
-    if (url.contains('payment-success.html') ||
-        url.contains('pay-successful') ||
-        url.contains('pay-success') ||
-        url.contains('istapapp.netlify.app/payment-success') ||
-        (url.contains('netlify.app') && url.contains('success'))) {
-      return true;
-    }
-    
-    // Pasha Bank success patterns
-    if (url.contains('pashabank.az') && 
-        (url.contains('status=success') || 
-         url.contains('result=success'))) {
-      return true;
-    }
-    
-    // Epoint success patterns - CRITICAL FIX
-    if (url.contains('epoint.az')) {
-      if (url.contains('success') ||
-          url.contains('pay-success') ||
-          url.contains('/success') ||
-          url.contains('payment-success')) {
-        return true;
-      }
-    }
-    
-    // Query parameter checks
-    if (url.contains('success=true') ||
-        url.contains('status=completed') ||
-        url.contains('status=approved')) {
-      return true;
-    }
-    
+    // IMPORTANT:
+    // Epoint docs says final result page is our merchant-provided success_redirect_url.
+    // So we only treat our exact success page as success.
+    if (url.contains('payment-success.html')) return true;
+    if (url.contains('istapapp.netlify.app/payment-success')) return true;
     return false;
   }
 
   bool _isErrorUrl(String url) {
     if (url.isEmpty || url.trim().isEmpty) return false;
     
-    // Netlify error pages
-    if (url.contains('payment-error.html') ||
-        url.contains('pay-error') ||
-        url.contains('istapapp.netlify.app/payment-error') ||
-        (url.contains('netlify.app') && url.contains('error'))) {
-      return true;
-    }
-    
-    // Pasha Bank error patterns
-    if (url.contains('pashabank.az') && 
-        (url.contains('status=error') || 
-         url.contains('status=failed') ||
-         url.contains('result=error'))) {
-      return true;
-    }
-    
-    // Epoint error patterns - CRITICAL FIX
-    if (url.contains('epoint.az')) {
-      if (url.contains('error') || 
-          url.contains('fail') ||
-          url.contains('pay-error') ||
-          url.contains('/error') ||
-          url.contains('payment-error')) {
-        return true;
-      }
-    }
-    
-    // Query parameter checks
-    if (url.contains('error=true') ||
-        url.contains('status=cancelled') ||
-        url.contains('status=declined')) {
-      return true;
-    }
-    
+    // IMPORTANT:
+    // Only treat our exact error_redirect_url page as error.
+    if (url.contains('payment-error.html')) return true;
+    if (url.contains('istapapp.netlify.app/payment-error')) return true;
     return false;
   }
 
