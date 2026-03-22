@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/constants/job_categories.dart';
@@ -14,11 +15,46 @@ class MapViewScreen extends StatefulWidget {
   State<MapViewScreen> createState() => _MapViewScreenState();
 }
 
-class _MapViewScreenState extends State<MapViewScreen> {
+class _MapViewScreenState extends State<MapViewScreen>
+    with TickerProviderStateMixin {
   int? _selectedJobIndex;
+  late AnimationController _cardCtrl;
+  late Animation<Offset> _cardSlide;
+  late Animation<double> _cardFade;
+
+  @override
+  void initState() {
+    super.initState();
+    _cardCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+    _cardSlide = Tween<Offset>(
+      begin: const Offset(0, 1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _cardCtrl, curve: Curves.easeOutCubic));
+    _cardFade = CurvedAnimation(parent: _cardCtrl, curve: Curves.easeOut);
+  }
+
+  @override
+  void dispose() {
+    _cardCtrl.dispose();
+    super.dispose();
+  }
+
+  void _selectJob(int? idx) {
+    setState(() => _selectedJobIndex = idx);
+    if (idx != null) {
+      _cardCtrl.forward(from: 0);
+    } else {
+      _cardCtrl.reverse();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SafeArea(
       child: FutureBuilder<QuerySnapshot>(
         future: FirebaseFirestore.instance
@@ -28,38 +64,33 @@ class _MapViewScreenState extends State<MapViewScreen> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting &&
               !snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+            return _buildLoading(isDark);
           }
 
           final now = DateTime.now();
-          final jobs =
-              snapshot.data?.docs
+          final jobs = snapshot.data?.docs
                   .where((d) => d.data() != null)
-                  .map(
-                    (d) => JobModel.fromMap(
-                      d.data() as Map<String, dynamic>,
-                      d.id,
-                    ),
-                  )
+                  .map((d) => JobModel.fromMap(
+                      d.data() as Map<String, dynamic>, d.id))
                   .where((job) => job.expiresAt.isAfter(now))
                   .toList() ??
               [];
 
           return Stack(
             children: [
+              // ── Map ─────────────────────────────────────────────
               FlutterMap(
                 options: MapOptions(
-                  initialCenter: const LatLng(
-                    40.4093,
-                    49.8671,
-                  ), // Default center
+                  initialCenter: const LatLng(40.4093, 49.8671),
                   initialZoom: 12.0,
-                  onTap: (_, __) => setState(() => _selectedJobIndex = null),
+                  onTap: (_, __) => _selectJob(null),
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    urlTemplate: isDark
+                        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+                    subdomains: const ['a', 'b', 'c', 'd'],
                     userAgentPackageName: 'com.is.tap',
                   ),
                   MarkerLayer(
@@ -69,7 +100,6 @@ class _MapViewScreenState extends State<MapViewScreen> {
                       final cat = JobCategories.getById(job.categoryId);
                       final isSelected = _selectedJobIndex == idx;
 
-                      // Use actual job coordinates, fallback to mock near center if missing
                       final lat = job.latitude != 0
                           ? job.latitude
                           : 40.4093 + (idx * 0.005);
@@ -79,33 +109,39 @@ class _MapViewScreenState extends State<MapViewScreen> {
 
                       return Marker(
                         point: LatLng(lat, lng),
-                        width: isSelected ? 56 : 48,
-                        height: isSelected ? 56 : 48,
+                        width: isSelected ? 60 : 50,
+                        height: isSelected ? 60 : 50,
                         child: GestureDetector(
-                          onTap: () => setState(() => _selectedJobIndex = idx),
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            _selectJob(idx);
+                          },
                           child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutBack,
                             decoration: BoxDecoration(
-                              color: isSelected ? cat.color : context.cardColor,
+                              color: isSelected ? cat.color : Colors.white,
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: isSelected
-                                    ? context.scaffoldBackgroundColor
-                                    : cat.color,
-                                width: 2,
+                                color: cat.color,
+                                width: isSelected ? 0 : 2.5,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: cat.color.withOpacity(0.3),
-                                  blurRadius: 8,
+                                  color: cat.color.withOpacity(
+                                      isSelected ? 0.55 : 0.25),
+                                  blurRadius: isSelected ? 18 : 8,
+                                  spreadRadius: isSelected ? 2 : 0,
                                   offset: const Offset(0, 3),
                                 ),
                               ],
                             ),
-                            child: Icon(
-                              cat.icon,
-                              size: isSelected ? 28 : 24,
-                              color: isSelected ? context.cardColor : cat.color,
+                            child: Center(
+                              child: Icon(
+                                cat.icon,
+                                size: isSelected ? 28 : 22,
+                                color: isSelected ? Colors.white : cat.color,
+                              ),
                             ),
                           ),
                         ),
@@ -115,52 +151,46 @@ class _MapViewScreenState extends State<MapViewScreen> {
                 ],
               ),
 
-              // Search bar at top
+              // ── Search bar ───────────────────────────────────────
               Positioned(
-                top: 12,
+                top: 14,
                 left: 16,
                 right: 16,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: context.cardColor,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: AppTheme.cardShadow,
-                  ),
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Bu ərazidə axtar...',
-                      hintStyle: TextStyle(color: context.textHintColor),
-                      prefixIcon: Icon(
-                        Icons.search_rounded,
-                        color: context.textHintColor,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                    ),
-                  ),
-                ),
+                child: _buildSearchBar(context, isDark),
               ),
 
-              // Selected Job Card at bottom
-              if (_selectedJobIndex != null && _selectedJobIndex! < jobs.length)
+              // ── Job count badge ──────────────────────────────────
+              Positioned(
+                top: 80,
+                right: 16,
+                child: _buildCountBadge(jobs.length, isDark),
+              ),
+
+              // ── Job card ─────────────────────────────────────────
+              if (_selectedJobIndex != null &&
+                  _selectedJobIndex! < jobs.length)
                 Positioned(
                   bottom: 16,
                   left: 16,
                   right: 16,
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              JobDetailScreen(job: jobs[_selectedJobIndex!]),
-                        ),
-                      );
-                    },
-                    child: _buildJobCard(jobs[_selectedJobIndex!]),
+                  child: SlideTransition(
+                    position: _cardSlide,
+                    child: FadeTransition(
+                      opacity: _cardFade,
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => JobDetailScreen(
+                                  job: jobs[_selectedJobIndex!]),
+                            ),
+                          );
+                        },
+                        child: _buildJobCard(
+                            context, jobs[_selectedJobIndex!], isDark),
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -170,24 +200,48 @@ class _MapViewScreenState extends State<MapViewScreen> {
     );
   }
 
-  Widget _buildJobCard(job) {
-    final cat = JobCategories.getById(job.categoryId);
-    final nowUtc = DateTime.now().toUtc();
-    final urgentUntilUtc = job.urgentUntil?.toUtc();
-    final isUrgentActive =
-        job.isUrgent &&
-        urgentUntilUtc != null &&
-        urgentUntilUtc.isAfter(nowUtc);
+  Widget _buildLoading(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 36,
+            height: 36,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Xəritə yüklənir...',
+            style: TextStyle(
+              color: isDark ? Colors.white54 : Colors.black38,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(BuildContext context, bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      height: 52,
       decoration: BoxDecoration(
-        color: context.cardColor,
+        color: isDark
+            ? const Color(0xFF1C1C2E).withOpacity(0.95)
+            : Colors.white.withOpacity(0.97),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withOpacity(0.08)
+              : Colors.black.withOpacity(0.06),
+        ),
         boxShadow: [
           BoxShadow(
-            color: context.isDarkMode
-                ? Colors.black.withValues(alpha: 0.5)
-                : Colors.black.withValues(alpha: 0.1),
+            color: Colors.black.withOpacity(isDark ? 0.4 : 0.1),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -195,16 +249,150 @@ class _MapViewScreenState extends State<MapViewScreen> {
       ),
       child: Row(
         children: [
+          const SizedBox(width: 16),
+          Icon(
+            Icons.search_rounded,
+            size: 20,
+            color: isDark ? Colors.white38 : Colors.black38,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Bu ərazidə axtar...',
+                hintStyle: TextStyle(
+                  color: isDark ? Colors.white30 : Colors.black26,
+                  fontSize: 14,
+                ),
+                border: InputBorder.none,
+                isDense: true,
+              ),
+            ),
+          ),
           Container(
-            width: 52,
-            height: 52,
+            width: 1,
+            height: 22,
+            color: isDark
+                ? Colors.white.withOpacity(0.08)
+                : Colors.black.withOpacity(0.08),
+          ),
+          const SizedBox(width: 12),
+          Icon(
+            Icons.tune_rounded,
+            size: 18,
+            color: AppTheme.primaryColor,
+          ),
+          const SizedBox(width: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCountBadge(int count, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF1C1C2E).withOpacity(0.92)
+            : Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withOpacity(0.08)
+              : Colors.black.withOpacity(0.05),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.35 : 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
             decoration: BoxDecoration(
-              color: cat.color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
+              shape: BoxShape.circle,
+              color: AppTheme.successColor,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.successColor.withOpacity(0.5),
+                  blurRadius: 6,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            '$count elan',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white70 : Colors.black54,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJobCard(BuildContext context, JobModel job, bool isDark) {
+    final cat = JobCategories.getById(job.categoryId);
+    final nowUtc = DateTime.now().toUtc();
+    final urgentUntilUtc = job.urgentUntil?.toUtc();
+    final isUrgentActive = job.isUrgent &&
+        urgentUntilUtc != null &&
+        urgentUntilUtc.isAfter(nowUtc);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withOpacity(0.07)
+              : Colors.black.withOpacity(0.04),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.5 : 0.12),
+            blurRadius: 28,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: cat.color.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Category icon box
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: cat.color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: cat.color.withOpacity(0.2),
+              ),
             ),
             child: Icon(cat.icon, color: cat.color, size: 26),
           ),
           const SizedBox(width: 14),
+
+          // Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,24 +404,26 @@ class _MapViewScreenState extends State<MapViewScreen> {
                       child: Text(
                         job.title,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: context.textPrimaryColor,
+                          color: isDark ? Colors.white : Colors.black87,
+                          letterSpacing: -0.2,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (isUrgentActive)
+                    if (isUrgentActive) ...[
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
+                            horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
-                          color: AppTheme.accentColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
+                          color: AppTheme.accentColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(7),
                         ),
                         child: const Text(
-                          'Təcili',
+                          '🔥 Təcili',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
@@ -241,53 +431,79 @@ class _MapViewScreenState extends State<MapViewScreen> {
                           ),
                         ),
                       ),
+                    ],
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   job.companyName,
                   style: TextStyle(
-                    fontSize: 13,
-                    color: context.textSecondaryColor,
+                    fontSize: 12,
+                    color: isDark ? Colors.white38 : Colors.black38,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(
-                      Icons.monetization_on_outlined,
-                      size: 14,
-                      color: AppTheme.successColor,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      job.salaryText,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.successColor,
+                    // Salary
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.successColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        job.salaryText,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.successColor,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Icon(
-                      Icons.near_me_outlined,
-                      size: 14,
-                      color: AppTheme.primaryColor,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      job.distanceText,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.textSecondaryColor,
-                      ),
+                    const SizedBox(width: 8),
+                    // Distance
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.near_me_outlined,
+                          size: 12,
+                          color: isDark ? Colors.white30 : Colors.black26,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          job.distanceText,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.white38 : Colors.black38,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ],
             ),
           ),
-          Icon(Icons.chevron_right_rounded, color: context.textHintColor),
+          const SizedBox(width: 10),
+
+          // Arrow
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: AppTheme.primaryColor,
+            ),
+          ),
         ],
       ),
     );

@@ -1,9 +1,204 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../features/jobs/data/models/job_model.dart';
 import '../../../features/jobs/presentation/pages/job_detail_screen.dart';
+import '../data/services/ai_service.dart';
 import 'ai_assistant_cubit.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  CONSTANTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _kAurora1 = Color(0xFF6C63FF);
+const _kAurora2 = Color(0xFF0EA5E9);
+const _kAurora3 = Color(0xFF10B981);
+const _kGlassDark = Color(0xFF0D0D1A);
+const _kGlassCard = Color(0xFF161628);
+const _kGlassBorder = Color(0xFF2A2A4A);
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  TYPEWRITER MESSAGE WIDGET
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TypewriterText extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+  final bool animate;
+
+  const _TypewriterText({
+    required this.text,
+    required this.style,
+    this.animate = true,
+  });
+
+  @override
+  State<_TypewriterText> createState() => _TypewriterTextState();
+}
+
+class _TypewriterTextState extends State<_TypewriterText> {
+  String _displayed = '';
+  int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.animate && widget.text.isNotEmpty) {
+      _tick();
+    } else {
+      _displayed = widget.text;
+    }
+  }
+
+  void _tick() {
+    if (!mounted || _index >= widget.text.length) return;
+    Future.delayed(const Duration(milliseconds: 18), () {
+      if (!mounted) return;
+      setState(() {
+        _displayed = widget.text.substring(0, _index + 1);
+        _index++;
+      });
+      _tick();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(_displayed, style: widget.style);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  AURORA BACKGROUND PAINTER
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AuroraPainter extends CustomPainter {
+  final double t;
+  const _AuroraPainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..blendMode = BlendMode.screen;
+
+    void drawBlob(
+      double cx,
+      double cy,
+      double r,
+      Color color,
+      double opacity,
+    ) {
+      paint.shader = RadialGradient(
+        colors: [color.withOpacity(opacity), Colors.transparent],
+      ).createShader(Rect.fromCircle(
+        center: Offset(cx * size.width, cy * size.height),
+        radius: r * size.width,
+      ));
+      canvas.drawCircle(
+        Offset(cx * size.width, cy * size.height),
+        r * size.width,
+        paint,
+      );
+    }
+
+    final s = math.sin(t * math.pi * 2);
+    final c = math.cos(t * math.pi * 2);
+
+    drawBlob(0.15 + s * 0.05, 0.2 + c * 0.04, 0.45, _kAurora1, 0.06);
+    drawBlob(0.85 + c * 0.05, 0.15 + s * 0.03, 0.4, _kAurora2, 0.05);
+    drawBlob(0.5 + s * 0.08, 0.85 + c * 0.04, 0.5, _kAurora3, 0.04);
+  }
+
+  @override
+  bool shouldRepaint(_AuroraPainter old) => old.t != t;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  NEURAL PULSE AVATAR
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _NeuralAvatar extends StatelessWidget {
+  final double size;
+  final Animation<double> pulse;
+  final bool active;
+
+  const _NeuralAvatar({
+    required this.size,
+    required this.pulse,
+    this.active = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: pulse,
+      builder: (_, __) {
+        return SizedBox(
+          width: size + 20,
+          height: size + 20,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Outer pulse ring
+              if (active)
+                Opacity(
+                  opacity: (1 - pulse.value) * 0.6,
+                  child: Container(
+                    width: size + 14 + pulse.value * 10,
+                    height: size + 14 + pulse.value * 10,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: _kAurora1.withOpacity(0.5),
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+              // Inner glow ring
+              Container(
+                width: size + 6,
+                height: size + 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: SweepGradient(
+                    colors: [
+                      _kAurora1.withOpacity(active ? 0.8 : 0.3),
+                      _kAurora2.withOpacity(active ? 0.6 : 0.2),
+                      _kAurora3.withOpacity(active ? 0.4 : 0.1),
+                      _kAurora1.withOpacity(active ? 0.8 : 0.3),
+                    ],
+                    transform: GradientRotation(pulse.value * math.pi * 2),
+                  ),
+                ),
+              ),
+              // Avatar
+              Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _kGlassCard,
+                ),
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/AiLogo.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  MAIN OVERLAY
+// ─────────────────────────────────────────────────────────────────────────────
 
 class AiAssistantOverlay extends StatefulWidget {
   const AiAssistantOverlay({super.key});
@@ -14,386 +209,373 @@ class AiAssistantOverlay extends StatefulWidget {
 
 class _AiAssistantOverlayState extends State<AiAssistantOverlay>
     with TickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late AnimationController _waveController;
-  late AnimationController _slideController;
-  late AnimationController _fadeController;
-  final _textController = TextEditingController();
-  final _scrollController = ScrollController();
+  // Controllers
+  late final AnimationController _auroraCtrl;
+  late final AnimationController _pulseCtrl;
+  late final AnimationController _waveCtrl;
+  late final AnimationController _slideCtrl;
+
+  final _textCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+  bool _showSend = false;
 
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
+
+    _auroraCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(seconds: 8),
+    )..repeat();
+
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+
+    _waveCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
 
-    _waveController = AnimationController(
+    _slideCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
-    )..repeat(reverse: true);
+      duration: const Duration(milliseconds: 500),
+    )..forward();
 
-    _slideController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-
-    _fadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-
-    // Start entrance animations
-    _slideController.forward();
-    _fadeController.forward();
+    _textCtrl.addListener(() {
+      final v = _textCtrl.text.trim().isNotEmpty;
+      if (v != _showSend) setState(() => _showSend = v);
+    });
   }
 
   @override
   void dispose() {
-    _pulseController.dispose();
-    _waveController.dispose();
-    _slideController.dispose();
-    _fadeController.dispose();
-    _textController.dispose();
-    _scrollController.dispose();
+    _auroraCtrl.dispose();
+    _pulseCtrl.dispose();
+    _waveCtrl.dispose();
+    _slideCtrl.dispose();
+    _textCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
         );
       }
     });
   }
+
+  void _send(AiAssistantCubit cubit) {
+    final t = _textCtrl.text.trim();
+    if (t.isEmpty) return;
+    HapticFeedback.lightImpact();
+    cubit.sendTextMessage(t);
+    _textCtrl.clear();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  //  BUILD
+  // ─────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => AiAssistantCubit()..greet(),
       child: BlocConsumer<AiAssistantCubit, AiAssistantState>(
-        listener: (context, state) {
-          _scrollToBottom();
-        },
+        listener: (_, state) => _scrollToBottom(),
         builder: (context, state) {
           final cubit = context.read<AiAssistantCubit>();
-          return Stack(
-            children: [
-              Container(
-                height: MediaQuery.of(context).size.height * 0.75,
-                decoration: BoxDecoration(
-                  color: context.scaffoldBackgroundColor,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(28),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 20,
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    // Handle bar
-                    const SizedBox(height: 12),
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: context.dividerColor,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
+          final isActive =
+              state.status != AiAssistantStatus.idle;
 
-                    // Header
-                    _buildHeader(context, cubit, state),
-
-                    // Messages
-                    Expanded(child: _buildMessages(context, state)),
-
-                    // Input area
-                    _buildInputArea(context, cubit, state),
-                  ],
-                ),
-              ),
-
-              // iOS-style notification
-              if (state.showProfileUpdatedNotification)
-                Positioned(
-                  top: 60,
-                  left: 16,
-                  right: 16,
-                  child: TweenAnimationBuilder<double>(
-                    duration: const Duration(milliseconds: 400),
-                    curve: Curves.easeOutCubic,
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    builder: (context, value, child) {
-                      return Transform.translate(
-                        offset: Offset(0, -30 * (1 - value)),
-                        child: Opacity(opacity: value, child: child),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppTheme.successColor,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.successColor.withValues(alpha: 0.3),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.check_circle_rounded,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Profil Yeniləndi',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'AI tərəfindən uğurla yeniləndi',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+          return AnimatedBuilder(
+            animation: _slideCtrl,
+            builder: (_, child) {
+              final slide = CurvedAnimation(
+                parent: _slideCtrl,
+                curve: Curves.easeOutCubic,
+              );
+              return Transform.translate(
+                offset: Offset(0, (1 - slide.value) * 60),
+                child: Opacity(opacity: slide.value, child: child),
+              );
+            },
+            child: Stack(
+              children: [
+                _buildSheet(context, state, cubit, isActive),
+                if (state.showProfileUpdatedNotification)
+                  _buildProfileToast(),
+              ],
+            ),
           );
         },
       ),
     );
   }
 
+  // ─────────────────────────────────────────────────────────────────────
+  //  SHEET
+  // ─────────────────────────────────────────────────────────────────────
+
+  Widget _buildSheet(
+    BuildContext context,
+    AiAssistantState state,
+    AiAssistantCubit cubit,
+    bool isActive,
+  ) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.82,
+      decoration: const BoxDecoration(
+        color: _kGlassDark,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        child: Stack(
+          children: [
+            // Aurora background
+            AnimatedBuilder(
+              animation: _auroraCtrl,
+              builder: (_, __) => CustomPaint(
+                painter: _AuroraPainter(_auroraCtrl.value),
+                size: Size.infinite,
+              ),
+            ),
+
+            // Content
+            Column(
+              children: [
+                _buildHandle(),
+                _buildHeader(context, cubit, state, isActive),
+                Expanded(child: _buildMessages(context, state)),
+                _buildInput(context, cubit, state),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Handle ────────────────────────────────────────────────────────────
+
+  Widget _buildHandle() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14, bottom: 4),
+      child: Container(
+        width: 36,
+        height: 4,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
+
+  // ── Header ────────────────────────────────────────────────────────────
+
   Widget _buildHeader(
     BuildContext context,
     AiAssistantCubit cubit,
     AiAssistantState state,
+    bool isActive,
   ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 12, 12),
       child: Row(
         children: [
-          // AI Avatar
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6C63FF), Color(0xFF4ECDC4)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Image.asset('assets/images/AiLogo.png', fit: BoxFit.cover),
-            ),
+          _NeuralAvatar(
+            size: 44,
+            pulse: _pulseCtrl,
+            active: isActive,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'İşçi AI',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: context.textPrimaryColor,
-                  ),
+                Row(
+                  children: [
+                    const Text(
+                      'İşçi AI',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Role badge
+                    if (state.userRole != UserRole.unknown)
+                      _RoleBadge(role: state.userRole),
+                  ],
                 ),
-                Text(
-                  _getStatusText(state.status),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _getStatusColor(state.status),
-                    fontWeight: FontWeight.w500,
-                  ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _statusColor(state.status),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _statusColor(state.status).withOpacity(0.6),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: Text(
+                        _statusLabel(state.status),
+                        key: ValueKey(state.status),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.5),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          // Reset conversation
-          IconButton(
-            onPressed: () => cubit.resetConversation(),
-            icon: Icon(
+          // Reset
+          _GlassButton(
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              cubit.resetConversation();
+            },
+            child: const Icon(
               Icons.refresh_rounded,
-              color: context.textSecondaryColor,
+              color: Colors.white,
+              size: 18,
             ),
-            tooltip: 'Söhbəti sıfırla',
           ),
         ],
       ),
     );
   }
 
+  // ── Messages ─────────────────────────────────────────────────────────
+
   Widget _buildMessages(BuildContext context, AiAssistantState state) {
     if (state.messages.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF6C63FF), Color(0xFF4ECDC4)],
-                ),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Image.asset(
-                  'assets/images/AiLogo.png',
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'İşçi AI ilə danışın',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: context.textPrimaryColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Profil doldurmaq və iş axtarmaq üçün\nmikrofonla danışın və ya yazın',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: context.textSecondaryColor),
-            ),
-          ],
-        ),
-      );
+      return _buildEmptyState();
     }
 
+    final itemCount = state.messages.length +
+        (state.status == AiAssistantStatus.thinking ? 1 : 0);
+
     return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount:
-          state.messages.length +
-          (state.status == AiAssistantStatus.thinking ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index == state.messages.length) {
-          // Thinking indicator
-          return _buildThinkingBubble(context);
+      controller: _scrollCtrl,
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      itemCount: itemCount,
+      itemBuilder: (context, i) {
+        if (i == state.messages.length) {
+          return _buildThinkingBubble();
         }
-        final msg = state.messages[index];
-        return _buildMessageBubble(context, msg);
+        return _buildMessageItem(state.messages[i], i == state.messages.length - 1);
       },
     );
   }
 
-  Widget _buildMessageBubble(BuildContext context, AiMessage msg) {
-    // Regex to detect [PROFILE_UPDATE] or [JOB_SEARCH] tags and their content
-    final tagRegex = RegExp(r'\[(PROFILE_UPDATE|JOB_SEARCH)\][\s\S]*?\[\/\1\]');
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _NeuralAvatar(size: 72, pulse: _pulseCtrl, active: true),
+          const SizedBox(height: 20),
+          const Text(
+            'İşçi AI',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'İş axtarışı, profil, məsləhət —\nhər şey üçün buradayam.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.white.withOpacity(0.45),
+              height: 1.6,
+            ),
+          ),
+          const SizedBox(height: 28),
+          // Quick action chips
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              '🔍 İş tap',
+              '📝 Profil doldur',
+              '💡 Məsləhət',
+              '💰 Maaş',
+            ].map((label) => _QuickChip(label: label)).toList(),
+          ),
+        ],
+      ),
+    );
+  }
 
-    // Clean text by removing technical tags for UI and TTS
-    String cleanText = msg.text.replaceAll(tagRegex, '').trim();
+  Widget _buildMessageItem(AiMessage msg, bool isLatest) {
+    // Strip hidden tags
+    final tagRx = RegExp(
+      r'\[(PROFILE_UPDATE|JOB_SEARCH|ROLE_DETECT)\][\s\S]*?\[\/\1\]',
+    );
+    final clean = msg.text.replaceAll(tagRx, '').trim();
 
-    // If text becomes empty after removing tags (it was just a tag), don't show bubble
-    if (cleanText.isEmpty && (msg.jobs == null || msg.jobs!.isEmpty)) {
+    if (clean.isEmpty && (msg.jobs == null || msg.jobs!.isEmpty)) {
       return const SizedBox.shrink();
     }
 
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeOutCubic,
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(opacity: value, child: child),
-        );
-      },
+    return _AnimatedMessageWrapper(
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.only(bottom: 14),
         child: Column(
-          crossAxisAlignment: msg.isUser
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
+          crossAxisAlignment:
+              msg.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: msg.isUser
-                  ? MainAxisAlignment.end
-                  : MainAxisAlignment.start,
+              mainAxisAlignment:
+                  msg.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                // AI mini avatar
                 if (!msg.isUser) ...[
-                  Hero(
-                    tag: 'ai_avatar_${msg.timestamp.millisecondsSinceEpoch}',
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6C63FF), Color(0xFF4ECDC4)],
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(
-                              0xFF6C63FF,
-                            ).withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                  Container(
+                    width: 26,
+                    height: 26,
+                    margin: const EdgeInsets.only(right: 8, bottom: 2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const SweepGradient(
+                        colors: [_kAurora1, _kAurora2, _kAurora3, _kAurora1],
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(1.5),
+                      child: ClipOval(
                         child: Image.asset(
                           'assets/images/AiLogo.png',
                           fit: BoxFit.cover,
@@ -402,65 +584,33 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                     ),
                   ),
                 ],
+
+                // Bubble
                 Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: msg.isUser
-                          ? AppTheme.primaryColor
-                          : context.isDarkMode
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : const Color(0xFFF0F0F5),
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(18),
-                        topRight: const Radius.circular(18),
-                        bottomLeft: Radius.circular(msg.isUser ? 18 : 4),
-                        bottomRight: Radius.circular(msg.isUser ? 4 : 18),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      cleanText,
-                      style: TextStyle(
-                        fontSize: 14,
-                        height: 1.5,
-                        color: msg.isUser
-                            ? Colors.white
-                            : context.textPrimaryColor,
-                      ),
-                    ),
-                  ),
+                  child: _buildBubble(msg, clean, isLatest && !msg.isUser),
                 ),
               ],
             ),
+
+            // Job cards
             if (msg.jobs != null && msg.jobs!.isNotEmpty) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Padding(
-                padding: EdgeInsets.only(left: msg.isUser ? 0 : 36.0),
+                padding: EdgeInsets.only(left: msg.isUser ? 0 : 34),
                 child: Column(
-                  children: msg.jobs!.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final job = entry.value;
-                    return TweenAnimationBuilder<double>(
-                      duration: Duration(milliseconds: 300 + (index * 100)),
-                      curve: Curves.easeOutCubic,
-                      tween: Tween(begin: 0.0, end: 1.0),
-                      builder: (context, value, child) {
-                        return Transform.translate(
-                          offset: Offset(0, 15 * (1 - value)),
-                          child: Opacity(opacity: value, child: child),
+                  children: msg.jobs!.asMap().entries.map((e) {
+                    return _AnimatedJobCard(
+                      job: e.value,
+                      delay: Duration(milliseconds: 120 * e.key),
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => JobDetailScreen(job: e.value),
+                          ),
                         );
                       },
-                      child: _buildMiniJobCard(context, job),
                     );
                   }).toList(),
                 ),
@@ -472,52 +622,513 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
     );
   }
 
-  Widget _buildMiniJobCard(BuildContext context, JobModel job) {
+  Widget _buildBubble(AiMessage msg, String text, bool typewrite) {
+    if (msg.isUser) {
+      return Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.72,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [_kAurora1, Color(0xFF9B59B6)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(4),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _kAurora1.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.white,
+            height: 1.5,
+          ),
+        ),
+      );
+    }
+
+    // AI bubble — glass morphism
+    return Container(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.76,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(4),
+          topRight: Radius.circular(20),
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.08),
+          width: 1,
+        ),
+      ),
+      child: typewrite
+          ? _TypewriterText(
+              text: text,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.9),
+                height: 1.6,
+              ),
+            )
+          : Text(
+              text,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.9),
+                height: 1.6,
+              ),
+            ),
+    );
+  }
+
+  // ── Thinking bubble ───────────────────────────────────────────────────
+
+  Widget _buildThinkingBubble() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            width: 26,
+            height: 26,
+            margin: const EdgeInsets.only(right: 8, bottom: 2),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: SweepGradient(
+                colors: [_kAurora1, _kAurora2, _kAurora3, _kAurora1],
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(1.5),
+              child: ClipOval(
+                child: Image.asset('assets/images/AiLogo.png', fit: BoxFit.cover),
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.06),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(4),
+                topRight: Radius.circular(20),
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
+              ),
+              border: Border.all(color: Colors.white.withOpacity(0.08)),
+            ),
+            child: AnimatedBuilder(
+              animation: _waveCtrl,
+              builder: (_, __) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(3, (i) {
+                    final phase = ((_waveCtrl.value + i * 0.28) % 1.0);
+                    final h = 5.0 + phase * 11.0;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 50),
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: 5,
+                      height: h,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(3),
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            _kAurora2.withOpacity(0.5 + phase * 0.5),
+                            _kAurora1.withOpacity(0.3 + phase * 0.7),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Input area ────────────────────────────────────────────────────────
+
+  Widget _buildInput(
+    BuildContext context,
+    AiAssistantCubit cubit,
+    AiAssistantState state,
+  ) {
+    final isListening = state.status == AiAssistantStatus.listening;
+    final isThinking = state.status == AiAssistantStatus.thinking;
+    final isSpeaking = state.status == AiAssistantStatus.speaking;
+    final busy = isThinking;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        MediaQuery.of(context).padding.bottom + 16,
+      ),
+      decoration: BoxDecoration(
+        color: _kGlassDark.withOpacity(0.8),
+        border: Border(
+          top: BorderSide(color: Colors.white.withOpacity(0.05)),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // Text input
+          Expanded(
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 48, maxHeight: 120),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.07),
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.1),
+                ),
+              ),
+              child: TextField(
+                controller: _textCtrl,
+                enabled: !busy && !isListening,
+                maxLines: null,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+                decoration: InputDecoration(
+                  hintText: isListening
+                      ? '🎙  Dinləyirəm...'
+                      : busy
+                      ? '⏳  Düşünür...'
+                      : 'Bir şey yazın...',
+                  hintStyle: TextStyle(
+                    color: Colors.white.withOpacity(0.3),
+                    fontSize: 14,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 13,
+                  ),
+                ),
+                onSubmitted: (_) => _send(cubit),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // Send / Mic button
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            switchInCurve: Curves.easeOutBack,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (child, anim) => ScaleTransition(
+              scale: anim,
+              child: FadeTransition(opacity: anim, child: child),
+            ),
+            child: _showSend
+                ? _SendButton(
+                    key: const ValueKey('send'),
+                    onTap: () => _send(cubit),
+                  )
+                : _MicButton(
+                    key: const ValueKey('mic'),
+                    pulse: _pulseCtrl,
+                    isListening: isListening,
+                    isSpeaking: isSpeaking,
+                    isThinking: isThinking,
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      if (isListening) {
+                        cubit.stopListening();
+                      } else if (isSpeaking) {
+                        cubit.voiceService.stopSpeaking();
+                      } else if (!isThinking) {
+                        cubit.startListening();
+                      }
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Profile toast ─────────────────────────────────────────────────────
+
+  Widget _buildProfileToast() {
+    return Positioned(
+      top: 64,
+      left: 16,
+      right: 16,
+      child: TweenAnimationBuilder<double>(
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOutCubic,
+        tween: Tween(begin: 0.0, end: 1.0),
+        builder: (_, v, child) {
+          return Transform.translate(
+            offset: Offset(0, -24 * (1 - v)),
+            child: Opacity(opacity: v, child: child),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF059669), Color(0xFF10B981)],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF10B981).withOpacity(0.4),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.verified_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Profil Yeniləndi ✓',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                  ),
+                  SizedBox(height: 1),
+                  Text(
+                    'AI tərəfindən uğurla güncəlləndi',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+
+  String _statusLabel(AiAssistantStatus s) {
+    switch (s) {
+      case AiAssistantStatus.idle: return 'Hazır';
+      case AiAssistantStatus.listening: return 'Dinləyir...';
+      case AiAssistantStatus.thinking: return 'Düşünür...';
+      case AiAssistantStatus.speaking: return 'Danışır...';
+    }
+  }
+
+  Color _statusColor(AiAssistantStatus s) {
+    switch (s) {
+      case AiAssistantStatus.idle: return _kAurora3;
+      case AiAssistantStatus.listening: return const Color(0xFFEF4444);
+      case AiAssistantStatus.thinking: return _kAurora2;
+      case AiAssistantStatus.speaking: return _kAurora1;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SUPPORTING WIDGETS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Slide-up + fade wrapper for messages
+class _AnimatedMessageWrapper extends StatefulWidget {
+  final Widget child;
+  const _AnimatedMessageWrapper({required this.child});
+
+  @override
+  State<_AnimatedMessageWrapper> createState() =>
+      _AnimatedMessageWrapperState();
+}
+
+class _AnimatedMessageWrapperState extends State<_AnimatedMessageWrapper>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 400),
+  )..forward();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, child) {
+        final v = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+        return Transform.translate(
+          offset: Offset(0, 16 * (1 - v.value)),
+          child: Opacity(opacity: v.value, child: child),
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+/// Animated job card
+class _AnimatedJobCard extends StatefulWidget {
+  final JobModel job;
+  final Duration delay;
+  final VoidCallback onTap;
+
+  const _AnimatedJobCard({
+    required this.job,
+    required this.delay,
+    required this.onTap,
+  });
+
+  @override
+  State<_AnimatedJobCard> createState() => _AnimatedJobCardState();
+}
+
+class _AnimatedJobCardState extends State<_AnimatedJobCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
+    Future.delayed(widget.delay, () {
+      if (mounted) _ctrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, child) {
+        final v = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+        return Transform.translate(
+          offset: Offset(0, 20 * (1 - v.value)),
+          child: Opacity(opacity: v.value, child: child),
+        );
+      },
+      child: _JobCardBody(job: widget.job, onTap: widget.onTap),
+    );
+  }
+}
+
+class _JobCardBody extends StatelessWidget {
+  final JobModel job;
+  final VoidCallback onTap;
+
+  const _JobCardBody({required this.job, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = job.matchPercentage ?? 0;
+    final matchColor = pct >= 80
+        ? _kAurora3
+        : pct >= 60
+        ? _kAurora2
+        : const Color(0xFFF59E0B);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: context.scaffoldBackgroundColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.dividerColor.withValues(alpha: 0.5)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            // Close the overlay first
-            Navigator.of(context).pop();
-            // Then navigate to job details
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => JobDetailScreen(job: job)),
-            );
-          },
+          borderRadius: BorderRadius.circular(16),
+          splashColor: _kAurora1.withOpacity(0.1),
+          highlightColor: Colors.transparent,
+          onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             child: Row(
               children: [
+                // Icon box
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    gradient: LinearGradient(
+                      colors: [
+                        _kAurora1.withOpacity(0.3),
+                        _kAurora2.withOpacity(0.2),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
-                    Icons.work_outline,
-                    color: AppTheme.primaryColor,
+                    Icons.work_outline_rounded,
+                    color: Colors.white70,
                     size: 20,
                   ),
                 ),
                 const SizedBox(width: 12),
+
+                // Info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -525,61 +1136,72 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
                       Text(
                         job.title,
                         style: const TextStyle(
+                          color: Colors.white,
                           fontWeight: FontWeight.w700,
-                          fontSize: 14,
+                          fontSize: 13.5,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       Text(
-                        '${job.companyName} • ${job.city}',
+                        '${job.companyName}  ·  ${job.city}',
                         style: TextStyle(
-                          color: context.textSecondaryColor,
+                          color: Colors.white.withOpacity(0.45),
                           fontSize: 12,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (job.salaryMin > 0) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          job.salaryText,
+                          style: TextStyle(
+                            color: _kAurora3,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
-                // Match percentage badge
-                if (job.matchPercentage != null &&
-                    job.matchPercentage! > 0) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getMatchColor(
-                        job.matchPercentage!,
-                      ).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _getMatchColor(
-                          job.matchPercentage!,
-                        ).withValues(alpha: 0.3),
-                        width: 1,
+                const SizedBox(width: 10),
+
+                // Match badge
+                if (pct > 0)
+                  Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: matchColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: matchColor.withOpacity(0.4),
+                          ),
+                        ),
+                        child: Text(
+                          '%$pct',
+                          style: TextStyle(
+                            color: matchColor,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      '%${job.matchPercentage}',
-                      style: TextStyle(
-                        color: _getMatchColor(job.matchPercentage!),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    ],
                   ),
-                ],
-                const SizedBox(width: 8),
+
+                const SizedBox(width: 6),
                 Icon(
-                  Icons.chevron_right_rounded,
-                  color: context.textSecondaryColor,
-                  size: 20,
+                  Icons.arrow_forward_ios_rounded,
+                  size: 13,
+                  color: Colors.white.withOpacity(0.25),
                 ),
               ],
             ),
@@ -588,369 +1210,227 @@ class _AiAssistantOverlayState extends State<AiAssistantOverlay>
       ),
     );
   }
+}
 
-  Widget _buildThinkingBubble(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeOutCubic,
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(opacity: value, child: child),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF6C63FF), Color(0xFF4ECDC4)],
-                ),
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.asset(
-                  'assets/images/AiLogo.png',
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              decoration: BoxDecoration(
-                color: context.isDarkMode
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : const Color(0xFFF0F0F5),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(18),
-                  topRight: Radius.circular(18),
-                  bottomRight: Radius.circular(18),
-                  bottomLeft: Radius.circular(4),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: AnimatedBuilder(
-                animation: _waveController,
-                builder: (context, child) {
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: List.generate(3, (i) {
-                      final delay = i * 0.2;
-                      final animValue = (_waveController.value + delay) % 1.0;
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        width: 8,
-                        height: 8 + (animValue * 8),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              const Color(
-                                0xFF6C63FF,
-                              ).withValues(alpha: 0.4 + animValue * 0.6),
-                              const Color(
-                                0xFF4ECDC4,
-                              ).withValues(alpha: 0.4 + animValue * 0.6),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      );
-                    }),
-                  );
-                },
-              ),
-            ),
-          ],
+/// Glass icon button
+class _GlassButton extends StatelessWidget {
+  final VoidCallback onTap;
+  final Widget child;
+
+  const _GlassButton({required this.onTap, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.07),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// Quick action chip
+class _QuickChip extends StatelessWidget {
+  final String label;
+  const _QuickChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: Colors.white.withOpacity(0.6),
+          fontSize: 13,
         ),
       ),
     );
   }
+}
 
-  Widget _buildInputArea(
-    BuildContext context,
-    AiAssistantCubit cubit,
-    AiAssistantState state,
-  ) {
-    final isListening = state.status == AiAssistantStatus.listening;
-    final isThinking = state.status == AiAssistantStatus.thinking;
-    final isSpeaking = state.status == AiAssistantStatus.speaking;
+/// Role badge
+class _RoleBadge extends StatelessWidget {
+  final UserRole role;
+  const _RoleBadge({required this.role});
 
+  @override
+  Widget build(BuildContext context) {
+    final isSeeker = role == UserRole.seeker;
     return Container(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        12,
-        12,
-        MediaQuery.of(context).padding.bottom + 12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: context.scaffoldBackgroundColor,
-        border: Border(
-          top: BorderSide(color: context.dividerColor, width: 0.5),
+        color: (isSeeker ? _kAurora2 : _kAurora3).withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: (isSeeker ? _kAurora2 : _kAurora3).withOpacity(0.4),
         ),
       ),
-      child: Row(
-        children: [
-          // Text input field
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: context.inputFillColor,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: TextField(
-                controller: _textController,
-                enabled: !isListening && !isThinking,
-                decoration: InputDecoration(
-                  hintText: isListening ? 'Dinləyirəm...' : 'Mesaj yazın...',
-                  hintStyle: TextStyle(
-                    color: context.textHintColor,
-                    fontSize: 14,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                ),
-                onSubmitted: (text) {
-                  if (text.trim().isNotEmpty) {
-                    cubit.sendTextMessage(text);
-                    _textController.clear();
-                  }
-                },
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
+      child: Text(
+        isSeeker ? 'İş arayan' : 'İşveren',
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: isSeeker ? _kAurora2 : _kAurora3,
+        ),
+      ),
+    );
+  }
+}
 
-          // Send button (text)
-          if (_textController.text.isNotEmpty)
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              tween: Tween(begin: 0.0, end: 1.0),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: Opacity(opacity: value, child: child),
-                );
-              },
-              child: GestureDetector(
-                onTap: () {
-                  if (_textController.text.trim().isNotEmpty) {
-                    cubit.sendTextMessage(_textController.text);
-                    _textController.clear();
-                  }
-                },
-                child: Container(
-                  width: 48,
-                  height: 48,
+/// Send button
+class _SendButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _SendButton({super.key, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [_kAurora1, _kAurora2],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(25),
+          boxShadow: [
+            BoxShadow(
+              color: _kAurora1.withOpacity(0.4),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+      ),
+    );
+  }
+}
+
+/// Microphone button with neural pulse
+class _MicButton extends StatelessWidget {
+  final Animation<double> pulse;
+  final bool isListening;
+  final bool isSpeaking;
+  final bool isThinking;
+  final VoidCallback onTap;
+
+  const _MicButton({
+    super.key,
+    required this.pulse,
+    required this.isListening,
+    required this.isSpeaking,
+    required this.isThinking,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedBuilder(
+        animation: pulse,
+        builder: (_, __) {
+          final scale = isListening ? 1.0 + pulse.value * 0.12 : 1.0;
+
+          final colors = isListening
+              ? [const Color(0xFFFF4757), const Color(0xFFFF6B81)]
+              : isSpeaking
+              ? [_kAurora3, _kAurora2]
+              : isThinking
+              ? [_kAurora2, _kAurora1]
+              : [_kAurora1, _kAurora2];
+
+          return Transform.scale(
+            scale: scale,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Outer ring (listening)
+                if (isListening)
+                  Opacity(
+                    opacity: (1 - pulse.value) * 0.5,
+                    child: Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.red.withOpacity(0.6),
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                Container(
+                  width: 50,
+                  height: 50,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF6C63FF), Color(0xFF4ECDC4)],
+                    gradient: LinearGradient(
+                      colors: colors,
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(25),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
-                        blurRadius: 12,
+                        color: colors.first.withOpacity(
+                          isListening ? 0.6 : 0.35,
+                        ),
+                        blurRadius: isListening ? 22 : 12,
+                        spreadRadius: isListening ? 2 : 0,
                         offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.send_rounded,
-                    color: Colors.white,
-                    size: 22,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    transitionBuilder: (child, anim) => ScaleTransition(
+                      scale: anim,
+                      child: FadeTransition(opacity: anim, child: child),
+                    ),
+                    child: Icon(
+                      isListening
+                          ? Icons.stop_rounded
+                          : isSpeaking
+                          ? Icons.volume_up_rounded
+                          : Icons.mic_rounded,
+                      key: ValueKey('$isListening$isSpeaking'),
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-
-          // Microphone button
-          if (_textController.text.isEmpty)
-            GestureDetector(
-              onTap: () {
-                if (isListening) {
-                  cubit.stopListening();
-                } else if (isSpeaking) {
-                  cubit.voiceService.stopSpeaking();
-                } else if (!isThinking) {
-                  cubit.startListening();
-                }
-              },
-              child: AnimatedBuilder(
-                animation: _pulseController,
-                builder: (context, child) {
-                  final scale = isListening
-                      ? 1.0 + _pulseController.value * 0.15
-                      : 1.0;
-                  return Transform.scale(
-                    scale: scale,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Outer glow ring
-                        if (isListening)
-                          Container(
-                            width: 72,
-                            height: 72,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.red.withValues(
-                                  alpha: 0.3 * (1 - _pulseController.value),
-                                ),
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                        // Main button
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: isListening
-                                  ? [
-                                      const Color(0xFFFF5252),
-                                      const Color(0xFFFF1744),
-                                    ]
-                                  : isSpeaking
-                                  ? [
-                                      const Color(0xFF4ECDC4),
-                                      const Color(0xFF44A08D),
-                                    ]
-                                  : [
-                                      const Color(0xFF6C63FF),
-                                      const Color(0xFF4ECDC4),
-                                    ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(26),
-                            boxShadow: [
-                              BoxShadow(
-                                color:
-                                    (isListening
-                                            ? Colors.red
-                                            : isSpeaking
-                                            ? const Color(0xFF4ECDC4)
-                                            : const Color(0xFF6C63FF))
-                                        .withValues(alpha: 0.4),
-                                blurRadius: isListening ? 20 : 12,
-                                spreadRadius: isListening ? 3 : 0,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 300),
-                            transitionBuilder: (child, animation) {
-                              return ScaleTransition(
-                                scale: animation,
-                                child: FadeTransition(
-                                  opacity: animation,
-                                  child: child,
-                                ),
-                              );
-                            },
-                            child: Icon(
-                              isListening
-                                  ? Icons.stop_rounded
-                                  : isSpeaking
-                                  ? Icons.volume_up_rounded
-                                  : Icons.mic_rounded,
-                              key: ValueKey(
-                                isListening
-                                    ? 'stop'
-                                    : isSpeaking
-                                    ? 'volume'
-                                    : 'mic',
-                              ),
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-        ],
+          );
+        },
       ),
     );
   }
-
-  String _getStatusText(AiAssistantStatus status) {
-    switch (status) {
-      case AiAssistantStatus.idle:
-        return 'Hazır';
-      case AiAssistantStatus.listening:
-        return 'Dinləyir...';
-      case AiAssistantStatus.thinking:
-        return 'Düşünür...';
-      case AiAssistantStatus.speaking:
-        return 'Danışır...';
-    }
-  }
-
-  Color _getStatusColor(AiAssistantStatus status) {
-    switch (status) {
-      case AiAssistantStatus.idle:
-        return AppTheme.successColor;
-      case AiAssistantStatus.listening:
-        return Colors.red;
-      case AiAssistantStatus.thinking:
-        return AppTheme.accentColor;
-      case AiAssistantStatus.speaking:
-        return AppTheme.primaryColor;
-    }
-  }
-
-  /// Eşleşme yüzdesine göre renk döndür
-  Color _getMatchColor(int percentage) {
-    if (percentage >= 80) {
-      return const Color(0xFF10B981); // Yeşil - Mükemmel eşleşme
-    } else if (percentage >= 60) {
-      return const Color(0xFF3B82F6); // Mavi - İyi eşleşme
-    } else if (percentage >= 40) {
-      return const Color(0xFFF59E0B); // Turuncu - Orta eşleşme
-    } else {
-      return const Color(0xFFEF4444); // Kırmızı - Düşük eşleşme
-    }
-  }
 }
 
-/// Floating Action Button for AI Assistant
+// ─────────────────────────────────────────────────────────────────────────────
+//  FAB
+// ─────────────────────────────────────────────────────────────────────────────
+
 class AiAssistantFab extends StatefulWidget {
   const AiAssistantFab({super.key});
 
@@ -960,68 +1440,57 @@ class AiAssistantFab extends StatefulWidget {
 
 class _AiAssistantFabState extends State<AiAssistantFab>
     with SingleTickerProviderStateMixin {
-  late AnimationController _glowController;
-
-  @override
-  void initState() {
-    super.initState();
-    _glowController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-  }
+  late final AnimationController _glow = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 2),
+  )..repeat(reverse: true);
 
   @override
   void dispose() {
-    _glowController.dispose();
+    _glow.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _glowController,
-      builder: (context, child) {
+      animation: _glow,
+      builder: (_, __) {
         return Container(
           width: 60,
           height: 60,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF6C63FF), Color(0xFF4ECDC4)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+            shape: BoxShape.circle,
+            gradient: const SweepGradient(
+              colors: [_kAurora1, _kAurora2, _kAurora3, _kAurora1],
             ),
-            borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: const Color(
-                  0xFF6C63FF,
-                ).withValues(alpha: 0.3 + _glowController.value * 0.2),
-                blurRadius: 12 + _glowController.value * 8,
-                spreadRadius: _glowController.value * 2,
-                offset: const Offset(0, 4),
+                color: _kAurora1.withOpacity(0.3 + _glow.value * 0.25),
+                blurRadius: 14 + _glow.value * 10,
+                spreadRadius: _glow.value * 2,
               ),
             ],
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(30),
-              onTap: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) => const AiAssistantOverlay(),
-                );
-              },
-              child: Center(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(30),
+          child: Padding(
+            padding: const EdgeInsets.all(2),
+            child: Material(
+              color: _kGlassDark,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () {
+                  HapticFeedback.mediumImpact();
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => const AiAssistantOverlay(),
+                  );
+                },
+                child: ClipOval(
                   child: Image.asset(
                     'assets/images/AiLogo.png',
-                    width: 60,
-                    height: 60,
                     fit: BoxFit.cover,
                   ),
                 ),

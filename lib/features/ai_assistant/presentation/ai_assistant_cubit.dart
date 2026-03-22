@@ -1,39 +1,63 @@
-import '../../../features/jobs/data/models/job_model.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../data/services/ai_service.dart';
+
+import '../../../features/jobs/data/models/job_model.dart';
 import '../../../core/services/voice_service.dart';
 import '../data/ai_profile_service.dart';
 import '../data/ai_job_search_service.dart';
+import '../data/services/ai_service.dart';
+
+// ─────────────────────────────────────────────────
+//  ENUMS & MODELS
+// ─────────────────────────────────────────────────
 
 enum AiAssistantStatus { idle, listening, thinking, speaking }
 
+/// Chat message model — can carry job cards
 class AiMessage {
   final String text;
   final bool isUser;
   final DateTime timestamp;
-  final List<JobModel>? jobs; // Payload to show interactive job cards
+  final List<JobModel>? jobs;
+  final AiMessageType type;
 
   AiMessage({
     required this.text,
     required this.isUser,
     DateTime? timestamp,
     this.jobs,
+    this.type = AiMessageType.normal,
   }) : timestamp = timestamp ?? DateTime.now();
 }
+
+enum AiMessageType {
+  normal,
+  profileUpdated,
+  jobResults,
+  error,
+  tip,
+}
+
+// ─────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────
 
 class AiAssistantState {
   final AiAssistantStatus status;
   final List<AiMessage> messages;
-  final String partialText; // Partial speech result
-  final bool showProfileUpdatedNotification; // Show iOS-style notification
+  final String partialText;
+  final bool showProfileUpdatedNotification;
+  final UserRole userRole;
+  final bool isTyping; // Show typing indicator while AI thinks
 
   const AiAssistantState({
     this.status = AiAssistantStatus.idle,
     this.messages = const [],
     this.partialText = '',
     this.showProfileUpdatedNotification = false,
+    this.userRole = UserRole.unknown,
+    this.isTyping = false,
   });
 
   AiAssistantState copyWith({
@@ -41,51 +65,64 @@ class AiAssistantState {
     List<AiMessage>? messages,
     String? partialText,
     bool? showProfileUpdatedNotification,
+    UserRole? userRole,
+    bool? isTyping,
   }) {
     return AiAssistantState(
       status: status ?? this.status,
       messages: messages ?? this.messages,
       partialText: partialText ?? this.partialText,
-      showProfileUpdatedNotification: showProfileUpdatedNotification ?? this.showProfileUpdatedNotification,
+      showProfileUpdatedNotification:
+          showProfileUpdatedNotification ?? this.showProfileUpdatedNotification,
+      userRole: userRole ?? this.userRole,
+      isTyping: isTyping ?? this.isTyping,
     );
   }
 }
+
+// ─────────────────────────────────────────────────
+//  CUBIT
+// ─────────────────────────────────────────────────
 
 class AiAssistantCubit extends Cubit<AiAssistantState> {
   final AiService _aiService = AiService();
   final VoiceService _voiceService = VoiceService();
   final AiProfileService _profileService = AiProfileService();
   final AiJobSearchService _jobSearchService = AiJobSearchService();
+
   bool _hasGreeted = false;
 
   AiAssistantCubit() : super(const AiAssistantState());
 
   VoiceService get voiceService => _voiceService;
 
-  /// Söhbəti sıfırla
+  // ─────────────────────────────────────────────────
+  //  LIFECYCLE
+  // ─────────────────────────────────────────────────
+
+  /// Reset the whole conversation and re-greet
   Future<void> resetConversation() async {
     await _voiceService.stopSpeaking();
     await _voiceService.stopListening();
-    
+
     _aiService.resetChat();
     _hasGreeted = false;
-    
+
     emit(const AiAssistantState());
-    
-    // Yenidən salamla
     greet();
   }
 
-  /// AI popup ilk açılanda salamlama mesajı
+  /// Initial greeting when AI panel opens
   Future<void> greet() async {
     if (_hasGreeted) return;
     _hasGreeted = true;
 
-    const greeting = 'Salam! Mən İşçi AI. Sənə bu gün necə kömək edə bilərəm?';
-    
+    // Personalized greeting based on profile
+    String greeting = await _buildGreeting();
+
     final messages = List<AiMessage>.from(state.messages)
       ..add(AiMessage(text: greeting, isUser: false));
-    
+
     emit(state.copyWith(
       messages: messages,
       status: AiAssistantStatus.speaking,
@@ -93,27 +130,43 @@ class AiAssistantCubit extends Cubit<AiAssistantState> {
 
     try {
       await _voiceService.initialize();
-      debugPrint('AiAssistantCubit: VoiceService initialized, starting to speak greeting');
       await _voiceService.speak(greeting);
-      debugPrint('AiAssistantCubit: Greeting spoken');
-    } catch (e, stackTrace) {
-      debugPrint('AiAssistantCubit: Error in greet: $e');
-      debugPrint('Stack trace: $stackTrace');
+    } catch (e) {
+      debugPrint('AiAssistantCubit greet error: $e');
     }
-    
-    // Wait for TTS to finish
+
     await Future.delayed(const Duration(seconds: 3));
     emit(state.copyWith(status: AiAssistantStatus.idle));
   }
 
-  /// Mikrofondan dinləməyə başla
+  /// Build a personalized greeting from user profile
+  Future<String> _buildGreeting() async {
+    try {
+      final profile = await _profileService.getUserProfile();
+      final name = (profile?['fullName'] ?? '').toString().trim();
+      final profession = (profile?['profession'] ?? '').toString().trim();
+
+      if (name.isNotEmpty && profession.isNotEmpty) {
+        return 'Salam, $name! 👋 Səninlə yenidən görüşdüm. $profession olaraq bu gün necə kömək edə bilərəm?';
+      } else if (name.isNotEmpty) {
+        return 'Salam, $name! 👋 Bu gün sənə necə kömək edə bilərəm — iş axtarırsın, yoxsa başqa bir şey?';
+      }
+    } catch (_) {}
+
+    return 'Salam! 👋 Mən İşçi AI-yam. İş axtarırsansa, elan yerləşdirirsənsə, ya da sadəcə məsləhət lazımdırsa — buradayam!';
+  }
+
+  // ─────────────────────────────────────────────────
+  //  INPUT HANDLING
+  // ─────────────────────────────────────────────────
+
   Future<void> startListening() async {
     if (state.status == AiAssistantStatus.speaking) {
       await _voiceService.stopSpeaking();
     }
 
     emit(state.copyWith(status: AiAssistantStatus.listening, partialText: ''));
-    
+
     await _voiceService.startListening((recognizedText) {
       if (recognizedText.isNotEmpty) {
         _processUserInput(recognizedText);
@@ -123,201 +176,275 @@ class AiAssistantCubit extends Cubit<AiAssistantState> {
     });
   }
 
-  /// Dinləməni dayandır
   Future<void> stopListening() async {
     await _voiceService.stopListening();
     emit(state.copyWith(status: AiAssistantStatus.idle));
   }
 
-  /// İstifadəçi mesajını yaz (text input)
   Future<void> sendTextMessage(String text) async {
     if (text.trim().isEmpty) return;
     await _processUserInput(text.trim());
   }
 
-  /// İstifadəçi mesajını emal et
+  // ─────────────────────────────────────────────────
+  //  CORE PROCESSING
+  // ─────────────────────────────────────────────────
+
   Future<void> _processUserInput(String userText) async {
     // Add user message
-    final messages = List<AiMessage>.from(state.messages)
+    final messagesWithUser = List<AiMessage>.from(state.messages)
       ..add(AiMessage(text: userText, isUser: true));
-    
+
     emit(state.copyWith(
-      messages: messages,
+      messages: messagesWithUser,
       status: AiAssistantStatus.thinking,
+      isTyping: true,
       partialText: '',
     ));
 
     try {
-      // Get user profile for context
+      // Enrich with profile
       final profileSummary = await _profileService.getProfileSummary();
-      debugPrint('AiAssistantCubit: Profile summary: $profileSummary');
-      
-      // Send to AI
-      String aiResponse = await _aiService.sendMessage(
+      debugPrint('AiAssistantCubit: Profile: $profileSummary');
+
+      final aiResponse = await _aiService.sendMessage(
         userText,
         userProfileJson: profileSummary,
       );
-      
-      debugPrint('AiAssistantCubit: AI raw response: $aiResponse');
 
-      // Handle special commands in AI response
+      debugPrint('AiAssistantCubit: Raw AI response: $aiResponse');
+
+      // Process role detection (done inside AiService._parseRoleFromResponse)
+      // Sync role to state
+      final detectedRole = _aiService.detectedRole;
+      if (detectedRole != state.userRole) {
+        emit(state.copyWith(userRole: detectedRole, isTyping: false));
+        debugPrint('AiAssistantCubit: Role updated → $detectedRole');
+      }
+
+      // Handle special commands
       final aiMessage = await _handleSpecialCommands(aiResponse);
-      
-      debugPrint('AiAssistantCubit: Final message text: ${aiMessage.text}');
 
-      // Add AI response
-      final updatedMessages = List<AiMessage>.from(state.messages)
+      final finalMessages = List<AiMessage>.from(state.messages)
         ..add(aiMessage);
 
       emit(state.copyWith(
-        messages: updatedMessages,
+        messages: finalMessages,
         status: AiAssistantStatus.speaking,
+        isTyping: false,
       ));
 
-      // Speak the response
-      debugPrint('AiAssistantCubit: Starting to speak AI response');
+      // Speak
       await _voiceService.speak(aiMessage.text);
-      debugPrint('AiAssistantCubit: AI response spoken');
-      
-      // Wait then return to idle
       await _waitForSpeechDone();
       emit(state.copyWith(status: AiAssistantStatus.idle));
-    } catch (e, stackTrace) {
-      debugPrint('AiAssistantCubit: Error in _processUserInput: $e');
-      debugPrint('Stack trace: $stackTrace');
-      final errorMsg = 'Bağışlayın, bir xəta baş verdi. Zəhmət olmasa yenidən cəhd edin.';
-      final updatedMessages = List<AiMessage>.from(state.messages)
-        ..add(AiMessage(text: errorMsg, isUser: false));
-      emit(state.copyWith(messages: updatedMessages, status: AiAssistantStatus.idle));
+    } catch (e, st) {
+      debugPrint('AiAssistantCubit error: $e\n$st');
+      final errorMessage = AiMessage(
+        text: 'Bağışlayın, bir xəta baş verdi. Zəhmət olmasa yenidən cəhd edin.',
+        isUser: false,
+        type: AiMessageType.error,
+      );
+      final msgs = List<AiMessage>.from(state.messages)..add(errorMessage);
+      emit(state.copyWith(
+        messages: msgs,
+        status: AiAssistantStatus.idle,
+        isTyping: false,
+      ));
     }
   }
 
-  /// AI cavabında xüsusi komandaları emal et
+  // ─────────────────────────────────────────────────
+  //  SPECIAL COMMAND HANDLERS
+  // ─────────────────────────────────────────────────
+
   Future<AiMessage> _handleSpecialCommands(String response) async {
-    debugPrint('AiAssistantCubit: _handleSpecialCommands input: $response');
-    
-    // Profile update command
-    if (response.contains('[PROFILE_UPDATE]')) {
-      try {
-        final parts = response.split('[PROFILE_UPDATE]');
-        final textBefore = parts[0].trim();
-        final jsonPart = parts[1].split('[/PROFILE_UPDATE]')[0].trim();
-        final textAfter = parts[1].split('[/PROFILE_UPDATE]').length > 1 
-            ? parts[1].split('[/PROFILE_UPDATE]')[1].trim() 
-            : '';
-            
-        // Clean markdown code blocks if present
-        final cleanJson = jsonPart
-            .replaceAll('```json', '')
-            .replaceAll('```', '')
-            .trim();
-        
-        debugPrint('AiAssistantCubit: Profile update JSON: $cleanJson');
-        
-        try {
-          final profileData = json.decode(cleanJson) as Map<String, dynamic>;
-          final success = await _profileService.updateProfileFromAi(profileData);
-          
-          if (success) {
-            // Trigger iOS-style notification
-            emit(state.copyWith(showProfileUpdatedNotification: true));
-            
-            // Auto-hide notification after 3 seconds
-            Future.delayed(const Duration(seconds: 3), () {
-              if (!isClosed) {
-                emit(state.copyWith(showProfileUpdatedNotification: false));
-              }
-            });
-          }
-        } catch (e) {
-          debugPrint('Profile update JSON parse error: $e');
-        }
-        
-        // Remove the JSON part from visible response
-        // Use text before or text after, whichever is meaningful
-        String displayText = textAfter.isNotEmpty ? textAfter : textBefore;
-        if (displayText.isEmpty) {
-          displayText = 'Profiliniz uğurla yeniləndi!';
-        }
-        
-        return AiMessage(text: displayText, isUser: false);
-      } catch (e) {
-        debugPrint('Profile update error: $e');
-        // If error, just return original response cleaned
-        final cleanResponse = response.replaceAll(RegExp(r'\[PROFILE_UPDATE\].*?\[/PROFILE_UPDATE\]', dotAll: true), '').trim();
-        return AiMessage(text: cleanResponse.isNotEmpty ? cleanResponse : 'Profil yeniləndi.', isUser: false);
-      }
+    // Strip hidden [ROLE_DETECT] tag from visible text
+    String cleanResponse = response
+        .replaceAll(
+          RegExp(r'\[ROLE_DETECT\].*?\[/ROLE_DETECT\]', dotAll: true),
+          '',
+        )
+        .trim();
+
+    // ── Profile update ──────────────────────────────
+    if (cleanResponse.contains('[PROFILE_UPDATE]')) {
+      return await _handleProfileUpdate(cleanResponse);
     }
 
-    // Job search command
-    if (response.contains('[JOB_SEARCH]') && response.contains('[/JOB_SEARCH]')) {
-      try {
-        final jsonStr = response
-            .split('[JOB_SEARCH]')[1]
-            .split('[/JOB_SEARCH]')[0]
-            .trim();
-        
-        final cleanJson = jsonStr
-            .replaceAll('```json', '')
-            .replaceAll('```', '')
-            .trim();
-        
-        debugPrint('AiAssistantCubit: Job search JSON: $cleanJson');
-        
-        final searchData = json.decode(cleanJson) as Map<String, dynamic>;
-        final query = searchData['query'] as String?;
-        final limit = searchData['limit'] is int ? searchData['limit'] as int : 5;
-        final sortBy = (searchData['sortBy'] as String?) ?? 'relevance';
-        final ignoreProfile = searchData['ignoreProfile'] == true;
-        
-        final profile = await _profileService.getUserProfile();
-        final jobs = await _jobSearchService.searchJobsForProfile(profile, query: query, limit: limit, sortBy: sortBy, ignoreProfile: ignoreProfile);
-        
-        // Extract message after [/JOB_SEARCH] tag
-        final parts = response.split('[/JOB_SEARCH]');
-        String messageAfter = '';
-        if (parts.length > 1) {
-          messageAfter = parts[1]
-              .replaceAll('```', '')
-              .trim();
-        }
-        
-        // Extract message before [JOB_SEARCH] tag
-        String messageBefore = response.split('[JOB_SEARCH]')[0]
-            .replaceAll('```', '')
-            .trim();
-        
-        // Combine messages (prefer after, fallback to before)
-        String finalMessage = messageAfter.isNotEmpty ? messageAfter : messageBefore;
-        
-        debugPrint('AiAssistantCubit: Message before: "$messageBefore"');
-        debugPrint('AiAssistantCubit: Message after: "$messageAfter"');
-        debugPrint('AiAssistantCubit: Final message: "$finalMessage"');
-        debugPrint('AiAssistantCubit: Jobs found: ${jobs.length}');
-        
-        if (jobs.isEmpty) {
-          // Don't send another message to AI, just inform user directly
-          final emptyMessage = 'Təəssüf ki, hal-hazırda sizin profilinizə tam uyğun iş elanı tapılmadı. Yeni elanlar əlavə olunduqca sizə bildiriş göndərəcəyik.';
-          return AiMessage(text: emptyMessage, isUser: false);
-        } else {
-          // Jobs found, use AI's message if available, otherwise use default
-          final displayMessage = finalMessage.isNotEmpty 
-              ? finalMessage 
-              : 'Sizin üçün ${jobs.length} uyğun iş tapdım! Aşağıdakı kartlara toxunaraq detallara baxa bilərsiniz.';
-              
-          return AiMessage(text: displayMessage, isUser: false, jobs: jobs);
-        }
-      } catch (e) {
-        debugPrint('Job search error: $e');
-        return AiMessage(text: 'İş axtarışında xəta baş verdi. Zəhmət olmasa yenidən cəhd edin.', isUser: false);
-      }
+    // ── Job search ──────────────────────────────────
+    if (cleanResponse.contains('[JOB_SEARCH]') &&
+        cleanResponse.contains('[/JOB_SEARCH]')) {
+      return await _handleJobSearch(cleanResponse);
     }
 
-    return AiMessage(text: response, isUser: false);
+    return AiMessage(text: cleanResponse, isUser: false);
+  }
+
+  /// Handle [PROFILE_UPDATE] command
+  Future<AiMessage> _handleProfileUpdate(String response) async {
+    try {
+      final parts = response.split('[PROFILE_UPDATE]');
+      final textBefore = parts[0].trim();
+      final remainder = parts[1].split('[/PROFILE_UPDATE]');
+      final jsonPart = remainder[0]
+          .trim()
+          .replaceAll('```json', '')
+          .replaceAll('```', '')
+          .trim();
+      final textAfter =
+          remainder.length > 1 ? remainder[1].trim() : '';
+
+      debugPrint('AiAssistantCubit: Profile JSON: $jsonPart');
+
+      try {
+        final profileData = json.decode(jsonPart) as Map<String, dynamic>;
+        final success = await _profileService.updateProfileFromAi(profileData);
+
+        if (success) {
+          _triggerProfileNotification();
+        }
+      } catch (e) {
+        debugPrint('Profile JSON parse error: $e');
+      }
+
+      // Pick most meaningful text part
+      String displayText =
+          textAfter.isNotEmpty ? textAfter : textBefore;
+      if (displayText.isEmpty) {
+        displayText = 'Məlumatlarınız profilinizə əlavə edildi! ✅';
+      }
+
+      return AiMessage(
+        text: displayText,
+        isUser: false,
+        type: AiMessageType.profileUpdated,
+      );
+    } catch (e) {
+      debugPrint('Profile update handler error: $e');
+      final fallback = response
+          .replaceAll(
+            RegExp(r'\[PROFILE_UPDATE\].*?\[/PROFILE_UPDATE\]', dotAll: true),
+            '',
+          )
+          .trim();
+      return AiMessage(
+        text: fallback.isNotEmpty ? fallback : 'Profil yeniləndi.',
+        isUser: false,
+        type: AiMessageType.profileUpdated,
+      );
+    }
+  }
+
+  /// Handle [JOB_SEARCH] command
+  Future<AiMessage> _handleJobSearch(String response) async {
+    try {
+      final jsonStr = response
+          .split('[JOB_SEARCH]')[1]
+          .split('[/JOB_SEARCH]')[0]
+          .trim()
+          .replaceAll('```json', '')
+          .replaceAll('```', '')
+          .trim();
+
+      debugPrint('AiAssistantCubit: Job search JSON: $jsonStr');
+
+      final searchData = json.decode(jsonStr) as Map<String, dynamic>;
+      final query = searchData['query'] as String?;
+      final limit = searchData['limit'] is int ? searchData['limit'] as int : 5;
+      final sortBy = (searchData['sortBy'] as String?) ?? 'relevance';
+      final ignoreProfile = searchData['ignoreProfile'] == true;
+
+      // Extract surrounding text
+      final messageBefore = response
+          .split('[JOB_SEARCH]')[0]
+          .replaceAll('```', '')
+          .trim();
+      final messageAfter = response
+          .split('[/JOB_SEARCH]')[1]
+          .replaceAll('```', '')
+          .trim();
+
+      final introText = messageAfter.isNotEmpty ? messageAfter : messageBefore;
+
+      // Search jobs
+      final profile = await _profileService.getUserProfile();
+      final jobs = await _jobSearchService.searchJobsForProfile(
+        profile,
+        query: query,
+        limit: limit,
+        sortBy: sortBy,
+        ignoreProfile: ignoreProfile,
+      );
+
+      debugPrint('AiAssistantCubit: Jobs found: ${jobs.length}');
+
+      if (jobs.isEmpty) {
+        return AiMessage(
+          text: _buildNoJobsMessage(query, sortBy),
+          isUser: false,
+          type: AiMessageType.jobResults,
+        );
+      }
+
+      final displayText = introText.isNotEmpty
+          ? introText
+          : _buildJobFoundMessage(jobs.length, query, sortBy);
+
+      return AiMessage(
+        text: displayText,
+        isUser: false,
+        jobs: jobs,
+        type: AiMessageType.jobResults,
+      );
+    } catch (e) {
+      debugPrint('Job search handler error: $e');
+      return AiMessage(
+        text: 'İş axtarışında xəta baş verdi. Yenidən cəhd edin.',
+        isUser: false,
+        type: AiMessageType.error,
+      );
+    }
+  }
+
+  /// Build a friendly "no jobs found" message
+  String _buildNoJobsMessage(String? query, String sortBy) {
+    if (query != null && query.isNotEmpty) {
+      return 'Hal-hazırda "$query" üçün aktiv elan tapılmadı. Yeni elanlar çıxanda dərhal görəcəksən! 🔔';
+    }
+    return 'Hal-hazırda profilinə tam uyğun aktiv elan yoxdur. Profili gücləndirsən, daha çox elan görünəcək!';
+  }
+
+  /// Build a friendly "jobs found" message
+  String _buildJobFoundMessage(int count, String? query, String sortBy) {
+    if (sortBy == 'salary') {
+      return 'Ən yüksək maaşlı $count elan — bir bax! 💰';
+    }
+    if (sortBy == 'date') {
+      return 'Ən son $count elan — isti-isti! 🔥';
+    }
+    if (query != null && query.isNotEmpty) {
+      return '"$query" üçün $count uyğun elan tapdım:';
+    }
+    return 'Sənə $count uyğun elan tapdım:';
+  }
+
+  // ─────────────────────────────────────────────────
+  //  HELPERS
+  // ─────────────────────────────────────────────────
+
+  void _triggerProfileNotification() {
+    if (isClosed) return;
+    emit(state.copyWith(showProfileUpdatedNotification: true));
+    Future.delayed(const Duration(seconds: 3), () {
+      if (!isClosed) {
+        emit(state.copyWith(showProfileUpdatedNotification: false));
+      }
+    });
   }
 
   Future<void> _waitForSpeechDone() async {
-    int maxWait = 60; // max 60 seconds
+    int maxWait = 60;
     while (_voiceService.isSpeaking && maxWait > 0) {
       await Future.delayed(const Duration(milliseconds: 500));
       maxWait--;

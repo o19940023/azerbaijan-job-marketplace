@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../data/repositories/firebase_auth_repository.dart';
+
+const _kBg      = Color(0xFF07070F);
+const _kAccent  = Color(0xFF5B5FEF);
+const _kAccent2 = Color(0xFF38BDF8);
+const _kSurface = Color(0xFF12121F);
+const _kBorder  = Color(0xFF2A2A4A);
 
 class RegisterScreen extends StatefulWidget {
   final String userType;
@@ -12,325 +19,531 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStateMixin {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmController = TextEditingController();
-  final _authRepo = FirebaseAuthRepository();
-  bool _isLoading = false;
-  late AnimationController _fadeController;
-  late AnimationController _slideController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+class _RegisterScreenState extends State<RegisterScreen>
+    with TickerProviderStateMixin {
+  final _emailCtrl    = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  final _confirmCtrl  = TextEditingController();
+  final _authRepo     = FirebaseAuthRepository();
+
+  bool _isLoading   = false;
+  bool _showPass    = false;
+  bool _showConfirm = false;
+
+  late final AnimationController _entryCtrl;
+  late final List<Animation<double>> _itemFades;
+  late final List<Animation<Offset>> _itemSlides;
+
+  static const _itemCount = 6;
 
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+
+    _entryCtrl = AnimationController(
       vsync: this,
-    );
-    _slideController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _fadeAnimation = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
-    
-    _fadeController.forward();
-    _slideController.forward();
+      duration: const Duration(milliseconds: 1100),
+    )..forward();
+
+    _itemFades  = [];
+    _itemSlides = [];
+
+    for (int i = 0; i < _itemCount; i++) {
+      final start = i * 0.10;
+      final end   = (start + 0.38).clamp(0.0, 1.0);
+      _itemFades.add(
+        Tween<double>(begin: 0.0, end: 1.0).animate(
+          CurvedAnimation(
+            parent: _entryCtrl,
+            curve: Interval(start, end, curve: Curves.easeOut),
+          ),
+        ),
+      );
+      _itemSlides.add(
+        Tween<Offset>(
+          begin: const Offset(0, 0.3),
+          end: Offset.zero,
+        ).animate(
+          CurvedAnimation(
+            parent: _entryCtrl,
+            curve: Interval(
+              start,
+              (end + 0.1).clamp(0.0, 1.0),
+              curve: Curves.easeOutCubic,
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmController.dispose();
-    _fadeController.dispose();
-    _slideController.dispose();
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    _confirmCtrl.dispose();
+    _entryCtrl.dispose();
     super.dispose();
   }
 
-  void _register() async {
-    if (_emailController.text.isEmpty || 
-        _passwordController.text.isEmpty ||
-        _confirmController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Zəhmət olmasa bütün xanaları doldurun')),
+  Widget _animated(int i, Widget child) => SlideTransition(
+        position: _itemSlides[i],
+        child: FadeTransition(opacity: _itemFades[i], child: child),
       );
+
+  // ── Actions ────────────────────────────────────────────────────
+
+  Future<void> _register() async {
+    if (_emailCtrl.text.isEmpty ||
+        _passwordCtrl.text.isEmpty ||
+        _confirmCtrl.text.isEmpty) {
+      _showSnack('Zəhmət olmasa bütün xanaları doldurun');
       return;
     }
-
-    if (_passwordController.text != _confirmController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Şifrələr uyğun gəlmir')),
-      );
+    if (_passwordCtrl.text != _confirmCtrl.text) {
+      _showSnack('Şifrələr uyğun gəlmir');
       return;
     }
-
     setState(() => _isLoading = true);
-
     try {
       await _authRepo.register(
-        email: _emailController.text,
-        password: _passwordController.text,
+        email: _emailCtrl.text,
+        password: _passwordCtrl.text,
         userType: widget.userType,
       );
-
-      // Log analytics sign up event
       await FirebaseAnalytics.instance.logSignUp(signUpMethod: 'email');
-      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Hesabınız uğurla yaradıldı! E-poçtunuza təsdiq linki göndərildi. Zəhmət olmasa təsdiqləyib daxil olun.'),
+            content: Text(
+              'Hesabınız uğurla yaradıldı! E-poçtunuza təsdiq linki göndərildi.',
+            ),
             backgroundColor: AppTheme.successColor,
             duration: Duration(seconds: 5),
           ),
         );
         Navigator.pushReplacementNamed(
-          context, 
+          context,
           AppRouter.login,
           arguments: widget.userType,
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Xəta: ${e.toString().replaceAll('Exception: ', '').replaceAll(RegExp(r'\[.*?\]\s*'), '')}'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
-      }
+      _showSnack('Xəta: ${_clean(e)}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  Future<void> _googleRegister() async {
+    setState(() => _isLoading = true);
+    try {
+      await _authRepo.signInWithGoogle(widget.userType);
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          widget.userType == 'employer'
+              ? AppRouter.employerHome
+              : AppRouter.jobSeekerHome,
+          (_) => false,
+        );
+      }
+    } catch (e) {
+      _showSnack('Xəta: ${_clean(e)}');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _appleRegister() async {
+    setState(() => _isLoading = true);
+    try {
+      await _authRepo.signInWithApple(widget.userType);
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          widget.userType == 'employer'
+              ? AppRouter.employerHome
+              : AppRouter.jobSeekerHome,
+          (_) => false,
+        );
+      }
+    } catch (e) {
+      _showSnack('Xəta: ${_clean(e)}');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: const Color(0xFF1E1E2E),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
+  }
+
+  String _clean(Object e) => e
+      .toString()
+      .replaceAll('Exception: ', '')
+      .replaceAll(RegExp(r'\[.*?\]\s*'), '');
+
+  // ── Build ──────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: context.scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text('Hesab yarat'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SlideTransition(
-            position: _slideAnimation,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 20),
-                  // Logo
-                  Hero(
-                    tag: 'app_logo',
-                    child: Center(
-                      child: Container(
-                        width: 90,
-                        height: 90,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                              blurRadius: 20,
-                              spreadRadius: 2,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(24),
-                          child: Padding(
-                            padding: const EdgeInsets.all(15),
-                            child: Image.asset(
-                              'assets/icons/Logo.png',
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  _AnimatedTextField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    labelText: 'E-poçt',
-                    hintText: 'nümunə@email.com',
-                    prefixIcon: Icons.email_outlined,
-                    delay: 600,
-                  ),
-                  const SizedBox(height: 16),
-                  _AnimatedTextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    labelText: 'Şifrə',
-                    hintText: '••••••••',
-                    prefixIcon: Icons.lock_outline,
-                    delay: 700,
-                  ),
-                  const SizedBox(height: 16),
-                  _AnimatedTextField(
-                    controller: _confirmController,
-                    obscureText: true,
-                    labelText: 'Şifrəni Təsdiqləyin',
-                    hintText: '••••••••',
-                    prefixIcon: Icons.lock_outline,
-                    delay: 800,
-                  ),
-                  const SizedBox(height: 32),
-                  TweenAnimationBuilder<double>(
-                    duration: const Duration(milliseconds: 900),
-                    curve: Curves.easeOutCubic,
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    builder: (context, value, child) {
-                      return Transform.scale(
-                        scale: 0.8 + (0.2 * value),
-                        child: Opacity(opacity: value, child: child),
-                      );
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.primaryGradient,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.4),
-                            blurRadius: 16,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _register,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: _isLoading 
-                          ? const SizedBox(
-                              width: 24, height: 24, 
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)
-                            )
-                          : const Text(
-                              'Qeydiyyatdan keç',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushReplacementNamed(
-                        context, 
-                        AppRouter.login,
-                        arguments: widget.userType,
-                      );
-                    },
-                    child: Text(
-                      'Artıq hesabınız var? Daxil olun',
-                      style: TextStyle(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
+      backgroundColor: _kBg,
+      body: Stack(
+        children: [
+          // Ambient blobs
+          Positioned(top: -100, left: -80, child: _blob(_kAccent2, 280, 0.06)),
+          Positioned(
+              bottom: -100, right: -60, child: _blob(_kAccent, 300, 0.07)),
+
+          SafeArea(
+            child: Column(
+              children: [
+                // Back button row
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 4, 16, 0),
+                  child: Row(
                     children: [
-                      Expanded(child: Divider(color: context.dividerColor)),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'və ya',
-                          style: TextStyle(
-                            color: context.textSecondaryColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                            color: Colors.white54, size: 20),
+                        onPressed: () => Navigator.pop(context),
                       ),
-                      Expanded(child: Divider(color: context.dividerColor)),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  _SocialButton(
-                    onPressed: _isLoading ? null : () async {
-                      setState(() => _isLoading = true);
-                      try {
-                        await _authRepo.signInWithGoogle(widget.userType);
-                        if (mounted) {
-                          final route = widget.userType == 'employer'
-                              ? AppRouter.employerHome
-                              : AppRouter.jobSeekerHome;
-                          Navigator.pushNamedAndRemoveUntil(context, route, (route) => false);
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Xəta: ${e.toString().replaceAll('Exception: ', '').replaceAll(RegExp(r'\[.*?\]\s*'), '')}')),
-                          );
-                        }
-                      } finally {
-                        if (mounted) setState(() => _isLoading = false);
-                      }
-                    },
-                    icon: Image.network(
-                      'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/768px-Google_%22G%22_logo.svg.png',
-                      height: 24,
+                ),
+
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 8),
+
+                        // 0 · Logo
+                        AnimatedBuilder(
+                          animation: _entryCtrl,
+                          builder: (_, child) => _animated(0, child!),
+                          child: Center(
+                            child: Hero(
+                              tag: 'app_logo',
+                              child: _logoBox(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+
+                        // 1 · Title
+                        AnimatedBuilder(
+                          animation: _entryCtrl,
+                          builder: (_, child) => _animated(1, child!),
+                          child: _titleBlock(),
+                        ),
+                        const SizedBox(height: 28),
+
+                        // 2 · Email
+                        AnimatedBuilder(
+                          animation: _entryCtrl,
+                          builder: (_, child) => _animated(2, child!),
+                          child: _GlassInput(
+                            controller: _emailCtrl,
+                            label: 'E-poçt',
+                            hint: 'nümunə@email.com',
+                            icon: Icons.email_outlined,
+                            keyboardType: TextInputType.emailAddress,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // 3 · Password
+                        AnimatedBuilder(
+                          animation: _entryCtrl,
+                          builder: (_, child) => _animated(3, child!),
+                          child: _GlassInput(
+                            controller: _passwordCtrl,
+                            label: 'Şifrə',
+                            hint: '••••••••',
+                            icon: Icons.lock_outline_rounded,
+                            obscureText: !_showPass,
+                            suffix: IconButton(
+                              icon: Icon(
+                                _showPass
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                size: 18,
+                                color: Colors.white38,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _showPass = !_showPass),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // 4 · Confirm password
+                        AnimatedBuilder(
+                          animation: _entryCtrl,
+                          builder: (_, child) => _animated(4, child!),
+                          child: _GlassInput(
+                            controller: _confirmCtrl,
+                            label: 'Şifrəni təsdiqləyin',
+                            hint: '••••••••',
+                            icon: Icons.lock_outline_rounded,
+                            obscureText: !_showConfirm,
+                            suffix: IconButton(
+                              icon: Icon(
+                                _showConfirm
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                size: 18,
+                                color: Colors.white38,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _showConfirm = !_showConfirm),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+
+                        // 5 · Buttons
+                        AnimatedBuilder(
+                          animation: _entryCtrl,
+                          builder: (_, child) => _animated(5, child!),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _PrimaryButton(
+                                onTap: _isLoading ? null : _register,
+                                isLoading: _isLoading,
+                                label: 'Qeydiyyatdan keç',
+                              ),
+                              const SizedBox(height: 16),
+                              Center(
+                                child: GestureDetector(
+                                  onTap: () => Navigator.pushReplacementNamed(
+                                    context,
+                                    AppRouter.login,
+                                    arguments: widget.userType,
+                                  ),
+                                  child: RichText(
+                                    text: TextSpan(
+                                      text: 'Artıq hesabınız var? ',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.35),
+                                        fontSize: 13,
+                                      ),
+                                      children: const [
+                                        TextSpan(
+                                          text: 'Daxil olun',
+                                          style: TextStyle(
+                                            color: _kAccent2,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+                              _divider(),
+                              const SizedBox(height: 20),
+                              _SocialButton(
+                                onTap: _isLoading ? null : _googleRegister,
+                                icon: Image.network(
+                                  'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/768px-Google_%22G%22_logo.svg.png',
+                                  height: 20,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                      Icons.g_mobiledata,
+                                      color: Colors.white70,
+                                      size: 22),
+                                ),
+                                label: 'Google ilə qeydiyyat',
+                              ),
+                              const SizedBox(height: 10),
+                              _SocialButton(
+                                onTap: _isLoading ? null : _appleRegister,
+                                icon: const Icon(Icons.apple,
+                                    color: Colors.white, size: 22),
+                                label: 'Apple ilə qeydiyyat',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    label: 'Google ilə daxil ol',
-                    delay: 1000,
                   ),
-                  const SizedBox(height: 12),
-                  _SocialButton(
-                    onPressed: _isLoading ? null : () async {
-                      setState(() => _isLoading = true);
-                      try {
-                        await _authRepo.signInWithApple(widget.userType);
-                        if (mounted) {
-                          final route = widget.userType == 'employer'
-                              ? AppRouter.employerHome
-                              : AppRouter.jobSeekerHome;
-                          Navigator.pushNamedAndRemoveUntil(context, route, (route) => false);
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Xəta: ${e.toString().replaceAll('Exception: ', '').replaceAll(RegExp(r'\[.*?\]\s*'), '')}')),
-                          );
-                        }
-                      } finally {
-                        if (mounted) setState(() => _isLoading = false);
-                      }
-                    },
-                    icon: Icon(Icons.apple, color: context.textPrimaryColor, size: 28),
-                    label: 'Apple ilə daxil ol',
-                    delay: 1100,
-                  ),
-                ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────
+
+  Widget _logoBox() => Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          color: _kSurface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: _kBorder),
+          boxShadow: [
+            BoxShadow(
+              color: _kAccent.withOpacity(0.2),
+              blurRadius: 30,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Image.asset('assets/icons/Logo.png', fit: BoxFit.contain),
+          ),
+        ),
+      );
+
+  Widget _titleBlock() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ShaderMask(
+            shaderCallback: (b) => const LinearGradient(
+              colors: [Colors.white, Color(0xFFCDD5F3)],
+            ).createShader(b),
+            child: const Text(
+              'Hesab yarat',
+              style: TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: -0.8,
               ),
             ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Pulsuz qeydiyyatdan keçin',
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.white.withOpacity(0.35),
+            ),
+          ),
+        ],
+      );
+
+  Widget _divider() => Row(
+        children: [
+          Expanded(child: Divider(color: Colors.white.withOpacity(0.08))),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'və ya',
+              style: TextStyle(
+                  color: Colors.white.withOpacity(0.25), fontSize: 12),
+            ),
+          ),
+          Expanded(child: Divider(color: Colors.white.withOpacity(0.08))),
+        ],
+      );
+
+  Widget _blob(Color c, double size, double opacity) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: c.withOpacity(opacity),
+              blurRadius: size / 2,
+              spreadRadius: size / 4,
+            )
+          ],
+        ),
+      );
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  SHARED COMPONENTS
+// ─────────────────────────────────────────────────────────────────
+
+class _GlassInput extends StatefulWidget {
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final IconData icon;
+  final TextInputType? keyboardType;
+  final bool obscureText;
+  final Widget? suffix;
+
+  const _GlassInput({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.icon,
+    this.keyboardType,
+    this.obscureText = false,
+    this.suffix,
+  });
+
+  @override
+  State<_GlassInput> createState() => _GlassInputState();
+}
+
+class _GlassInputState extends State<_GlassInput> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        color: _focused
+            ? Colors.white.withOpacity(0.07)
+            : const Color(0xFF12121F),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _focused
+              ? _kAccent.withOpacity(0.6)
+              : Colors.white.withOpacity(0.08),
+          width: _focused ? 1.5 : 1,
+        ),
+      ),
+      child: Focus(
+        onFocusChange: (v) => setState(() => _focused = v),
+        child: TextField(
+          controller: widget.controller,
+          keyboardType: widget.keyboardType,
+          obscureText: widget.obscureText,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          decoration: InputDecoration(
+            labelText: widget.label,
+            labelStyle: TextStyle(
+              color: _focused ? _kAccent2 : Colors.white38,
+              fontSize: 13,
+            ),
+            hintText: widget.hint,
+            hintStyle:
+                TextStyle(color: Colors.white.withOpacity(0.18), fontSize: 14),
+            prefixIcon: Icon(widget.icon,
+                size: 19,
+                color: _focused ? _kAccent2 : Colors.white30),
+            suffixIcon: widget.suffix,
+            border: InputBorder.none,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
         ),
       ),
@@ -338,58 +551,85 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   }
 }
 
-class _AnimatedTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final TextInputType? keyboardType;
-  final bool obscureText;
-  final String labelText;
-  final String hintText;
-  final IconData prefixIcon;
-  final int delay;
+class _PrimaryButton extends StatefulWidget {
+  final VoidCallback? onTap;
+  final bool isLoading;
+  final String label;
 
-  const _AnimatedTextField({
-    required this.controller,
-    this.keyboardType,
-    this.obscureText = false,
-    required this.labelText,
-    required this.hintText,
-    required this.prefixIcon,
-    required this.delay,
+  const _PrimaryButton({
+    required this.onTap,
+    required this.isLoading,
+    required this.label,
   });
 
   @override
+  State<_PrimaryButton> createState() => _PrimaryButtonState();
+}
+
+class _PrimaryButtonState extends State<_PrimaryButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _press = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 100),
+    lowerBound: 0.96,
+    upperBound: 1.0,
+    value: 1.0,
+  );
+
+  @override
+  void dispose() {
+    _press.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: delay),
-      curve: Curves.easeOutCubic,
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(opacity: value, child: child),
-        );
-      },
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        obscureText: obscureText,
-        decoration: InputDecoration(
-          labelText: labelText,
-          hintText: hintText,
-          prefixIcon: Icon(prefixIcon),
-          filled: true,
-          fillColor: context.inputFillColor,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
+    return GestureDetector(
+      onTapDown: widget.onTap != null ? (_) => _press.reverse() : null,
+      onTapUp: widget.onTap != null
+          ? (_) {
+              _press.forward();
+              widget.onTap!();
+            }
+          : null,
+      onTapCancel: () => _press.forward(),
+      child: AnimatedBuilder(
+        animation: _press,
+        builder: (_, child) =>
+            Transform.scale(scale: _press.value, child: child),
+        child: Container(
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [_kAccent, Color(0xFF4F46E5)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: _kAccent.withOpacity(0.4),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: AppTheme.primaryColor, width: 2),
+          child: Center(
+            child: widget.isLoading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2.5),
+                  )
+                : Text(
+                    widget.label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
           ),
         ),
       ),
@@ -398,46 +638,41 @@ class _AnimatedTextField extends StatelessWidget {
 }
 
 class _SocialButton extends StatelessWidget {
-  final VoidCallback? onPressed;
+  final VoidCallback? onTap;
   final Widget icon;
   final String label;
-  final int delay;
 
   const _SocialButton({
-    required this.onPressed,
+    required this.onTap,
     required this.icon,
     required this.label,
-    required this.delay,
   });
 
   @override
   Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: delay),
-      curve: Curves.easeOutCubic,
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(opacity: value, child: child),
-        );
-      },
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: icon,
-        label: Text(
-          label,
-          style: TextStyle(
-            color: context.textPrimaryColor,
-            fontWeight: FontWeight.w600,
-          ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.09)),
         ),
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          side: BorderSide(color: context.dividerColor, width: 1.5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            icon,
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.75),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );

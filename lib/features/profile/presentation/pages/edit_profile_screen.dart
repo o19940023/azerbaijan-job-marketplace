@@ -151,19 +151,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator())
         : SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Avatar
+            // Avatar Section
             Center(
               child: GestureDetector(
                 onTap: _isUploadingPhoto ? null : _pickAndUploadPhoto,
                 child: Stack(
                 children: [
                   Container(
-                    width: 90,
-                    height: 90,
+                    width: 100,
+                    height: 100,
                     decoration: BoxDecoration(
                       gradient: _photoUrl == null ? AppTheme.primaryGradient : null,
                       shape: BoxShape.circle,
@@ -173,27 +174,43 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               fit: BoxFit.cover,
                             )
                           : null,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                          blurRadius: 15,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
                     ),
                     child: _isUploadingPhoto
                         ? const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
                         : _photoUrl == null
-                            ? const Icon(Icons.person_rounded, size: 45, color: Colors.white)
+                            ? const Icon(Icons.person_rounded, size: 50, color: Colors.white)
                             : null,
                   ),
                   Positioned(
                     bottom: 0,
                     right: 0,
                     child: Container(
-                      width: 30,
-                      height: 30,
+                      width: 36,
+                      height: 36,
                       decoration: BoxDecoration(
-                        color: AppTheme.accentColor,
+                        gradient: const LinearGradient(
+                          colors: [AppTheme.accentColor, AppTheme.primaryColor],
+                        ),
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.accentColor.withValues(alpha: 0.4),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: const Icon(
-                        Icons.edit_rounded,
-                        size: 14,
+                        Icons.camera_alt_rounded,
+                        size: 18,
                         color: Colors.white,
                       ),
                     ),
@@ -202,148 +219,165 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 32),
 
-            _buildLabel('Ad və Soyad'),
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(hintText: 'Ad Soyad'),
-            ),
-            const SizedBox(height: 16),
-
-            _buildLabel('Telefon'),
-            TextFormField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                hintText: 'Telefon nömrəsi',
-                prefixText: '+994 ',
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            _buildLabel('Email (istəyə bağlı)'),
-            TextFormField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(hintText: 'email@example.com'),
-            ),
-            const SizedBox(height: 16),
-
-            _buildLabel('Şəhər'),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: context.inputFillColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedCity ?? AppConstants.azerbaijanCities.first,
-                  isExpanded: true,
-                  onChanged: (v) => setState(() => _selectedCity = v!),
-                  items: AppConstants.azerbaijanCities
-                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                      .toList(),
+            // Basic Info Section
+            _buildSectionCard(
+              context,
+              title: 'Əsas Məlumatlar',
+              icon: Icons.person_outline_rounded,
+              children: [
+                _buildLabel(_userType == 'employer' ? 'Ad və ya Şirkət Adı' : 'Ad və Soyad'),
+                TextFormField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    hintText: _userType == 'employer' ? 'Şirkət adı və ya Ad Soyad' : 'Ad Soyad',
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            if (_userType == 'job_seeker') ...[
-              _buildLabel('Doğum Tarixi'),
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _birthDate ?? DateTime(2000),
-                    firstDate: DateTime(1940),
-                    lastDate: DateTime.now(),
-                  );
-                  if (picked != null) {
-                    setState(() => _birthDate = picked);
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                const SizedBox(height: 16),
+                _buildLabel('Telefon'),
+                TextFormField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    hintText: 'Telefon nömrəsi',
+                    prefixText: '+994 ',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildLabel('Email (istəyə bağlı)'),
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(hintText: 'email@example.com'),
+                ),
+                const SizedBox(height: 16),
+                _buildLabel('Şəhər'),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
                     color: context.inputFillColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _birthDate == null
-                            ? 'Seçin'
-                            : DateFormat('dd.MM.yyyy').format(_birthDate!),
-                        style: TextStyle(
-                          color: _birthDate == null ? context.textHintColor : context.textPrimaryColor,
-                        ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedCity ?? AppConstants.azerbaijanCities.first,
+                      isExpanded: true,
+                      onChanged: (v) => setState(() => _selectedCity = v!),
+                      items: AppConstants.azerbaijanCities
+                          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                          .toList(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            if (_userType == 'job_seeker') ...[
+              const SizedBox(height: 16),
+              _buildSectionCard(
+                context,
+                title: 'Şəxsi Məlumatlar',
+                icon: Icons.info_outline_rounded,
+                children: [
+                  _buildLabel('Doğum Tarixi'),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _birthDate ?? DateTime(2000),
+                        firstDate: DateTime(1940),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null) {
+                        setState(() => _birthDate = picked);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: context.inputFillColor,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      Icon(Icons.calendar_today_rounded, color: context.textHintColor, size: 20),
-                    ],
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _birthDate == null
+                                ? 'Seçin'
+                                : DateFormat('dd.MM.yyyy').format(_birthDate!),
+                            style: TextStyle(
+                              color: _birthDate == null ? context.textHintColor : context.textPrimaryColor,
+                            ),
+                          ),
+                          Icon(Icons.calendar_today_rounded, color: context.textHintColor, size: 20),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              _buildLabel('Cinsiyyət'),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: context.inputFillColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedGender,
-                    hint: const Text('Seçin'),
-                    isExpanded: true,
-                    onChanged: (v) => setState(() => _selectedGender = v),
-                    items: ['Kişi', 'Qadın', 'Qeyd etmək istəmirəm']
-                        .map((g) => DropdownMenuItem(value: g, child: Text(g)))
-                        .toList(),
+                  const SizedBox(height: 16),
+                  _buildLabel('Cinsiyyət'),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: context.inputFillColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedGender,
+                        hint: const Text('Seçin'),
+                        isExpanded: true,
+                        onChanged: (v) => setState(() => _selectedGender = v),
+                        items: ['Kişi', 'Qadın', 'Qeyd etmək istəmirəm']
+                            .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                            .toList(),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
               const SizedBox(height: 16),
-
-              _buildLabel('Təcrübə'),
-              TextFormField(
-                controller: _experienceController,
-                maxLines: 2,
-                decoration: const InputDecoration(hintText: 'Məs: 3 il ofisant kimi çalışmışam'),
+              _buildSectionCard(
+                context,
+                title: 'Peşəkar Məlumatlar',
+                icon: Icons.work_outline_rounded,
+                children: [
+                  _buildLabel('Təcrübə'),
+                  TextFormField(
+                    controller: _experienceController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(hintText: 'Məs: 3 il ofisant kimi çalışmışam'),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLabel('Təhsil'),
+                  TextFormField(
+                    controller: _educationController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(hintText: 'Məs: ADNSU, Bakalavr'),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLabel('Bacarıqlar'),
+                  TextFormField(
+                    controller: _skillsController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(hintText: 'Məs: Ünsiyyət, komanda işi'),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLabel('Haqqımda'),
+                  TextFormField(
+                    controller: _bioController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      hintText: 'Özünüz haqqında qısa məlumat...',
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-
-              _buildLabel('Təhsil'),
-              TextFormField(
-                controller: _educationController,
-                maxLines: 2,
-                decoration: const InputDecoration(hintText: 'Məs: ADNSU, Bakalavr'),
-              ),
-              const SizedBox(height: 16),
-
-              _buildLabel('Bacarıqlar'),
-              TextFormField(
-                controller: _skillsController,
-                maxLines: 2,
-                decoration: const InputDecoration(hintText: 'Məs: Ünsiyyət, komanda işi'),
-              ),
-              const SizedBox(height: 16),
-
-              _buildLabel('Haqqımda'),
-              TextFormField(
-                controller: _bioController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  hintText: 'Özünüz haqqında qısa məlumat...',
-                  alignLabelWithHint: true,
-                ),
-              ),
-              const SizedBox(height: 28),
             ],
+
+            const SizedBox(height: 28),
 
             SizedBox(
               width: double.infinity,
@@ -395,6 +429,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   }
                   if (mounted) setState(() => _isSaving = false);
                 },
+                style: ElevatedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
                 child: _isSaving 
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text(
@@ -422,6 +461,60 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           fontWeight: FontWeight.w600,
           color: context.textPrimaryColor,
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionCard(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: context.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: context.dividerColor,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: AppTheme.primaryColor, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: context.textPrimaryColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          ...children,
+        ],
       ),
     );
   }

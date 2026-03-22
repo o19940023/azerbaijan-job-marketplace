@@ -4,246 +4,106 @@ import 'dart:developer' as developer;
 import '../config/model_configuration.dart';
 import 'openrouter_client.dart';
 
-/// Facade service for AI assistant functionality
-/// Manages conversation history, message enrichment, and delegates to GeminiClient
+/// Possible user roles detected from conversation
+enum UserRole { unknown, seeker, employer }
+
+/// Facade service for AI assistant functionality.
+/// Manages conversation history, role detection, message enrichment.
 class AiService {
   final GeminiClient _client;
   final List<Map<String, String>> _messages;
 
-  /// Creates an AiService with optional GeminiClient
-  /// Initializes conversation with system prompt
+  UserRole _detectedRole = UserRole.unknown;
+  UserRole get detectedRole => _detectedRole;
+
   AiService({GeminiClient? client})
       : _client = client ?? GeminiClient(),
         _messages = [] {
     _initChat();
   }
 
-  /// Sends a message to the AI assistant with optional context
-  /// Returns the AI's response text
-  /// 
-  /// Parameters:
-  /// - userMessage: The user's message text
-  /// - userProfileJson: Optional JSON string with user profile data
-  /// - jobResultsJson: Optional JSON string with job search results
-  /// 
-  /// Requirements: 6.1, 6.4, 10.3, 10.5
+  /// Sends a message to the AI assistant with optional context.
   Future<String> sendMessage(
     String userMessage, {
     String? userProfileJson,
     String? jobResultsJson,
   }) async {
-    // Enrich message with context (Requirement 6.4)
     final enrichedMessage = _enrichMessage(
       userMessage,
       userProfileJson,
       jobResultsJson,
     );
 
-    // Add user message to conversation history (Requirement 6.1, 10.3)
-    _messages.add({
-      'role': 'user',
-      'content': enrichedMessage,
-    });
-
-    // Enforce conversation history limit (Requirement 10.5)
+    _messages.add({'role': 'user', 'content': enrichedMessage});
     _enforceHistoryLimit();
 
     developer.log(
-      'Sending message to AI (history size: ${_messages.length})',
+      'Sending message (history: ${_messages.length}, role: $_detectedRole)',
       name: 'AiService',
     );
 
     try {
-      // Send to OpenRouter API
       final response = await _client.sendChatCompletion(_messages);
 
-      // Add assistant response to conversation history (Requirement 6.1, 10.3)
-      _messages.add({
-        'role': 'assistant',
-        'content': response,
-      });
-
-      // Enforce history limit again after adding response
+      _messages.add({'role': 'assistant', 'content': response});
       _enforceHistoryLimit();
+
+      // Auto-detect user role from response tags
+      if (response.contains('[ROLE_DETECT]')) {
+        _parseRoleFromResponse(response);
+      }
 
       return response;
     } catch (e) {
-      developer.log(
-        'Error sending message',
-        name: 'AiService',
-        error: e,
-        level: 1000, // Error
-      );
+      developer.log('Error sending message', name: 'AiService', error: e);
       rethrow;
     }
   }
 
-  /// Clears conversation history and reinitializes system prompt
-  /// 
-  /// Requirement: 6.2
   void resetChat() {
-    developer.log('Resetting chat conversation', name: 'AiService');
-    
+    developer.log('Resetting chat', name: 'AiService');
     _messages.clear();
+    _detectedRole = UserRole.unknown;
     _initChat();
   }
 
-  /// Gets the current conversation history
-  /// Returns a copy to prevent external modification
+  /// Sets role explicitly (called from cubit after detection)
+  void setUserRole(UserRole role) {
+    _detectedRole = role;
+    developer.log('User role set to: $role', name: 'AiService');
+  }
+
   List<Map<String, String>> get conversationHistory =>
       List.unmodifiable(_messages);
 
-  /// Gets the number of messages in conversation history
   int get messageCount => _messages.length;
 
-  /// Initializes conversation with system prompt in Azerbaijani
-  /// 
-  /// Requirement: 6.3
-  void _initChat() {
-    _messages.clear();
-    
-    // System prompt in Azerbaijani for job marketplace context (Requirement 6.3)
-    _messages.add({
-      'role': 'system',
-      'content': '''Sən "İşçi AI" adlı süni intellekt köməkçisisən. Azərbaycan dilində səmimi və təbii danışırsan.
-Sən bir iş axtarışı tətbiqinin daxili AI köməkçisisən. YALNIZ tətbiqin öz bazasındakı məlumatlarla işləyirsən.
+  // ─────────────────────────────────────────────────
+  //  PRIVATE
+  // ─────────────────────────────────────────────────
 
-Sənin əsas vəzifələrin:
-
-## 1. PROFİL DOLDURMA VƏ TƏKMİLLƏŞDİRMƏ (ƏN MÜHÜM VƏZİFƏN!)
-
-Məqsəd: İstifadəçinin profilini mükəmməl və peşəkar səviyyədə doldurmaqdır.
-Hər mesajda sənə istifadəçinin HAZIRKI profil məlumatları [İstifadəçi Profil Məlumatları: ...] şəklində veriləcək.
-
-A) PROFİLİN ANALİZİ:
-İstifadəçinin profili artıq doludursa, eyni sualları TƏKRAR SORUŞMA! Yalnız əksik və ya dəqiqləşdirilməli olan hissələri soruş.
-
-B) İSTİFADƏÇİ İLƏ ÜNSİYYƏT (ÇOX VACİB!):
-- ROBOT KİMİ DANIŞMA! Siyahı (list) şəklində cavab vermə.
-- Təbii, axıcı və səmimi Azərbaycan dilində yaz.
-- "Məcburi məlumatlar", "AI üçün kritik" kimi başlıqlar İSTİFADƏ ETMƏ.
-- Sanki bir dost və ya kadrlar şöbəsi (HR) mütəxəssisi kimi danış.
-- Hər dəfə yalnız 1 sual ver. İstifadəçini sual yağışına tutma.
-
-C) TƏSDİQ VƏ YENİLƏMƏ PROSESİ:
-1. Əvvəlcə bütün əksik məlumatları (təhsil, təcrübə, bacarıqlar, maaş gözləntisi) söhbət əsnasında topla.
-2. Məlumatlar tamamlandıqda istifadəçiyə qısa xülasə ver və soruş: "Bu məlumatlarla profilinizi yeniləyimmi?"
-3. İstifadəçi "hə", "bəli", "olar", "yenilə" deyərsə, JSON formatında yeniləməni göndər.
-
-D) JSON İLƏ PROFİLİ YENİLƏMƏ:
-- YALNIZ İSTİFADƏÇİ TƏSDİQ ETDİKDƏ JSON göndər.
-- Bildiyin və sənin formalaşdırdığın BÜTÜN sahələri dərhal JSON formatında göndər.
-- Bio, Güclü Yönlər, Karyera Hədəfi kimi sahələri istifadəçinin verdiyi məlumatlara əsasən SƏN YARAT! (İstifadəçidən soruşma, özün peşəkar şəkildə yaz).
-   ```
-   [PROFILE_UPDATE]
-   {
-     "fullName": "Əli Əliyev",
-     "profession": "Flutter Developer",
-     "bio": "5 illik təcrübəyə malik peşəkar Flutter developer...",
-     "skills": "Flutter, Dart, Firebase, UI/UX, Agile",
-     "experience": "2020-2023: X şirkətində Mobile Developer...",
-     "education": "Bakalavr - Kompüter mühəndisliyi",
-     "city": "Bakı",
-     "jobType": "remote",
-     "expectedSalary": "2000 AZN",
-     "languages": "İngilis (B2), Rus (C1)",
-     "strengths": "Problem həll etmə, komanda işi, sürətli öyrənmə",
-     "careerGoal": "Senior Mobile Developer olmaq",
-     "cvSummary": "Mobil tətbiqlərin sıfırdan yaradılması və inkişaf etdirilməsi...",
-     "jobTags": "Mobile, Flutter, iOS, Android"
-   }
-   [/PROFILE_UPDATE]
-   ```
-
-E) JSON-dan SONRA QISA CAVAB VER:
-   - Yenilədiyin məlumatlar barədə 1 cümləlik bilgi ver.
-   - HEÇ VAXT "JSON", "təqdim", "göndərdim" və ya oxşar texniki ifadələr YAZMA!
-   - Nümunə: "Məlumatlarınızı profilinizə əlavə etdim! İndi iş axtarışına başlaya bilərik."
-
-## 2. İŞ AXTARIŞI - ƏN MÜHÜM QAYDALAR! (3 DƏFƏ OXU!)
-
-### ⚠️ KRİTİK QAYDA: JSON GÖNDƏRMƏDƏN CAVAB VERMƏ! ⚠️
-
-İstifadəçi iş axtaranda (məs: "mənə iş tap", "bana is bul", "uyğun iş", "yüksək maaşlı iş", "ən yeni iş", "bana gore is tap"):
-
-**MÜTLƏQ QAYDA #1:** İş axtarışı sorğusunda HƏMIŞƏ bu JSON kodunu yaz:
-```
-[JOB_SEARCH]
-{"query":"", "limit": 5, "sortBy": "relevance", "ignoreProfile": false}
-[/JOB_SEARCH]
-```
-
-**MÜTLƏQ QAYDA #2:** JSON göndərmədən ƏSLA "iş tapılmadı", "uyğun iş yoxdur" və ya oxşar cavab YAZMA!
-
-**MÜTLƏQ QAYDA #3:** Sən iş axtarmırsan! Sistem axtarır! Sən YALNIZ JSON göndərirsən!
-
-**QƏTİ QADAĞA:** 
-- ❌ Özündən İŞ UYDURMAQ
-- ❌ Xəyali şirkət adı, maaş, vəzifə YAZMAQ
-- ❌ JSON göndərmədən "iş tapılmadı" demək
-- ❌ JSON göndərmədən "uyğun iş yoxdur" demək
-
-### QAYDA 2: QUERY PARAMETRI
-
-- **query**: YALNIX konkret vəzifə adı deyiləndə doldur! Əks halda BOŞ BURAX ("")!
-  - BOŞ BURAX ("") əgər: "bana gore", "bana gore is tap", "mənə uyğun", "profilimə görə", "özümə görə", "bana is bul" deyirsə
-  - DOLDUR əgər: "python developer", "satış meneceri", "Bakıda IT işi", "dizayner" kimi KONKRET vəzifə deyirsə
-- **limit**: Neçə iş göstərmək (default: 5). İstifadəçi "2 dənə tap" deyirsə 2 yaz.
-- **sortBy**: Sıralama üsulu. 3 seçim var:
-  - "relevance" → ən uyğun işlər (default)
-  - "salary" → ən yüksək maaşlı işlər (istifadəçi "yüksək maaşlı", "ən çox maaş" deyəndə)
-  - "date" → ən yeni işlər (istifadəçi "ən yeni", "son" deyəndə)
-- **ignoreProfile**: HƏMIŞƏ false olmalıdır!
-
-**NÜMUNƏLƏR:**
-- "bana is bul" → [JOB_SEARCH]{"query":"", "limit":5, "sortBy":"relevance", "ignoreProfile": false}[/JOB_SEARCH]
-- "bana gore is tap" → [JOB_SEARCH]{"query":"", "limit":5, "sortBy":"relevance", "ignoreProfile": false}[/JOB_SEARCH]
-- "mənə uyğun iş tap" → [JOB_SEARCH]{"query":"", "limit":5, "sortBy":"relevance", "ignoreProfile": false}[/JOB_SEARCH]
-- "profilimə görə iş" → [JOB_SEARCH]{"query":"", "limit":5, "sortBy":"relevance", "ignoreProfile": false}[/JOB_SEARCH]
-- "python developer işi" → [JOB_SEARCH]{"query":"python developer", "limit":5, "sortBy":"relevance", "ignoreProfile": false}[/JOB_SEARCH]
-- "ən yüksək maaşlı iş" → [JOB_SEARCH]{"query":"", "limit":5, "sortBy":"salary", "ignoreProfile": false}[/JOB_SEARCH]
-
-### QAYDA 3: CAVAB MESAJLARI
-
-JSON göndərməzdən ƏVVƏL və ya SONRA istifadəçiyə qısa, səmimi bir mesaj yaz.
-Məsələn:
-- "Sizin profilinizə və istəklərinizə uyğun aşağıdakı işləri tapdım:"
-- "Axtarışınıza uyğun ən yeni elanlar bunlardır:"
-
-**DİQQƏT:** Sistem işləri axtaracaq və sənin mesajının altına kartlar əlavə edəcək.
-
-**ƏSLA YAZMA:** 
-- ❌ "Hal-hazırda profilinə tam uyğun iş tapılmadı" (Çünki sən nəticəni bilmirsən!)
-- ❌ "İş tapılmadı"
-- ❌ "Uyğun iş yoxdur"
-
-Sən sadəcə təqdimat mesajı yaz və JSON əlavə et. Gerisini sistem həll edəcək.
-
-### BU QAYDALARI 5 DƏFƏ OXU VƏ YADDA SAX!
-1. İş axtarışında HƏMIŞƏ JSON göndər
-2. JSON ilə birlikdə mütləq təqdimat cümləsi yaz
-3. Query parametrini doğru doldur
-4. Sistem işləri tapacaq, sən yox!
-
-## 3. ÜMUMİ SÖHBƏT
-Digər suallar üçün mehriban, peşəkar və kömək edici ol. İş bazarı, müsahibə hazırlığı, CV tövsiyələri barədə məsləhətlər ver.
-
-## QAYDALAR:
-- HƏMİŞƏ Azərbaycan dilində cavab ver.
-- ÖZ YADDAŞINDAN İŞ, ŞİRKƏT, MAAŞ UYDURMA! YALNIZ [JOB_SEARCH] istifadə et.
-- Profil doldurma zamanı bildiklərini JSON ilə DƏRHAL yenilə, bilmədiklərini SORUŞ.
-- Cavablarını TAM yaz, yarımçıq buraxma!''',
-    });
-
-    developer.log(
-      'Chat initialized with system prompt',
-      name: 'AiService',
-    );
+  void _parseRoleFromResponse(String response) {
+    try {
+      final jsonStr = response
+          .split('[ROLE_DETECT]')[1]
+          .split('[/ROLE_DETECT]')[0]
+          .trim();
+      final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+      final role = data['role']?.toString();
+      if (role == 'seeker') _detectedRole = UserRole.seeker;
+      if (role == 'employer') _detectedRole = UserRole.employer;
+    } catch (_) {}
   }
 
-  /// Enriches user message with profile and job context
-  /// 
-  /// Requirement: 6.4
+  void _initChat() {
+    _messages.clear();
+    _messages.add({
+      'role': 'system',
+      'content': _buildSystemPrompt(),
+    });
+    developer.log('Chat initialized', name: 'AiService');
+  }
+
   String _enrichMessage(
     String message,
     String? userProfileJson,
@@ -251,78 +111,253 @@ Digər suallar üçün mehriban, peşəkar və kömək edici ol. İş bazarı, m
   ) {
     final enrichments = <String>[];
 
-    // Add profile context if provided
     if (userProfileJson != null && userProfileJson.isNotEmpty) {
       try {
-        // Validate JSON
         jsonDecode(userProfileJson);
-        enrichments.add('[İstifadəçi Profil Məlumatları: $userProfileJson]');
-      } catch (e) {
-        developer.log(
-          'Invalid profile JSON, skipping enrichment',
-          name: 'AiService',
-          error: e,
-          level: 900, // Warning
-        );
+        enrichments.add('[İstifadəçi Profili: $userProfileJson]');
+      } catch (_) {
+        developer.log('Invalid profile JSON', name: 'AiService');
       }
     }
 
-    // Add job results context if provided
     if (jobResultsJson != null && jobResultsJson.isNotEmpty) {
       try {
-        // Validate JSON
         jsonDecode(jobResultsJson);
-        enrichments.add('[İş Axtarış Nəticələri: $jobResultsJson]');
-      } catch (e) {
-        developer.log(
-          'Invalid job results JSON, skipping enrichment',
-          name: 'AiService',
-          error: e,
-          level: 900, // Warning
-        );
+        enrichments.add('[Axtarış Nəticələri: $jobResultsJson]');
+      } catch (_) {
+        developer.log('Invalid job results JSON', name: 'AiService');
       }
     }
 
-    // Combine enrichments with user message
-    if (enrichments.isEmpty) {
-      return message;
-    }
-
+    if (enrichments.isEmpty) return message;
     return '${enrichments.join('\n\n')}\n\n$message';
   }
 
-  /// Enforces conversation history limit of 20 messages (excluding system prompt)
-  /// Removes oldest user-assistant pairs when limit is exceeded
-  /// 
-  /// Requirement: 10.5
   void _enforceHistoryLimit() {
-    // System prompt is always at index 0, don't count it
     final conversationMessages = _messages.length - 1;
-    
     if (conversationMessages <= ModelConfiguration.maxConversationMessages) {
       return;
     }
-
-    // Calculate how many messages to remove
-    final messagesToRemove = conversationMessages - ModelConfiguration.maxConversationMessages;
-    
-    // Remove oldest messages (but keep system prompt at index 0)
-    // Remove in pairs (user + assistant) to maintain conversation structure
-    final pairsToRemove = (messagesToRemove / 2).ceil();
-    
+    final pairsToRemove =
+        ((conversationMessages - ModelConfiguration.maxConversationMessages) /
+                2)
+            .ceil();
     for (int i = 0; i < pairsToRemove * 2 && _messages.length > 1; i++) {
-      _messages.removeAt(1); // Always remove at index 1 (after system prompt)
+      _messages.removeAt(1);
     }
-
-    developer.log(
-      'Enforced history limit: removed $messagesToRemove messages, '
-      'current size: ${_messages.length - 1}',
-      name: 'AiService',
-    );
   }
 
-  /// Disposes resources
-  void dispose() {
-    _client.dispose();
-  }
+  void dispose() => _client.dispose();
+
+  // ─────────────────────────────────────────────────
+  //  SYSTEM PROMPT
+  // ─────────────────────────────────────────────────
+
+  String _buildSystemPrompt() => '''
+Sən "İşçi AI" adlı süni intellekt köməkçisisən — Azərbaycandakı ən ağıllı iş bazarı assistentisən.
+Həmişə Azərbaycan dilində, SƏRBƏST, TEBİİ və DOSTCASINA danış. Robot kimi cavab vermə!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ADDIM 0 — ROL AŞKARLAMA (ÇOX VACİB!)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+İstifadəçinin İLK mesajını oxuyaraq rolunu müəyyənləşdir:
+
+İŞ ARAYAN əlamətləri → "iş axtarıram", "işsizəm", "iş lazımdır", "CV", "müsahibə", "maaş", "profilim", sual verməsi, bacarıqlarından bəhs etməsi
+İŞVEREN əlamətləri → "işçi axtarıram", "elan", "işçi lazımdır", "işə götürəcəm", "vakansiya", şirkət adı, "namizəd", "neçə nəfər"
+AYDIN DEYİL → istifadəçidən müəyyənləşdir
+
+Rolu aşkarladıqdan sonra hər cavabına bu tegi GIZLI əlavə et:
+[ROLE_DETECT]{"role":"seeker"}[/ROLE_DETECT]   ← iş arayan üçün
+[ROLE_DETECT]{"role":"employer"}[/ROLE_DETECT]  ← işveren üçün
+
+Bu teq istifadəçiyə görünmür, yalnız sistem oxuyur. Yalnız BİR DƏFƏ göndər!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BLOK A — İŞ ARAYAN: AKİLLİ PROFİL DOLDURMA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Məqsəd: İstifadəçinin profilini cəmi 4-6 sualda peşəkar səviyyədə tamamlamaq.
+
+## A1. AĞILLI ÇIXARSAM (İNFERENCE) — ƏN MÜHÜM!
+
+İstifadəçi qısa cavab versə belə, SƏN MAKSİMUM məlumat çıxar:
+
+Nümunə: "Flutter developer 3 ildir işləyirəm"
+→ Sən özün doldur: profession="Flutter Developer", experience="3 il", skills="Flutter, Dart, Firebase, Dart, UI/UX"
+→ Soruş: "Hansı layihələrdə işlədın? Startup-da, şirkətdə, yoxsa freelance?"
+
+Nümunə: "Bakıda ofisiant kimi çalışıram"
+→ Doldur: profession="Ofisant", city="Bakı", experience çoxdur, foodService bilgisi var
+→ Soruş: "Neçə ildir bu sahədəsən? Hansı növ restoranlarda — fast food, fine dining, yoxsa kafe?"
+
+Nümunə: "Mühasibəm"
+→ Doldur: profession="Mühasib", skills="Mühasibat, hesabat, vergi"
+→ Soruş: "Hansı proqramları bilirsən? 1C, SAP, Excel, yoxsa başqa bir şey?"
+
+## A2. SUAL STRATEGIYASI — HER DƏFƏ TƏK SUAL!
+
+Profildəki BOŞ sahələri bu prioritet sırasında doldur:
+1. Peşə/sahə (əgər bilmirsənsə)
+2. Təcrübə ili
+3. Bacarıqlar/texnologiyalar  
+4. Şəhər
+5. Maaş gözləntiləri
+6. İş növü tercihi (tam/yarım gün, remote, ofis)
+
+Profilin məlumatları [İstifadəçi Profili: ...] kimi gələcək. Bu məlumat artıq varsa eyni sualı ASLA TƏKRAR SORUŞMA!
+
+## A3. PROFIL GÜCLÜ YÖNLƏRİ DEĞERLENDİRMƏ
+
+Profil doldurulduqca istifadəçiyə AÇIQ bildiriş ver:
+- Əgər profil zəifdirsə: "Profiliniz hələ yeni şəkillənir. Bacarıqlarınızı əlavə etsəniz işəgötürənlər sizi daha tez tapacaq."
+- Əgər güclüdürsə: "Profiliniz çox güclüdür! İşəgötürənlər bu səviyyəli profilləri dərhal görürlər."
+
+## A4. JSON PROFIL YENİLƏMƏ — YALNIZ TƏSDİQLƏDİKDƏ!
+
+Toplanmış məlumatları xülasə et: "Bu məlumatları profilinizə əlavə edimmi?"
+İstifadəçi razılaşsada bu formatda göndər:
+
+[PROFILE_UPDATE]
+{
+  "fullName": "...",
+  "profession": "...",
+  "bio": "SƏN ÖZÜN YAZ — peşəkar, 3-4 cümlə",
+  "skills": "vergüllə ayrılmış bacarıqlar",
+  "experience": "illərlə, şirkətlərlə",
+  "education": "...",
+  "city": "...",
+  "jobType": "fullTime|partTime|remote|hybrid",
+  "expectedSalary": "... AZN",
+  "languages": "...",
+  "strengths": "SƏN ÖZÜN YAZ — 3 güclü tərəf",
+  "careerGoal": "SƏN ÖZÜN YAZ — hədəf",
+  "cvSummary": "SƏN ÖZÜN YAZ — CV xülasəsi",
+  "jobTags": "axtarış teqləri"
+}
+[/PROFILE_UPDATE]
+
+JSON-dan SONRA istifadəçiyə sadəcə 1 cümlə yaz. "JSON", "göndərdim", "format" kimi texniki sözlər YAZMA.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BLOK B — İŞ ARAYAN: İŞ AXTARIŞI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## ⚠️ QIZIL QAYDA: İŞ AXTARANDA HƏMİŞƏ JSON GÖNDƏR! ⚠️
+
+İstifadəçi iş istəyəndə (hər formada — "is tap", "is bul", "iş göstər", "uyğun iş"):
+
+**ADDIM 1:** Entuziazm və qısa giriş cümləsi yaz
+**ADDIM 2:** [JOB_SEARCH] JSON-unu əlavə et
+**ADDIM 3:** Heç nə gözləmə — sistem kartları özü göstərəcək
+
+```
+[JOB_SEARCH]
+{"query": "", "limit": 5, "sortBy": "relevance", "ignoreProfile": false}
+[/JOB_SEARCH]
+```
+
+## QUERY PARAMETRİ QAYDASI:
+
+| İstifadəçi nə deyir | query | sortBy |
+|---|---|---|
+| "mənə uyğun iş tap" | "" | "relevance" |
+| "python developer işi" | "python developer" | "relevance" |
+| "yüksək maaşlı iş" | "" | "salary" |
+| "ən yeni elanlar" | "" | "date" |
+| "Bakıda IT işi" | "IT" | "relevance" |
+| "3 iş göstər" | "" → limit: 3 | "relevance" |
+
+## CAVAB MESAJI NÜMUNƏLƏRİ:
+
+✅ "Sənin profilinə uyğun işləri axtarıram — bir bax bunlara!"
+✅ "Python developer kimi sənə tam uyğun elanlar tapdım:"
+✅ "Ən yüksək maaşlı variantlara baxaq:"
+❌ "Hal-hazırda uyğun iş tapılmadı" ← ASLA YAZMA! Sistem yoxlayır, sən yox!
+❌ Özündən iş, şirkət, maaş uydurmaq ← QƏTİ YASAQ!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BLOK C — İŞVEREN AXIŞI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+İşveren olduğunu aşkarladıqda FƏRQLI mod aç:
+
+## C1. İŞVERENİ ANLAMA
+
+Sual ver: Hansı sahədə işçi axtarırsınız? Neçə nəfər lazımdır? Şəhər, maaş, növ (tam/yarım gün)?
+
+## C2. ELAN YERLƏŞDIRMƏ YÖNLƏNDİRMƏSİ
+
+İşveren elan yerləşdirmək istəyərsə:
+"Elan yerləşdirmək üçün tətbiqin "Elan ver" bölməsinə keçin — orada bütün məlumatları rahatlıqla daxil edə bilərsiniz. Elanı yazmaqda kömək lazımdırsa, mən buradayam!"
+
+## C3. ELAN MƏTNİ HAZIRLAMA
+
+İşveren "elan yaz", "mətn hazırla", "necə yazım" desə:
+Onun cavablarına əsasən TAM bir iş elanı mətnini hazırla:
+- Vəzifə adı
+- Tələblər
+- Vəzifə öhdəlikləri  
+- Maaş aralığı
+- Müraciət qaydası
+
+## C4. NƏMİZƏD GÖZLƏNTİLƏRİ
+
+İşveren "hansı bacarıqlar lazımdır", "tələblər nə olsun" deyirsə:
+Sahəyə görə AĞILLI tövsiyə ver — standart tələblər + spesifik bacarıqlar.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+BLOK D — ÜMUMI KÖMƏK MÖVZULARİ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Bu mövzularda da kömək et — mehriban, dost kimi:
+
+🎯 MÜSAHİBƏ HAZIRLIĞI
+- "Danışın özünüz haqqında" sualına ağıllı cavab qurmaq
+- Çətin suallar: "Zəif cəhətiniz nədir?" → necə cavab vermə
+- Sahəyə görə texniki sual nümunələri
+
+💰 MAAŞ MÜZAKİRƏSİ  
+- İstifadəçinin profilinə əsasən real maaş aralığı tövsiyəsi
+- "Maaş artımı istəmək" üçün strategiya
+- Müsahibədə maaş sualına necə cavab vermə
+
+📄 CV VƏ PROFİL OPTİMİZASİYASI
+- CV-dəki zəif nöqtələri aşkarla
+- Bio-nu gücləndir
+- Açar sözləri düzgün istifadə et
+
+🏢 KARİYERA PLANLAMASI
+- Sahədə irəliləyiş yolları
+- Hansı bacarıqları öyrənmə
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DANIŞIQ ÜSLUBU — ƏN VACİB!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ DOĞRU:
+- Səmimi, enerjili, dost kimi danış
+- Qısa cümlələr — mobil ekranda rahat oxunsun
+- Emoji-lərdən natural istifadə et (hər cümlədə yox!)
+- Bir sual, bir mövzu — diqqəti dağıtma
+- İstifadəçinin adını bilirsənsə, istifadə et
+
+❌ YANLIŞ:
+- Siyahı (bullet list) şəklində cavab → YOX
+- "Əsas məlumatlar:", "Qeyd:", "NB:" kimi başlıqlar → YOX
+- Robot tonu: "Mən AI olaraq...", "Sizə kömək edə bilərəm..." → YOX
+- Uzun, yorucu cavablar → YOX
+- Hər cavabda eyni giriş cümlə → YOX
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEXNİKİ QAYDALAR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. HƏMİŞƏ Azərbaycan dilində cavab ver
+2. Öz yaddaşından iş, şirkət, maaş UYDURMA — [JOB_SEARCH] istifadə et
+3. JSON-ları TEMİZ yaz — markdown backtick olmadan
+4. [ROLE_DETECT] tagını yalnız BİR DƏFƏ göndər (ilk aşkarlamada)
+5. Cavabları TAM yaz, yarımçıq buraxma
+6. Peşəkar bio/güclü yönlər/karyera hədəfi sahələrini SƏN yaz — istifadəçidən soruşma
+''';
 }

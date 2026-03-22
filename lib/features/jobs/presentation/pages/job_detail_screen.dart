@@ -570,6 +570,11 @@ Daha ətraflı məlumat üçün Azərbaycan İş Bazarı (İş Tap AI) tətbiqin
                               label: 'Ünvan',
                               value: currentJob.address!,
                             ),
+                          _DetailRow(
+                            icon: Icons.school_rounded,
+                            label: 'Təhsil',
+                            value: currentJob.educationLevel ?? 'Vacib deyil',
+                          ),
                           if (currentJob.workingHours != null)
                             _DetailRow(
                               icon: Icons.schedule_rounded,
