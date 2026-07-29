@@ -63,11 +63,40 @@
         </div>
     </nav>
 
-    <!-- SPA Main Root View -->
+    <!-- SPA Main Root View Pre-rendered -->
     <main class="app-main">
         <div id="app-root">
-            <div class="loading-spinner" style="height: 80vh;">
-                <div class="spinner"></div>
+            <div class="app-container">
+                <div class="page-header d-flex justify-between align-center flex-wrap gap-12">
+                    <div>
+                        <h1 class="page-title">Vakansiyalar və İş Elanları</h1>
+                        <p class="page-subtitle">Azərbaycanda ən yeni AI dəstəkli iş elanlarını kəşf edin</p>
+                    </div>
+                </div>
+
+                <div class="filters-bar">
+                    <div class="search-input-wrap">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="searchInput" placeholder="İş adı, şirkət və ya açar söz axtar...">
+                    </div>
+                    <select id="categoryFilter" class="filter-select">
+                        <option value="all">⚡ Bütün Kateqoriyalar</option>
+                    </select>
+                    <select id="cityFilter" class="filter-select">
+                        <option value="all">📍 Bütün Şəhərlər</option>
+                    </select>
+                    <select id="sortFilter" class="filter-select">
+                        <option value="newest">⏱️ Ən yeni</option>
+                        <option value="highestPay">💰 Ən yüksək maaş</option>
+                        <option value="lowestPay">💵 Ən aşağı maaş</option>
+                    </select>
+                </div>
+
+                <div id="jobsGridContainer">
+                    <div class="loading-spinner" style="height: 40vh;">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </main>

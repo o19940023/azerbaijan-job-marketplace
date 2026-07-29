@@ -730,6 +730,17 @@ const App = {
     async init() {
         if (typeof firebase === 'undefined') {
             console.error('Firebase JS SDK not loaded');
+            const grid = document.getElementById('jobsGridContainer') || document.getElementById('app-root');
+            if (grid) {
+                grid.innerHTML = `
+                    <div class="empty-state card" style="margin: 40px auto; max-width: 500px;">
+                        <div class="empty-icon">⚠️</div>
+                        <div class="empty-title">Yüklənmə Xətası</div>
+                        <div class="empty-desc">Firebase xidmətinə qoşulmaq mümkün olmadı. Zəhmət olmasa internet bağlantınızı yoxlayın.</div>
+                        <button onclick="window.location.reload()" class="btn btn-primary mt-16">🔄 Yenidən Cəhd Et</button>
+                    </div>
+                `;
+            }
             return;
         }
 
