@@ -269,9 +269,19 @@ const JobsModule = {
                 createdAtDate: doc.data().createdAt ? new Date(doc.data().createdAt) : new Date()
             }));
 
+            let nowTime = new Date().getTime();
+
+            // Filter out deleted/inactive jobs for seekers unless employerId filter is set
             if (!employerId) {
                 jobs = jobs.filter(j => j.isActive !== false);
             }
+
+            // Expiration check helper
+            jobs.forEach(j => {
+                const expires = j.expiresAt ? new Date(j.expiresAt).getTime() : (j.createdAtDate ? j.createdAtDate.getTime() + (30*86400*1000) : 0);
+                j.isExpired = expires > 0 && expires < nowTime;
+            });
+
             if (categoryId && categoryId !== 'all') {
                 jobs = jobs.filter(j => j.categoryId === categoryId);
             }
@@ -295,9 +305,13 @@ const JobsModule = {
             } else if (sortBy === 'lowestPay') {
                 jobs.sort((a, b) => (Number(a.salaryMin) || 0) - (Number(b.salaryMin) || 0));
             } else {
+                // Sorting rules matching mobile app:
+                // Active jobs first, Expired jobs at the bottom
+                // Among active: Urgent first, then newest createdAt
                 jobs.sort((a, b) => {
-                    const aU = a.isUrgent ? 1 : 0;
-                    const bU = b.isUrgent ? 1 : 0;
+                    if (a.isExpired !== b.isExpired) return a.isExpired ? 1 : -1;
+                    const aU = (a.isUrgent && !a.isExpired) ? 1 : 0;
+                    const bU = (b.isUrgent && !b.isExpired) ? 1 : 0;
                     if (aU !== bU) return bU - aU;
                     return (b.createdAtDate || 0) - (a.createdAtDate || 0);
                 });
@@ -382,8 +396,8 @@ const JobsModule = {
                 benefits: jobData.benefits ? jobData.benefits.split('\n').filter(b => b.trim()) : [],
                 contactPhone: jobData.contactPhone || employer.phone || '',
                 employerId: employer.id,
-                createdAt: now.toISOString(),
-                expiresAt: expires.toISOString(),
+                createdAt: firebase.firestore.Timestamp.fromDate(now),
+                expiresAt: firebase.firestore.Timestamp.fromDate(expires),
                 isUrgent: false,
                 isActive: true,
                 viewCount: 0,
@@ -1047,25 +1061,27 @@ const App = {
         const timeAgo = this.formatTimeAgo(job.createdAt);
         const salaryText = job.salaryMax ? `${job.salaryMin}–${job.salaryMax} ₼ / ${job.salaryPeriod || 'aylıq'}` : `${job.salaryMin} ₼ / ${job.salaryPeriod || 'aylıq'}`;
 
+        const isExpired = job.isExpired || (job.expiresAt ? new Date(job.expiresAt).getTime() < new Date().getTime() : false);
+
         return `
-            <div class="job-card ${job.isUrgent ? 'urgent' : ''}" data-id="${job.id}">
+            <div class="job-card ${isExpired ? 'expired' : (job.isUrgent ? 'urgent' : '')}" data-id="${job.id}" style="${isExpired ? 'opacity: 0.75; filter: grayscale(0.2);' : ''}">
                 <div class="job-card-header">
                     <div class="job-logo">
                         ${job.companyLogo ? `<img src="${job.companyLogo}" alt="Logo">` : '💼'}
                     </div>
                     <div class="job-card-info">
-                        <div class="job-card-title">${job.title}</div>
+                        <div class="job-card-title">${job.title} ${isExpired ? '<span style="color:#ef4444;font-size:12px;font-weight:600;">(Müddəti bitib)</span>' : ''}</div>
                         <div class="job-company">${job.companyName}</div>
                     </div>
                 </div>
                 <div class="job-card-badges">
-                    ${job.isUrgent ? `<span class="job-badge urgent-badge">⚡ TƏCİLİ</span>` : ''}
+                    ${isExpired ? `<span class="job-badge" style="background:rgba(239,68,68,0.2);color:#ef4444;font-weight:700;">⌛ MÜDDƏTİ BİTİB</span>` : (job.isUrgent ? `<span class="job-badge urgent-badge">⚡ TƏCİLİ</span>` : '')}
                     <span class="job-badge">📍 ${job.district || job.city}</span>
                     <span class="job-badge">🕒 ${this.translateJobType(job.jobType)}</span>
                 </div>
                 <div class="job-card-meta">
                     <div class="job-salary">${salaryText}</div>
-                    <div class="job-time">${timeAgo}</div>
+                    <div class="job-time">${isExpired ? 'Elan bitib' : timeAgo}</div>
                 </div>
             </div>
         `;
@@ -1091,11 +1107,32 @@ const App = {
         const profile = AuthModule.userProfile;
         const isEmployer = profile?.userType === 'employer';
         const isOwner = isEmployer && job.employerId === user?.uid;
-        const hasApplied = user ? await ApplicationsModule.checkHasApplied(job.id, user.uid) : false;
+
+        // Check if user has applied and get application details
+        let hasApplied = false;
+        let applicationStatus = null;
+
+        if (user && !isEmployer) {
+            try {
+                const snapshot = await this.db.collection('applications')
+                    .where('jobId', '==', job.id)
+                    .where('applicantId', '==', user.uid)
+                    .get();
+                if (!snapshot.empty) {
+                    hasApplied = true;
+                    applicationStatus = snapshot.docs[0].data().status;
+                }
+            } catch (err) {
+                console.error('Check application status error:', err);
+            }
+        }
+
         const isSaved = user ? await JobsModule.checkIfSaved(user.uid, job.id) : false;
 
         const timeAgo = this.formatTimeAgo(job.createdAt);
         const salaryText = job.salaryMax ? `${job.salaryMin}–${job.salaryMax} ₼ / ${job.salaryPeriod || 'aylıq'}` : `${job.salaryMin} ₼ / ${job.salaryPeriod || 'aylıq'}`;
+
+        const isExpired = job.isExpired || (job.expiresAt ? new Date(job.expiresAt).getTime() < new Date().getTime() : false);
 
         container.innerHTML = `
             <div class="app-container">
@@ -1136,14 +1173,22 @@ const App = {
                             ${isOwner ? `
                                 <button id="deleteJobBtn" class="btn btn-danger">İlanı Sil</button>
                                 <a href="#/my-jobs" class="btn btn-secondary">Müraciətlərə Bax</a>
+                            ` : isEmployer ? `
+                                <button id="employerNoticeBtn" class="btn btn-secondary btn-lg" style="opacity: 0.8;">⚠️ İşəgötürən Hesabı İlə Müraciət Etmək Olmaz</button>
+                            ` : isExpired ? `
+                                <button class="btn btn-danger" disabled style="opacity:0.7;">⌛ Elanın Müddəti Bitib</button>
                             ` : user ? `
                                 ${hasApplied ? `
-                                    <button class="btn btn-success" disabled>✓ Müraciət Etmisiniz</button>
+                                    <button class="btn btn-success" disabled>✓ Müraciət Etmisiniz (${applicationStatus === 'accepted' ? 'Qəbul Olundu' : applicationStatus === 'rejected' ? 'Rədd Edildi' : 'Gözləmədə'})</button>
                                 ` : `
                                     <button id="applyBtn" class="btn btn-primary btn-lg">⚡ İndi Müraciət Et</button>
                                 `}
                                 <button id="saveJobBtn" class="btn btn-secondary">${isSaved ? '★ Yadda Saxlanılıb' : '☆ Yadda Saxla'}</button>
-                                <button id="chatBtn" class="btn btn-secondary">💬 İşəgötürənlə Çat</button>
+                                ${applicationStatus === 'accepted' ? `
+                                    <button id="chatBtn" class="btn btn-primary">💬 İşəgötürənlə Çatlaş</button>
+                                ` : `
+                                    <button id="chatDisabledBtn" class="btn btn-secondary" style="opacity:0.7;">💬 Çat (Müraciət qəbul edildikdən sonra)</button>
+                                `}
                             ` : `
                                 <a href="#/login" class="btn btn-primary btn-lg">Müraciət Etmək Üçün Giriş Edin</a>
                             `}
@@ -1178,6 +1223,14 @@ const App = {
         `;
 
         document.getElementById('backBtn')?.addEventListener('click', () => window.history.back());
+
+        document.getElementById('employerNoticeBtn')?.addEventListener('click', () => {
+            alert('İşəgötürən hesabınızla iş müraciəti edə bilməzsiniz. Müraciət etmək üçün hesabınızdan çıxış edib İş Axtaran profili yaradın.');
+        });
+
+        document.getElementById('chatDisabledBtn')?.addEventListener('click', () => {
+            this.showToast('İşəgötürənlə çatlaşmaq üçün müraciətinizin qəbul edilməsi lazımdır.', 'warning');
+        });
 
         document.getElementById('applyBtn')?.addEventListener('click', async () => {
             if (!user || !profile) { window.location.hash = '#/login'; return; }
