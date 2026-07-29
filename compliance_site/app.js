@@ -212,8 +212,8 @@ const JobsModule = {
             query = query.where('employerId', '==', employerId);
         }
 
-        this.unsubscribeJobs = query.onSnapshot((snapshot) => {
-            let jobs = snapshot.docs.map(doc => ({
+        const processDocs = (docs) => {
+            let jobs = docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
                 createdAtDate: doc.data().createdAt ? new Date(doc.data().createdAt) : new Date()
@@ -254,9 +254,19 @@ const JobsModule = {
             }
 
             onUpdate(jobs);
-        }, err => {
-            console.error('Error listening to jobs:', err);
-            if (onError) onError(err);
+        };
+
+        this.unsubscribeJobs = query.onSnapshot((snapshot) => {
+            processDocs(snapshot.docs);
+        }, async (err) => {
+            console.warn('onSnapshot error, executing HTTPS query.get():', err);
+            try {
+                const snapshot = await query.get();
+                processDocs(snapshot.docs);
+            } catch (fallbackErr) {
+                console.error('query.get() fallback error:', fallbackErr);
+                onUpdate([]);
+            }
         });
 
         return this.unsubscribeJobs;
