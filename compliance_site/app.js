@@ -1495,7 +1495,7 @@ const App = {
             listEl.innerHTML = `
                 <div class="d-grid gap-16 stagger">
                     ${jobs.map(job => {
-                        const jobApps = applications.filter(a => a.jobId === job.id);
+                        const jobApps = applications.filter(a => String(a.jobId) === String(job.id));
                         return `
                             <div class="card card-body">
                                 <div class="d-flex justify-between align-center flex-wrap gap-12">
@@ -1529,10 +1529,10 @@ const App = {
                     sec.innerHTML = `<div class="loading-spinner"><div class="spinner"></div></div>`;
                     sec.classList.remove('hidden');
 
-                    // Use already-fetched applications filtered by jobId (more reliable than separate query)
-                    const applicants = applications.filter(a => a.jobId === jobId);
+                    // Use already-fetched applications filtered by jobId (String comparison for type safety)
+                    const applicants = applications.filter(a => String(a.jobId) === String(jobId));
                     if (applicants.length === 0) {
-                        sec.innerHTML = `<div class="text-gray text-sm">Bu elana henüz müraciət olunmayıb.</div>`;
+                        sec.innerHTML = `<div class="text-gray text-sm">Bu elana hələ müraciət olunmayıb.</div>`;
                         return;
                     }
 
@@ -1551,9 +1551,9 @@ const App = {
                                             <span class="job-badge" style="background:${app.status === 'accepted' ? 'rgba(34,197,94,0.2)' : app.status === 'rejected' ? 'rgba(239,68,68,0.2)' : 'rgba(255,140,0,0.2)'}">
                                                 ${app.status === 'accepted' ? 'Qəbul edildi' : app.status === 'rejected' ? 'Rədd edildi' : 'Gözləmədə'}
                                             </span>
-                                            <button class="btn btn-success btn-sm status-btn" data-id="${app.id}" data-status="accepted">Kabul Et</button>
-                                            <button class="btn btn-danger btn-sm status-btn" data-id="${app.id}" data-status="rejected">Rədd Et</button>
-                                            <button class="btn btn-secondary btn-sm chat-applicant-btn" data-applicant-id="${app.applicantId}" data-applicant-name="${app.applicantName || 'Namizəd'}" data-job-id="${jobId}" data-job-title="${app.jobTitle || ''}">Çat Başlat</button>
+                                            <button class="btn btn-success btn-sm status-btn" data-id="${app.id}" data-status="accepted">Qəbul et</button>
+                                            <button class="btn btn-danger btn-sm status-btn" data-id="${app.id}" data-status="rejected">Rədd et</button>
+                                            <button class="btn btn-secondary btn-sm chat-applicant-btn" data-applicant-id="${app.applicantId}" data-applicant-name="${app.applicantName || 'Namizəd'}" data-job-id="${jobId}" data-job-title="${app.jobTitle || ''}">Mesaj yaz</button>
                                         </div>
                                     </div>
                                 </div>
