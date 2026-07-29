@@ -405,9 +405,9 @@ const JobsModule = {
                 address: jobData.address || '',
                 latitude: Number(jobData.latitude) || 40.4093,
                 longitude: Number(jobData.longitude) || 49.8671,
-                workingHours: '',
-                requirements: jobData.requirements ? jobData.requirements.split('\n').filter(r => r.trim()) : [],
-                benefits: jobData.benefits ? jobData.benefits.split('\n').filter(b => b.trim()) : [],
+                workingHours: jobData.workingHours || '',
+                requirements: jobData.requirements ? (Array.isArray(jobData.requirements) ? jobData.requirements : jobData.requirements.split('\n').filter(r => r.trim())) : [],
+                benefits: jobData.benefits ? (Array.isArray(jobData.benefits) ? jobData.benefits : jobData.benefits.split(',').map(b => b.trim()).filter(Boolean)) : [],
                 contactPhone: jobData.contactPhone || employer.phone || '',
                 employerId: employer.id,
                 createdAt: now.toISOString(),
@@ -416,10 +416,10 @@ const JobsModule = {
                 isActive: true,
                 viewCount: 0,
                 applicationCount: 0,
-                educationLevel: 'Tələb olunmur',
-                experienceLevel: 'Təcrübəsiz',
-                allowCallIfAccepted: true,
-                applicationMethod: 'in_app'
+                educationLevel: jobData.educationLevel || 'Vacib deyil',
+                experienceLevel: jobData.experienceLevel || 'Təcrübəsiz',
+                allowCallIfAccepted: jobData.allowCallIfAccepted !== undefined ? Boolean(jobData.allowCallIfAccepted) : true,
+                applicationMethod: jobData.applicationMethod || 'in_app'
             };
 
             await this.db.collection('jobs').doc(docId).set(newJob);
@@ -1368,6 +1368,35 @@ const App = {
                             </div>
                         </div>
 
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Təhsil Səviyyəsi</label>
+                                <select id="jobEducation" class="form-select">
+                                    <option value="Vacib deyil">Vacib deyil</option>
+                                    <option value="Ali">Ali</option>
+                                    <option value="Orta">Orta</option>
+                                    <option value="Orta ixtisas">Orta ixtisas</option>
+                                    <option value="Bakalavr">Bakalavr</option>
+                                    <option value="Magistr">Magistr</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Təcrübə Səviyyəsi</label>
+                                <select id="jobExperience" class="form-select">
+                                    <option value="Təcrübəsiz">Təcrübəsiz</option>
+                                    <option value="1 ildən az">1 ildən az</option>
+                                    <option value="1-3 il">1-3 il</option>
+                                    <option value="3-5 il">3-5 il</option>
+                                    <option value="5 ildən çox">5 ildən çox</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">İş Qrafiki / Saatları</label>
+                            <input type="text" id="jobWorkingHours" class="form-input" placeholder="məs: 09:00 - 18:00">
+                        </div>
+
                         <div class="form-group">
                             <label class="form-label">İş Haqqında Məlumat *</label>
                             <textarea id="jobDescription" class="form-textarea" placeholder="Vakansiyanın təfərrüatları..." required></textarea>
@@ -1375,12 +1404,24 @@ const App = {
 
                         <div class="form-group">
                             <label class="form-label">Tələblər (Hər sətirdə 1 tələb)</label>
-                            <textarea id="jobRequirements" class="form-textarea" placeholder="• 2 il təcrübə"></textarea>
+                            <textarea id="jobRequirements" class="form-textarea" placeholder="• 2 il təcrübə&#10;• Rus dili biliyi"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Əlavə İmkanlar / Təminatlar</label>
+                            <input type="text" id="jobBenefits" class="form-input" placeholder="məs: Yemək, Yol, Sığorta, Bonus (vergüllə ayırın)">
                         </div>
 
                         <div class="form-group">
                             <label class="form-label">Əlaqə Telefonu *</label>
                             <input type="tel" id="jobContactPhone" class="form-input" value="${profile.phone || ''}" required>
+                        </div>
+
+                        <div class="form-group d-flex align-center gap-8 mt-12 mb-12">
+                            <input type="checkbox" id="jobAllowCall" checked style="width: 18px; height: 18px; cursor: pointer;">
+                            <label for="jobAllowCall" style="color: #fff; font-size: 14px; cursor: pointer; user-select: none;">
+                                Müraciəti qəbul etdikdən sonra namizədin zəng etməsinə icazə verilsin
+                            </label>
                         </div>
 
                         <button type="submit" class="btn btn-primary btn-full btn-lg mt-16">Dərc Et</button>
@@ -1401,9 +1442,15 @@ const App = {
                 salaryPeriod: 'aylıq',
                 city: document.getElementById('jobCity').value,
                 district: document.getElementById('jobDistrict').value,
+                educationLevel: document.getElementById('jobEducation').value,
+                experienceLevel: document.getElementById('jobExperience').value,
+                workingHours: document.getElementById('jobWorkingHours').value,
                 description: document.getElementById('jobDescription').value,
                 requirements: document.getElementById('jobRequirements').value,
+                benefits: document.getElementById('jobBenefits').value,
                 contactPhone: document.getElementById('jobContactPhone').value,
+                allowCallIfAccepted: document.getElementById('jobAllowCall').checked,
+                applicationMethod: 'in_app'
             };
 
             const res = await JobsModule.createJob(jobData, profile);
