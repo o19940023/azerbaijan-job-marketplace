@@ -95,30 +95,16 @@ const AuthModule = {
         return this.userProfile;
     },
 
-    async registerWithEmail({ email, password, fullName, phone, userType, companyName }) {
+    async registerWithEmail({ email, password, userType }) {
         try {
             const userCredential = await this.auth.createUserWithEmailAndPassword(email, password);
             const user = userCredential.user;
 
             const userData = {
-                fullName: fullName || '',
-                phone: phone || '',
                 email: email || '',
                 userType: userType || 'job_seeker',
-                avatarUrl: null,
-                createdAt: new Date().toISOString(),
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             };
-
-            if (userType === 'employer') {
-                userData.companyName = companyName || '';
-                userData.companyAddress = '';
-                userData.sector = '';
-            } else {
-                userData.experience = '';
-                userData.education = '';
-                userData.skills = '';
-                userData.bio = '';
-            }
 
             await this.db.collection('users').doc(user.uid).set(userData);
             this.userProfile = { id: user.uid, ...userData };
@@ -592,8 +578,8 @@ const ChatModule = {
         this.unsubscribeChats = query.onSnapshot(snapshot => {
             let chats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             chats.sort((a, b) => {
-                const tA = a.lastMessageTime ? new Date(a.lastMessageTime) : new Date(0);
-                const tB = b.lastMessageTime ? new Date(b.lastMessageTime) : new Date(0);
+                const tA = a.lastMessageTime?.toDate ? a.lastMessageTime.toDate() : (a.lastMessageTime ? new Date(a.lastMessageTime) : new Date(0));
+                const tB = b.lastMessageTime?.toDate ? b.lastMessageTime.toDate() : (b.lastMessageTime ? new Date(b.lastMessageTime) : new Date(0));
                 return tB - tA;
             });
             onUpdate(chats);
@@ -614,7 +600,7 @@ const ChatModule = {
                 return { success: true, chatId: existing.id, chat: { id: existing.id, ...existing.data() } };
             }
 
-            const now = new Date().toISOString();
+            const now = firebase.firestore.FieldValue.serverTimestamp();
             const newChat = {
                 employerId,
                 employerName: employerName || 'İşəgötürən',
@@ -658,7 +644,7 @@ const ChatModule = {
         if (!text || !text.trim()) return { success: false };
 
         try {
-            const now = new Date().toISOString();
+            const now = firebase.firestore.FieldValue.serverTimestamp();
             await this.db.collection('chats').doc(chatId).collection('messages').add({
                 senderId,
                 text: text.trim(),
@@ -893,12 +879,12 @@ const App = {
                 <li><a href="#/chat" class="nav-link ${this.currentRoute === 'chat' ? 'active' : ''}"><span class="nav-icon">💬</span> Çat</a></li>
             `;
 
-            const avatarSrc = profile.avatarUrl || 'Logo.png';
+            const avatarSrc = profile.photoUrl || profile.avatarUrl || 'Logo.png';
             navRight.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <a href="#/profile" style="text-decoration: none; display: flex; align-items: center; gap: 8px;">
                         <img src="${avatarSrc}" class="nav-avatar" alt="Avatar" onerror="this.src='Logo.png'">
-                        <span style="font-size: 13px; font-weight: 600; color: #fff;">${profile.fullName || 'Profil'}</span>
+                        <span style="font-size: 13px; font-weight: 600; color: #fff;">${profile.fullName || profile.companyName || 'Profil'}</span>
                     </a>
                     <button id="logoutBtn" class="btn btn-secondary btn-sm">Çıxış</button>
                 </div>
@@ -1791,7 +1777,7 @@ const App = {
                     msgEl.innerHTML = messages.map(m => `
                         <div class="chat-msg ${m.senderId === user.uid ? 'sent' : 'received'}">
                             <div>${m.text}</div>
-                            <div class="chat-msg-time">${m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</div>
+                            <div class="chat-msg-time">${m.createdAtDate ? m.createdAtDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</div>
                         </div>
                     `).join('');
 
@@ -1830,14 +1816,16 @@ const App = {
 
         const isEmployer = profile.userType === 'employer';
 
+        const userAvatar = profile.photoUrl || profile.avatarUrl;
+
         container.innerHTML = `
             <div class="app-container narrow">
                 <div class="profile-header-card">
                     <div class="profile-avatar">
-                        ${profile.avatarUrl ? `<img src="${profile.avatarUrl}">` : '👤'}
+                        ${userAvatar ? `<img src="${userAvatar}" onerror="this.onerror=null; this.src='Logo.png';">` : '👤'}
                     </div>
                     <div>
-                        <h1 class="profile-name">${profile.fullName}</h1>
+                        <h1 class="profile-name">${profile.fullName || profile.companyName || 'İstifadəçi'}</h1>
                         <div class="profile-type">
                             <span class="profile-type-badge">${isEmployer ? '🏢 İşəgötürən' : '👤 İş Axtaran'}</span>
                             ${profile.email ? `<span>· ${profile.email}</span>` : ''}
@@ -1848,6 +1836,10 @@ const App = {
                 <div class="card card-body">
                     <h3 class="card-title mb-24">Profil Məlumatlarını Yenilə</h3>
                     <form id="profileForm">
+                        <div class="form-group">
+                            <label class="form-label">Profil Şəkli (İmage URL / Keçid)</label>
+                            <input type="url" id="profPhotoUrl" class="form-input" placeholder="https://..." value="${userAvatar || ''}">
+                        </div>
                         <div class="form-group">
                             <label class="form-label">Ad və Soyad *</label>
                             <input type="text" id="profFullName" class="form-input" value="${profile.fullName || ''}" required>
@@ -1894,10 +1886,15 @@ const App = {
         document.getElementById('profileForm')?.addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            const photoUrlVal = document.getElementById('profPhotoUrl')?.value?.trim();
             const updates = {
                 fullName: document.getElementById('profFullName').value,
                 phone: document.getElementById('profPhone').value,
             };
+            if (photoUrlVal !== undefined) {
+                updates.photoUrl = photoUrlVal || null;
+                updates.avatarUrl = photoUrlVal || null;
+            }
 
             if (isEmployer) {
                 updates.companyName = document.getElementById('profCompanyName').value;
@@ -2063,8 +2060,8 @@ const App = {
                     <div class="auth-logo">
                         <img src="Logo.png" alt="Logo">
                     </div>
-                    <h1 class="auth-title">Qeydiyyat</h1>
-                    <p class="auth-subtitle">Yeni hesab yaradaraq dərhal başlayın</p>
+                    <h1 class="auth-title">Hesab yarat</h1>
+                    <p class="auth-subtitle">Pulsuz qeydiyyatdan keçin</p>
 
                     <div class="tab-group">
                         <button id="tabJobSeeker" class="tab-btn active">👤 İş Axtaran</button>
@@ -2075,40 +2072,29 @@ const App = {
                         <input type="hidden" id="regUserType" value="job_seeker">
 
                         <div class="form-group">
-                            <label class="form-label">Ad və Soyad *</label>
-                            <input type="text" id="regFullName" class="form-input" placeholder="Əli Əliyev" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Telefon Nömrəsi *</label>
-                            <input type="tel" id="regPhone" class="form-input" placeholder="+994 50 123 45 67" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Email Ünvanı *</label>
-                            <input type="email" id="regEmail" class="form-input" placeholder="nümunə@mail.com" required>
+                            <label class="form-label">E-poçt *</label>
+                            <input type="email" id="regEmail" class="form-input" placeholder="nümunə@email.com" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Şifrə *</label>
-                            <input type="password" id="regPassword" class="form-input" placeholder="Ən azı 6 simvol" required>
+                            <input type="password" id="regPassword" class="form-input" placeholder="••••••••" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Şifrəni təsdiqləyin *</label>
+                            <input type="password" id="regConfirmPassword" class="form-input" placeholder="••••••••" required>
                         </div>
 
-                        <div id="employerFields" class="hidden">
-                            <div class="form-group">
-                                <label class="form-label">Şirkət Adı *</label>
-                                <input type="text" id="regCompanyName" class="form-input" placeholder="məs: Qaf Studio">
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary btn-full btn-lg mt-16">Qeydiyyatı Tamamla</button>
+                        <button type="submit" class="btn btn-primary btn-full btn-lg mt-16">Qeydiyyatdan keç</button>
                     </form>
 
                     <div class="auth-divider">və ya</div>
 
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <button id="googleRegisterBtn" class="google-btn">
-                            <span>🔍</span> Google ilə Qeydiyyatdan Keç
+                            <span>🔍</span> Google ilə qeydiyyat
                         </button>
                         <button id="appleRegisterBtn" class="google-btn" style="background: #000; color: #fff; border: 1px solid #333;">
-                            <span>🍎</span> Apple ilə Qeydiyyatdan Keç
+                            <span>🍎</span> Apple ilə qeydiyyat
                         </button>
                     </div>
 
@@ -2122,20 +2108,17 @@ const App = {
         const tabSeeker = document.getElementById('tabJobSeeker');
         const tabEmp = document.getElementById('tabEmployer');
         const userTypeInput = document.getElementById('regUserType');
-        const empFields = document.getElementById('employerFields');
 
         tabSeeker?.addEventListener('click', () => {
             tabSeeker.classList.add('active');
             tabEmp.classList.remove('active');
             userTypeInput.value = 'job_seeker';
-            empFields.classList.add('hidden');
         });
 
         tabEmp?.addEventListener('click', () => {
             tabEmp.classList.add('active');
             tabSeeker.classList.remove('active');
             userTypeInput.value = 'employer';
-            empFields.classList.remove('hidden');
         });
 
         document.getElementById('googleRegisterBtn')?.addEventListener('click', async () => {
@@ -2163,13 +2146,18 @@ const App = {
         document.getElementById('registerForm')?.addEventListener('submit', async (e) => {
             e.preventDefault();
 
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
+
+            if (password !== confirmPassword) {
+                this.showToast('Şifrələr uyğun gəlmir', 'error');
+                return;
+            }
+
             const regData = {
-                fullName: document.getElementById('regFullName').value,
-                phone: document.getElementById('regPhone').value,
                 email: document.getElementById('regEmail').value,
-                password: document.getElementById('regPassword').value,
+                password: password,
                 userType: userTypeInput.value,
-                companyName: document.getElementById('regCompanyName')?.value || ''
             };
 
             const res = await AuthModule.registerWithEmail(regData);
