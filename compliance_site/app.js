@@ -1784,6 +1784,12 @@ const App = {
                     <h1 class="auth-title">Xoş Gəldiniz</h1>
                     <p class="auth-subtitle">İş Tap AI platformasına giriş edin</p>
 
+                    <div class="tab-group">
+                        <button id="loginTabSeeker" class="tab-btn active">👤 İş Axtaran</button>
+                        <button id="loginTabEmployer" class="tab-btn">🏢 İşəgötürən</button>
+                    </div>
+                    <input type="hidden" id="loginUserType" value="job_seeker">
+
                     <form id="loginForm">
                         <div class="form-group">
                             <label class="form-label">Email Ünvanı</label>
@@ -1809,6 +1815,22 @@ const App = {
             </div>
         `;
 
+        const loginTabSeeker = document.getElementById('loginTabSeeker');
+        const loginTabEmployer = document.getElementById('loginTabEmployer');
+        const loginUserType = document.getElementById('loginUserType');
+
+        loginTabSeeker?.addEventListener('click', () => {
+            loginTabSeeker.classList.add('active');
+            loginTabEmployer.classList.remove('active');
+            loginUserType.value = 'job_seeker';
+        });
+
+        loginTabEmployer?.addEventListener('click', () => {
+            loginTabEmployer.classList.add('active');
+            loginTabSeeker.classList.remove('active');
+            loginUserType.value = 'employer';
+        });
+
         document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value;
@@ -1824,10 +1846,13 @@ const App = {
         });
 
         document.getElementById('googleLoginBtn')?.addEventListener('click', async () => {
-            const res = await AuthModule.loginWithGoogle();
+            const userType = document.getElementById('loginUserType')?.value || 'job_seeker';
+            const res = await AuthModule.loginWithGoogle(userType);
             if (res.success) {
                 this.showToast('Google ilə giriş edildi! 🎉', 'success');
                 window.location.hash = '#/jobs';
+            } else {
+                this.showToast(res.error || 'Google giriş xətası', 'error');
             }
         });
     },
