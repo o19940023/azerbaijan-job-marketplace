@@ -155,7 +155,7 @@ const AuthModule = {
                     email: user.email || '',
                     userType: userType,
                     avatarUrl: user.photoURL || null,
-                    createdAt: new Date().toISOString(),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 };
 
                 if (userType === 'employer') {
@@ -174,9 +174,47 @@ const AuthModule = {
             if (err.code === 'auth/unauthorized-domain') {
                 msg = 'Bu domen (istapapp.netlify.app) Firebase-də icazə verilənlər siyahısında deyil. Firebase Console > Authentication > Settings > Authorized domains bölməsinə əlavə edin.';
             } else if (err.code === 'auth/popup-blocked') {
-                msg = 'Google pəncərəsi brauzer tərəfindən bloklandı. Lütfən pop-up icazəsini verin.';
+                msg = 'Giriş pəncərəsi brauzer tərəfindən bloklandı. Lütfən pop-up icazəsini verin.';
             } else if (err.code === 'auth/popup-closed-by-user') {
-                msg = 'Google giriş pəncərəsi bağlandı.';
+                msg = 'Giriş pəncərəsi bağlandı.';
+            }
+            return { success: false, error: msg };
+        }
+    },
+
+    async loginWithApple(userType = 'job_seeker') {
+        try {
+            const provider = new firebase.auth.OAuthProvider('apple.com');
+            const result = await this.auth.signInWithPopup(provider);
+            const user = result.user;
+
+            let profile = await this.fetchUserProfile(user.uid);
+
+            if (!profile) {
+                const userData = {
+                    fullName: user.displayName || 'Apple İstifadəçisi',
+                    phone: user.phoneNumber || '',
+                    email: user.email || '',
+                    userType: userType,
+                    avatarUrl: user.photoURL || null,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                };
+
+                if (userType === 'employer') {
+                    userData.companyName = user.displayName || 'Şirkət';
+                }
+
+                await this.db.collection('users').doc(user.uid).set(userData);
+                this.userProfile = { id: user.uid, ...userData };
+            }
+
+            this.notifyListeners();
+            return { success: true, user: this.userProfile };
+        } catch (err) {
+            console.error('Apple Auth Error:', err);
+            let msg = err.message;
+            if (err.code === 'auth/unauthorized-domain') {
+                msg = 'Bu domen (istapapp.netlify.app) Firebase-də icazə verilənlər siyahısında deyil.';
             }
             return { success: false, error: msg };
         }
@@ -1822,9 +1860,14 @@ const App = {
 
                     <div class="auth-divider">və ya</div>
 
-                    <button id="googleLoginBtn" class="google-btn">
-                        <span>🔍</span> Google ilə Giriş Et
-                    </button>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button id="googleLoginBtn" class="google-btn">
+                            <span>🔍</span> Google ilə Giriş Et
+                        </button>
+                        <button id="appleLoginBtn" class="google-btn" style="background: #000; color: #fff; border: 1px solid #333;">
+                            <span>🍎</span> Apple ilə Giriş Et
+                        </button>
+                    </div>
 
                     <div class="auth-footer">
                         Hesabınız yoxdur? <a href="#/register">Qeydiyyatdan keçin</a>
@@ -1885,6 +1928,17 @@ const App = {
                 this.showToast(res.error || 'Google giriş xətası', 'error');
             }
         });
+
+        document.getElementById('appleLoginBtn')?.addEventListener('click', async () => {
+            const userType = document.getElementById('loginUserType')?.value || 'job_seeker';
+            const res = await AuthModule.loginWithApple(userType);
+            if (res.success) {
+                this.showToast('Apple ilə giriş edildi! 🎉', 'success');
+                window.location.hash = '#/jobs';
+            } else {
+                this.showToast(res.error || 'Apple giriş xətası', 'error');
+            }
+        });
     },
 
     renderRegister(container) {
@@ -1934,9 +1988,14 @@ const App = {
 
                     <div class="auth-divider">və ya</div>
 
-                    <button id="googleRegisterBtn" class="google-btn">
-                        <span>🔍</span> Google ilə Qeydiyyatdan Keç
-                    </button>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <button id="googleRegisterBtn" class="google-btn">
+                            <span>🔍</span> Google ilə Qeydiyyatdan Keç
+                        </button>
+                        <button id="appleRegisterBtn" class="google-btn" style="background: #000; color: #fff; border: 1px solid #333;">
+                            <span>🍎</span> Apple ilə Qeydiyyatdan Keç
+                        </button>
+                    </div>
 
                     <div class="auth-footer">
                         Artıq hesabınız var? <a href="#/login">Daxil olun</a>
@@ -1972,6 +2031,17 @@ const App = {
                 window.location.hash = '#/jobs';
             } else {
                 this.showToast(res.error || 'Google xətası', 'error');
+            }
+        });
+
+        document.getElementById('appleRegisterBtn')?.addEventListener('click', async () => {
+            const userType = userTypeInput?.value || 'job_seeker';
+            const res = await AuthModule.loginWithApple(userType);
+            if (res.success) {
+                this.showToast('Apple ilə qeydiyyat uğurludur! 🎉', 'success');
+                window.location.hash = '#/jobs';
+            } else {
+                this.showToast(res.error || 'Apple xətası', 'error');
             }
         });
 
