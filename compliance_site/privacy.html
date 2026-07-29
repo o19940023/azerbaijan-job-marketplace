@@ -6,14 +6,21 @@
     <title>Məxfilik Siyasəti – İş Tap AI | Azərbaycanda İş Elanları Tətbiqi</title>
     <meta name="description" content="İş Tap AI tətbiqinin məxfilik siyasəti. Şəxsi məlumatlarınızın necə toplandığı, istifadə edildiyi və qorunduğu haqqında tam məlumat.">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://istapai.az/privacy.html">
+    <link rel="canonical" href="https://istapai.pages.dev/privacy.html">
     <meta property="og:title" content="Məxfilik Siyasəti – İş Tap AI">
     <meta property="og:description" content="İş Tap AI tətbiqinin məxfilik siyasəti və məlumat qorunması qaydaları.">
-    <meta property="og:url" content="https://istapai.az/privacy.html">
+    <meta property="og:url" content="https://istapai.pages.dev/privacy.html">
     <meta property="og:type" content="website">
+    <meta name="google-site-verification" content="yoEHsWOFGaiJLVLCdPkBo3dM7qYvQF0q3AWAvUEUeqQ" />
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="lang-switcher.css">
 </head>
 <body>
+    <div class="lang-switcher">
+        <a href="privacy.html" class="lang-btn active">AZ</a>
+        <a href="privacy-ru.html" class="lang-btn">RU</a>
+    </div>
+
     <div class="cursor-dot" id="cursorDot"></div>
     <div class="cursor-ring" id="cursorRing"></div>
 
@@ -68,7 +75,7 @@
             <p>Hesabınızı silmək üçün:</p>
             <ul>
                 <li>Tətbiq daxilində <strong>Profil → Hesabı Sil</strong> düyməsindən istifadə edin.</li>
-                <li>Və ya <a href="mailto:qafsuport@gmail.com">qafsuport@gmail.com</a> ünvanına yazın.</li>
+                <li>Və ya <a href="/cdn-cgi/l/email-protection#6617070015131609141226010b070f0a4805090b"><span class="__cf_email__" data-cfemail="344555524741445b4640745359555d581a575b59">[email&#160;protected]</span></a> ünvanına yazın.</li>
             </ul>
             <p>Hesab silinərkən bütün fərdi məlumatlar verilənlər bazamızdan <strong>dərhal (0 gün)</strong> tamamilə silinir.</p>
         </section>
@@ -85,7 +92,7 @@
         </div>
     </footer>
 
-    <script>
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
         const dot = document.getElementById('cursorDot');
         const ring = document.getElementById('cursorRing');
         let mx=0,my=0,rx=0,ry=0;
@@ -98,10 +105,4 @@
             ring.style.transform=`translate(${rx-20}px,${ry-20}px)`;
             requestAnimationFrame(animRing);
         })();
-        document.querySelectorAll('a').forEach(el=>{
-            el.addEventListener('mouseenter',()=>ring.classList.add('hovered'));
-            el.addEventListener('mouseleave',()=>ring.classList.remove('hovered'));
-        });
-    </script>
-</body>
-</html>
+        document

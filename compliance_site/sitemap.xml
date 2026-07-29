@@ -1,28 +1,73 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+    <!-- Azerbaijani Pages -->
     <url>
-        <loc>https://istapapp.netlify.app/</loc>
-        <lastmod>2026-03-20</lastmod>
+        <loc>https://istapai.pages.dev/</loc>
+        <lastmod>2026-03-25T00:00:00+00:00</lastmod>
         <changefreq>weekly</changefreq>
         <priority>1.0</priority>
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.pages.dev/" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.pages.dev/index-ru.html" />
     </url>
     <url>
-        <loc>https://istapapp.netlify.app/privacy.html</loc>
-        <lastmod>2026-03-20</lastmod>
+        <loc>https://istapai.pages.dev/privacy.html</loc>
+        <lastmod>2026-03-25T00:00:00+00:00</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.pages.dev/privacy.html" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.pages.dev/privacy-ru.html" />
     </url>
     <url>
-        <loc>https://istapapp.netlify.app/terms.html</loc>
-        <lastmod>2026-03-20</lastmod>
+        <loc>https://istapai.pages.dev/terms.html</loc>
+        <lastmod>2026-03-25T00:00:00+00:00</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.pages.dev/terms.html" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.pages.dev/terms-ru.html" />
     </url>
     <url>
-        <loc>https://istapapp.netlify.app/support.html</loc>
-        <lastmod>2026-03-20</lastmod>
+        <loc>https://istapai.pages.dev/support.html</loc>
+        <lastmod>2026-03-25T00:00:00+00:00</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.8</priority>
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.pages.dev/support.html" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.pages.dev/support-ru.html" />
     </url>
+
+    <!-- Russian Pages -->
+    <url>
+        <loc>https://istapai.pages.dev/index-ru.html</loc>
+        <lastmod>2026-03-25T00:00:00+00:00</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>1.0</priority>
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.pages.dev/" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.pages.dev/index-ru.html" />
+    </url>
+    <url>
+        <loc>https://istapai.pages.dev/privacy-ru.html</loc>
+        <lastmod>2026-03-25T00:00:00+00:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.pages.dev/privacy.html" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.pages.dev/privacy-ru.html" />
+    </url>
+    <url>
+        <loc>https://istapai.pages.dev/terms-ru.html</loc>
+        <lastmod>2026-03-25T00:00:00+00:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.pages.dev/terms.html" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.pages.dev/terms-ru.html" />
+    </url>
+    <url>
+        <loc>https://istapai.pages.dev/support-ru.html</loc>
+        <lastmod>2026-03-25T00:00:00+00:00</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.pages.dev/support.html" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.pages.dev/support-ru.html" />
+    </url>
+
 </urlset>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İş Tap AI — Azərbaycanda №1 İş Elanları Platforması</title>
+    <meta name="description" content="İş Tap AI ilə Azərbaycanda vakansiya tapın və ya iş elanı yerləşdirin. Bakı, Gəncə, Sumqayıt və bütün regionlarda minlərlə iş imkanı.">
+    <link rel="icon" type="image/png" href="Logo.png">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Leaflet Map CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+    <!-- Firebase JS SDK (v8 compat for easy global module access) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+
+    <!-- App Styles -->
+    <link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+    <!-- Application Navbar -->
+    <nav class="app-nav">
+        <div class="nav-inner">
+            <a href="#/jobs" class="nav-brand">
+                <img src="Logo.png" alt="İş Tap AI Logo">
+                <span>İŞ TAP AI</span>
+            </a>
+
+            <ul class="nav-links" id="navLinks">
+                <li><a href="#/jobs" class="nav-link active"><span class="nav-icon">💼</span> İş Elanları</a></li>
+                <li><a href="#/map" class="nav-link"><span class="nav-icon">🗺️</span> Harita</a></li>
+            </ul>
+
+            <div class="nav-user" id="navRight">
+                <a href="#/login" class="nav-auth-btn secondary">Giriş</a>
+                <a href="#/register" class="nav-auth-btn">Qeydiyyat</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- SPA Main Root View -->
+    <main class="app-main">
+        <div id="app-root">
+            <div class="loading-spinner" style="height: 80vh;">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Main JS Bundle -->
+    <script src="app.js"></script>
+</body>
+</html>
