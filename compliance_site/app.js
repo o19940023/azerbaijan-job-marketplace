@@ -410,8 +410,8 @@ const JobsModule = {
                 benefits: jobData.benefits ? jobData.benefits.split('\n').filter(b => b.trim()) : [],
                 contactPhone: jobData.contactPhone || employer.phone || '',
                 employerId: employer.id,
-                createdAt: firebase.firestore.Timestamp.fromDate(now),
-                expiresAt: firebase.firestore.Timestamp.fromDate(expires),
+                createdAt: now.toISOString(),
+                expiresAt: expires.toISOString(),
                 isUrgent: false,
                 isActive: true,
                 viewCount: 0,
@@ -614,6 +614,7 @@ const ChatModule = {
                 return { success: true, chatId: existing.id, chat: { id: existing.id, ...existing.data() } };
             }
 
+            const now = new Date().toISOString();
             const newChat = {
                 employerId,
                 employerName: employerName || 'İşəgötürən',
@@ -623,10 +624,10 @@ const ChatModule = {
                 jobTitle: jobTitle || 'İş elanı',
                 participantIds: [employerId, jobSeekerId],
                 lastMessage: 'Söhbət başladı',
-                lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                lastMessageTime: now,
+                updatedAt: now,
                 lastSenderId: '',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                createdAt: now
             };
 
             const docRef = await this.db.collection('chats').add(newChat);
@@ -657,17 +658,17 @@ const ChatModule = {
         if (!text || !text.trim()) return { success: false };
 
         try {
-            const timestamp = firebase.firestore.FieldValue.serverTimestamp();
+            const now = new Date().toISOString();
             await this.db.collection('chats').doc(chatId).collection('messages').add({
                 senderId,
                 text: text.trim(),
-                createdAt: timestamp
+                createdAt: now
             });
 
             await this.db.collection('chats').doc(chatId).update({
                 lastMessage: text.trim(),
-                lastMessageTime: timestamp,
-                updatedAt: timestamp,
+                lastMessageTime: now,
+                updatedAt: now,
                 lastSenderId: senderId
             });
 
