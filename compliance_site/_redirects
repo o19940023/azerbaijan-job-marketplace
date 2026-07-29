@@ -1,3 +1,4 @@
-# Netlify Redirects
-/app        /app.html   200
-/app/*      /app.html   200
+# Netlify SPA Redirects Rule
+/app        /index.html   200
+/app.html   /index.html   200
+/*          /index.html   200
