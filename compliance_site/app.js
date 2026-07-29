@@ -357,13 +357,27 @@ const JobsModule = {
             const doc = await this.db.collection('jobs').doc(id).get();
             if (!doc.exists) return null;
 
+            const data = doc.data();
+
+            // Track views per unique browser/user (1 view per device)
+            const viewedKey = `viewed_job_${id}`;
+            if (!localStorage.getItem(viewedKey)) {
+                localStorage.setItem(viewedKey, 'true');
+                try {
+                    this.db.collection('jobs').doc(id).update({
+                        viewCount: firebase.firestore.FieldValue.increment(1)
+                    });
+                    data.viewCount = (data.viewCount || 0) + 1;
+                } catch (_) {}
+            }
+
+            // Real-time calculated application count from applications collection
             try {
-                this.db.collection('jobs').doc(id).update({
-                    viewCount: firebase.firestore.FieldValue.increment(1)
-                });
+                const appSnapshot = await this.db.collection('applications').where('jobId', '==', id).get();
+                data.applicationCount = appSnapshot.size;
             } catch (_) {}
 
-            return { id: doc.id, ...doc.data() };
+            return { id: doc.id, ...data };
         } catch (err) {
             return null;
         }
