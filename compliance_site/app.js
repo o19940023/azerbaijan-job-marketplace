@@ -710,20 +710,23 @@ const App = {
         this.auth = firebase.auth();
         this.db = firebase.firestore();
 
-        await AuthModule.init(this.auth, this.db);
+        // Initialize modules immediately
         JobsModule.init(this.db);
         ApplicationsModule.init(this.db);
         ChatModule.init(this.db);
         ProfileModule.init(this.db);
         AIAssistantModule.init();
 
-        AuthModule.subscribe(state => {
-            this.updateNavbar(state);
-        });
-
+        // Setup routing and render page IMMEDIATELY
         window.addEventListener('hashchange', () => this.handleRoute());
         this.handleRoute();
         this.setupAIWidget();
+
+        // Subscribe & initialize auth in background without blocking initial render
+        AuthModule.subscribe(state => {
+            this.updateNavbar(state);
+        });
+        AuthModule.init(this.auth, this.db).catch(err => console.error('Auth init error:', err));
     },
 
     showToast(message, type = 'info') {
