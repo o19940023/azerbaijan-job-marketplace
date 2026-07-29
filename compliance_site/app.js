@@ -212,7 +212,10 @@ const JobsModule = {
             query = query.where('employerId', '==', employerId);
         }
 
+        let hasReceivedData = false;
+
         const processDocs = (docs) => {
+            hasReceivedData = true;
             let jobs = docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
@@ -256,6 +259,22 @@ const JobsModule = {
             onUpdate(jobs);
         };
 
+        // Safety fallback timer if onSnapshot hangs on initial load
+        setTimeout(async () => {
+            if (!hasReceivedData) {
+                console.log('onSnapshot pending > 3.5s, forcing HTTPS query.get() fallback...');
+                try {
+                    const snapshot = await query.get();
+                    if (!hasReceivedData) {
+                        processDocs(snapshot.docs);
+                    }
+                } catch (err) {
+                    console.error('Safety HTTPS fallback error:', err);
+                    if (!hasReceivedData) onUpdate([]);
+                }
+            }
+        }, 3500);
+
         this.unsubscribeJobs = query.onSnapshot((snapshot) => {
             processDocs(snapshot.docs);
         }, async (err) => {
@@ -265,7 +284,7 @@ const JobsModule = {
                 processDocs(snapshot.docs);
             } catch (fallbackErr) {
                 console.error('query.get() fallback error:', fallbackErr);
-                onUpdate([]);
+                if (!hasReceivedData) onUpdate([]);
             }
         });
 
