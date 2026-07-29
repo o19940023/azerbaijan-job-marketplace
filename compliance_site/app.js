@@ -169,7 +169,16 @@ const AuthModule = {
             this.notifyListeners();
             return { success: true, user: this.userProfile };
         } catch (err) {
-            return { success: false, error: err.message };
+            console.error('Google Auth Error:', err);
+            let msg = err.message;
+            if (err.code === 'auth/unauthorized-domain') {
+                msg = 'Bu domen (istapapp.netlify.app) Firebase-də icazə verilənlər siyahısında deyil. Firebase Console > Authentication > Settings > Authorized domains bölməsinə əlavə edin.';
+            } else if (err.code === 'auth/popup-blocked') {
+                msg = 'Google pəncərəsi brauzer tərəfindən bloklandı. Lütfən pop-up icazəsini verin.';
+            } else if (err.code === 'auth/popup-closed-by-user') {
+                msg = 'Google giriş pəncərəsi bağlandı.';
+            }
+            return { success: false, error: msg };
         }
     },
 
@@ -548,9 +557,10 @@ const ChatModule = {
                 jobTitle: jobTitle || 'İş elanı',
                 participantIds: [employerId, jobSeekerId],
                 lastMessage: 'Söhbət başladı',
-                lastMessageTime: new Date().toISOString(),
+                lastMessageTime: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 lastSenderId: '',
-                createdAt: new Date().toISOString()
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
 
             const docRef = await this.db.collection('chats').add(newChat);
@@ -565,8 +575,12 @@ const ChatModule = {
         const query = this.db.collection('chats').doc(chatId).collection('messages');
 
         this.unsubscribeMessages = query.onSnapshot(snapshot => {
-            let messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            messages.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+            let messages = snapshot.docs.map(doc => {
+                const data = doc.data();
+                const createdAtDate = data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : new Date());
+                return { id: doc.id, ...data, createdAtDate };
+            });
+            messages.sort((a, b) => (a.createdAtDate || 0) - (b.createdAtDate || 0));
             onUpdate(messages);
         });
 
@@ -577,16 +591,17 @@ const ChatModule = {
         if (!text || !text.trim()) return { success: false };
 
         try {
-            const now = new Date().toISOString();
+            const timestamp = firebase.firestore.FieldValue.serverTimestamp();
             await this.db.collection('chats').doc(chatId).collection('messages').add({
                 senderId,
                 text: text.trim(),
-                createdAt: now
+                createdAt: timestamp
             });
 
             await this.db.collection('chats').doc(chatId).update({
                 lastMessage: text.trim(),
-                lastMessageTime: now,
+                lastMessageTime: timestamp,
+                updatedAt: timestamp,
                 lastSenderId: senderId
             });
 
@@ -1796,7 +1811,10 @@ const App = {
                             <input type="email" id="loginEmail" class="form-input" placeholder="nümunə@mail.com" required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Şifrə</label>
+                            <div class="d-flex justify-between align-center mb-4">
+                                <label class="form-label mb-0">Şifrə</label>
+                                <a href="javascript:void(0)" id="forgotPasswordBtn" style="font-size: 13px; color: var(--accent-orange); text-decoration: none;">Şifrəni unutmusunuz?</a>
+                            </div>
                             <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required>
                         </div>
                         <button type="submit" class="btn btn-primary btn-full btn-lg mt-16">Giriş Et</button>
@@ -1829,6 +1847,18 @@ const App = {
             loginTabEmployer.classList.add('active');
             loginTabSeeker.classList.remove('active');
             loginUserType.value = 'employer';
+        });
+
+        document.getElementById('forgotPasswordBtn')?.addEventListener('click', async () => {
+            const email = prompt('Şifrənizi sıfırlamaq üçün email ünvanınızı daxil edin:');
+            if (email && email.trim()) {
+                try {
+                    await firebase.auth().sendPasswordResetEmail(email.trim());
+                    this.showToast('Şifrə sıfırlama meyli göndərildi! Emaillərinizi yoxlayın. 📧', 'success');
+                } catch (err) {
+                    this.showToast('Xəta: ' + (err.message || 'Email tapılmadı'), 'error');
+                }
+            }
         });
 
         document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
@@ -1902,6 +1932,12 @@ const App = {
                         <button type="submit" class="btn btn-primary btn-full btn-lg mt-16">Qeydiyyatı Tamamla</button>
                     </form>
 
+                    <div class="auth-divider">və ya</div>
+
+                    <button id="googleRegisterBtn" class="google-btn">
+                        <span>🔍</span> Google ilə Qeydiyyatdan Keç
+                    </button>
+
                     <div class="auth-footer">
                         Artıq hesabınız var? <a href="#/login">Daxil olun</a>
                     </div>
@@ -1926,6 +1962,17 @@ const App = {
             tabSeeker.classList.remove('active');
             userTypeInput.value = 'employer';
             empFields.classList.remove('hidden');
+        });
+
+        document.getElementById('googleRegisterBtn')?.addEventListener('click', async () => {
+            const userType = userTypeInput?.value || 'job_seeker';
+            const res = await AuthModule.loginWithGoogle(userType);
+            if (res.success) {
+                this.showToast('Google ilə qeydiyyat uğurludur! 🎉', 'success');
+                window.location.hash = '#/jobs';
+            } else {
+                this.showToast(res.error || 'Google xətası', 'error');
+            }
         });
 
         document.getElementById('registerForm')?.addEventListener('submit', async (e) => {
