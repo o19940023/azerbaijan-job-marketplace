@@ -1529,7 +1529,8 @@ const App = {
                     sec.innerHTML = `<div class="loading-spinner"><div class="spinner"></div></div>`;
                     sec.classList.remove('hidden');
 
-                    const applicants = await ApplicationsModule.getJobApplicants(jobId);
+                    // Use already-fetched applications filtered by jobId (more reliable than separate query)
+                    const applicants = applications.filter(a => a.jobId === jobId);
                     if (applicants.length === 0) {
                         sec.innerHTML = `<div class="text-gray text-sm">Bu elana henüz müraciət olunmayıb.</div>`;
                         return;
@@ -1541,18 +1542,18 @@ const App = {
                                 <div class="card card-body" style="background:rgba(255,255,255,0.02);">
                                     <div class="d-flex justify-between align-center flex-wrap gap-12">
                                         <div>
-                                            <div style="font-weight:700;color:#fff;font-size:16px;">${app.applicantName}</div>
-                                            <div class="text-gray text-sm">📞 ${app.applicantPhone} ${app.applicantEmail ? '· ✉️ ' + app.applicantEmail : ''}</div>
+                                            <div style="font-weight:700;color:#fff;font-size:16px;">${app.applicantName || 'Namizəd'}</div>
+                                            <div class="text-gray text-sm">${app.applicantPhone ? '📞 ' + app.applicantPhone : ''} ${app.applicantEmail ? '· ✉️ ' + app.applicantEmail : ''}</div>
                                             ${app.applicantSkills ? `<div class="text-xs text-primary mt-8">Bacarıqlar: ${app.applicantSkills}</div>` : ''}
                                             ${app.applicantBio ? `<div class="text-sm text-gray mt-8">"${app.applicantBio}"</div>` : ''}
                                         </div>
-                                        <div class="d-flex align-center gap-8">
+                                        <div class="d-flex align-center gap-8 flex-wrap">
                                             <span class="job-badge" style="background:${app.status === 'accepted' ? 'rgba(34,197,94,0.2)' : app.status === 'rejected' ? 'rgba(239,68,68,0.2)' : 'rgba(255,140,0,0.2)'}">
                                                 ${app.status === 'accepted' ? 'Qəbul edildi' : app.status === 'rejected' ? 'Rədd edildi' : 'Gözləmədə'}
                                             </span>
                                             <button class="btn btn-success btn-sm status-btn" data-id="${app.id}" data-status="accepted">Kabul Et</button>
                                             <button class="btn btn-danger btn-sm status-btn" data-id="${app.id}" data-status="rejected">Rədd Et</button>
-                                            <button class="btn btn-secondary btn-sm chat-applicant-btn" data-applicant-id="${app.applicantId}" data-applicant-name="${app.applicantName}" data-job-id="${jobId}" data-job-title="${app.jobTitle}">Çat Başlat</button>
+                                            <button class="btn btn-secondary btn-sm chat-applicant-btn" data-applicant-id="${app.applicantId}" data-applicant-name="${app.applicantName || 'Namizəd'}" data-job-id="${jobId}" data-job-title="${app.jobTitle || ''}">Çat Başlat</button>
                                         </div>
                                     </div>
                                 </div>
@@ -1566,7 +1567,12 @@ const App = {
                             const status = sBtn.dataset.status;
                             await ApplicationsModule.updateStatus(appId, status);
                             this.showToast(status === 'accepted' ? 'Müraciət qəbul edildi 🎉' : 'Müraciət rədd edildi', status === 'accepted' ? 'success' : 'info');
-                            btn.click();
+                            // Refresh the applications list
+                            const freshApps = await ApplicationsModule.getEmployerApplications(user.uid);
+                            applications.length = 0;
+                            applications.push(...freshApps);
+                            btn.click(); // close
+                            btn.click(); // reopen with fresh data
                         });
                     });
 
