@@ -1471,22 +1471,27 @@ const App = {
 
         el.innerHTML = `
             <div class="d-grid gap-16 stagger">
-                ${apps.map(a => `
-                    <div class="card card-body">
-                        <div class="d-flex justify-between align-center flex-wrap gap-12">
-                            <div>
-                                <h3 style="font-family:'Syne',sans-serif;font-size:18px;color:#fff;">${a.jobTitle}</h3>
-                                <div class="text-gray text-sm mt-8">🏢 ${a.companyName} · 📅 ${this.formatTimeAgo(a.createdAt)}</div>
-                            </div>
-                            <div class="d-flex align-center gap-12">
-                                <span class="job-badge" style="background:${a.status === 'accepted' ? 'rgba(34,197,94,0.2)' : a.status === 'rejected' ? 'rgba(239,68,68,0.2)' : 'rgba(255,140,0,0.2)';color:${a.status === 'accepted' ? '#22c55e' : a.status === 'rejected' ? '#ef4444' : '#FF8C00'};font-size:13px;padding:6px 14px;">
-                                    ${a.status === 'accepted' ? '🎉 Qəbul Olundu!' : a.status === 'rejected' ? '❌ Rədd Edildi' : '⏳ Gözləmədə'}
-                                </span>
-                                <a href="#/jobs/${a.jobId}" class="btn btn-secondary btn-sm">Elana Bax</a>
+                ${apps.map(a => {
+                    const statusBg = a.status === 'accepted' ? 'rgba(34,197,94,0.2)' : a.status === 'rejected' ? 'rgba(239,68,68,0.2)' : 'rgba(255,140,0,0.2)';
+                    const statusColor = a.status === 'accepted' ? '#22c55e' : a.status === 'rejected' ? '#ef4444' : '#FF8C00';
+
+                    return `
+                        <div class="card card-body">
+                            <div class="d-flex justify-between align-center flex-wrap gap-12">
+                                <div>
+                                    <h3 style="font-family:'Syne',sans-serif;font-size:18px;color:#fff;">${a.jobTitle}</h3>
+                                    <div class="text-gray text-sm mt-8">🏢 ${a.companyName} · 📅 ${this.formatTimeAgo(a.createdAt)}</div>
+                                </div>
+                                <div class="d-flex align-center gap-12">
+                                    <span class="job-badge" style="background:${statusBg}; color:${statusColor}; font-size:13px; padding:6px 14px;">
+                                        ${a.status === 'accepted' ? '🎉 Qəbul Olundu!' : a.status === 'rejected' ? '❌ Rədd Edildi' : '⏳ Gözləmədə'}
+                                    </span>
+                                    <a href="#/jobs/${a.jobId}" class="btn btn-secondary btn-sm">Elana Bax</a>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `).join('')}
+                    `;
+                }).join('')}
             </div>
         `;
     },
