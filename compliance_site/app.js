@@ -17,22 +17,20 @@ const firebaseConfig = {
 
 const CATEGORIES = [
     { id: 'all', name: 'Bütün Kateqoriyalar', icon: '⚡' },
-    { id: 'waiter', name: 'Ofisant', icon: '🍽️' },
-    { id: 'courier', name: 'Kuryer', icon: '🛵' },
-    { id: 'sales', name: 'Satıcı', icon: '🛍️' },
-    { id: 'cleaner', name: 'Təmizlikçi', icon: '🧹' },
-    { id: 'cook', name: 'Aşpaz', icon: '🍳' },
-    { id: 'security', name: 'Mühafizəçi', icon: '🛡️' },
-    { id: 'driver', name: 'Sürücü', icon: '🚗' },
-    { id: 'cashier', name: 'Kassir', icon: '💳' },
-    { id: 'warehouse', name: 'Anbardar', icon: '📦' },
-    { id: 'construction', name: 'Tikinti işçisi', icon: '🏗️' },
-    { id: 'barista', name: 'Barista', icon: '☕' },
-    { id: 'mechanic', name: 'Mexanik', icon: '🔧' },
-    { id: 'hairdresser', name: 'Bərbər', icon: '✂️' },
-    { id: 'teacher', name: 'Müəllim', icon: '🎓' },
-    { id: 'it', name: 'IT mütəxəssis', icon: '💻' },
-    { id: 'other', name: 'Digər', icon: '💼' }
+    { id: 'it', name: 'İT və Texnologiya', icon: '💻' },
+    { id: 'finance', name: 'Maliyyə və Mühasibatlıq', icon: '💰' },
+    { id: 'sales', name: 'Satış və Kommersiya', icon: '🛍️' },
+    { id: 'service', name: 'Xidmət və HORECA', icon: '🍽️' },
+    { id: 'admin', name: 'İnzibati və Ofis', icon: '🏢' },
+    { id: 'logistics', name: 'Logistika və Nəqliyyat', icon: '🛵' },
+    { id: 'healthcare', name: 'Səhiyyə və Aptek', icon: '🏥' },
+    { id: 'education', name: 'Təhsil və Təlim', icon: '🎓' },
+    { id: 'construction', name: 'Tikinti və Sənaye', icon: '🏗️' },
+    { id: 'security', name: 'Mühafizə və Xidmət', icon: '🛡️' },
+    { id: 'cashier', name: 'Kassir və Qəbul', icon: '💳' },
+    { id: 'driver', name: 'Sürücü və Çatdırılma', icon: '🚗' },
+    { id: 'beauty', name: 'Gözəllik və Qulluq', icon: '✂️' },
+    { id: 'other', name: 'Digər Vakansiyalar', icon: '💼' }
 ];
 
 const CITIES = [
@@ -829,12 +827,50 @@ const App = {
         window.addEventListener('hashchange', () => this.handleRoute());
         this.handleRoute();
         this.setupAIWidget();
+        this.checkAndShowAppBanner();
 
         // Subscribe & initialize auth in background without blocking initial render
         AuthModule.subscribe(state => {
             this.updateNavbar(state);
         });
         AuthModule.init(this.auth, this.db).catch(err => console.error('Auth init error:', err));
+    },
+
+    checkAndShowAppBanner() {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (!isMobile) return;
+        if (sessionStorage.getItem('app_banner_closed') === 'true') return;
+
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const appUrl = isIOS 
+            ? 'https://apps.apple.com/us/app/i-%C5%9F-tap-ai-i-%C5%9F-elanlar%C4%B1-cv/id6760608748' 
+            : 'https://play.google.com/store/apps/details?id=com.is.tap';
+
+        const banner = document.createElement('div');
+        banner.id = 'appInstallBanner';
+        banner.className = 'app-install-banner';
+        banner.innerHTML = `
+            <div class="app-banner-left">
+                <img src="Logo.png" class="app-banner-logo" alt="İş Tap AI Logo">
+                <div class="app-banner-text">
+                    <div class="app-banner-title">İş Tap AI Mobil Tətbiqi</div>
+                    <div class="app-banner-subtitle">${isIOS ? '📱 App Store-dan Yüklə' : '🤖 Google Play-dən Yüklə'}</div>
+                </div>
+            </div>
+            <div class="app-banner-right">
+                <a href="${appUrl}" target="_blank" rel="noopener noreferrer" class="app-banner-btn">Tətbiqi Endir</a>
+                <button type="button" class="app-banner-close" id="closeAppBannerBtn" aria-label="Bağla">✕</button>
+            </div>
+        `;
+
+        document.body.prepend(banner);
+        document.body.classList.add('has-app-banner');
+
+        document.getElementById('closeAppBannerBtn')?.addEventListener('click', () => {
+            banner.remove();
+            document.body.classList.remove('has-app-banner');
+            sessionStorage.setItem('app_banner_closed', 'true');
+        });
     },
 
     showToast(message, type = 'info') {
@@ -1708,10 +1744,10 @@ const App = {
         }
 
         container.innerHTML = `
-            <div class="chat-layout">
+            <div class="chat-layout ${chatId ? 'has-chat' : ''}">
                 <div class="chat-sidebar" id="chatSidebar">
                     <div class="chat-sidebar-header">
-                        <div class="chat-sidebar-title">Mesajlar</div>
+                        <div class="chat-sidebar-title">💬 Mesajlar</div>
                     </div>
                     <ul class="chat-list" id="chatList">
                         <div class="loading-spinner"><div class="spinner"></div></div>
@@ -1745,8 +1781,8 @@ const App = {
                     <li class="chat-item ${isActive ? 'active' : ''}" data-id="${c.id}">
                         <div class="chat-avatar">${otherName ? otherName[0].toUpperCase() : '👤'}</div>
                         <div class="chat-item-info">
-                            <div class="chat-item-name">${otherName}</div>
-                            <div class="chat-item-last">${c.lastMessage || ''}</div>
+                            <div class="chat-item-name">${escapeHTML(otherName || 'İstifadəçi')}</div>
+                            <div class="chat-item-last">${escapeHTML(c.lastMessage || '')}</div>
                         </div>
                         <div class="chat-item-time">${timeAgo}</div>
                     </li>
@@ -1765,6 +1801,7 @@ const App = {
             if (mainEl) {
                 mainEl.innerHTML = `
                     <div class="chat-main-header">
+                        <button type="button" class="chat-back-btn" id="chatBackBtn">← Söhbətlər</button>
                         <div id="chatHeaderName" class="chat-main-name">Söhbət</div>
                     </div>
                     <div class="chat-messages" id="chatMessages">
@@ -1775,6 +1812,10 @@ const App = {
                         <button id="sendMsgBtn" class="chat-send-btn">➤</button>
                     </div>
                 `;
+
+                document.getElementById('chatBackBtn')?.addEventListener('click', () => {
+                    window.location.hash = '#/chat';
+                });
 
                 ChatModule.listenToMessages(chatId, (messages) => {
                     const msgEl = document.getElementById('chatMessages');
@@ -2256,6 +2297,408 @@ const App = {
         };
         return types[type] || type || 'Tam ştat';
     }
+};
+
+// ===== 9. DISCOVERABILITY, FILTERING & MOBILE EXPERIENCE =====
+// These enhancements live in the website bundle only. The Flutter application
+// keeps using its existing screens and data model.
+const normalizeSearchText = (value) => String(value || '')
+    .toLocaleLowerCase('az')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ə/g, 'e')
+    .replace(/ı/g, 'i')
+    .replace(/ş/g, 's')
+    .replace(/ç/g, 'c')
+    .replace(/ğ/g, 'g')
+    .replace(/ö/g, 'o')
+    .replace(/ü/g, 'u');
+
+const escapeHTML = (value) => String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+// Firestore's simple client queries are intentionally broad. Filtering the
+// received public records lets visitors combine filters without requiring an
+// index for every possible filter combination.
+const baseListenToJobs = JobsModule.listenToJobs.bind(JobsModule);
+JobsModule.listenToJobs = function(filters = {}, onUpdate, onError) {
+    const searchQuery = normalizeSearchText(filters.searchQuery);
+    const minSalary = Number(filters.minSalary) || 0;
+    const maxSalary = Number(filters.maxSalary) || 0;
+
+    return baseListenToJobs({ ...filters, searchQuery: '' }, (jobs) => {
+        const result = jobs.filter((job) => {
+            const searchable = normalizeSearchText([
+                job.title,
+                job.companyName,
+                job.description,
+                job.city,
+                job.district,
+                job.categoryId,
+                Array.isArray(job.requirements) ? job.requirements.join(' ') : job.requirements
+            ].join(' '));
+
+            if (searchQuery && !searchable.includes(searchQuery)) return false;
+
+            const jobMin = Number(job.salaryMin) || 0;
+            const jobMax = Number(job.salaryMax) || jobMin;
+            if (minSalary && jobMax < minSalary) return false;
+            if (maxSalary && jobMin > maxSalary) return false;
+            return true;
+        });
+        onUpdate(result);
+    }, onError);
+};
+
+App.updateNavbar = function({ user, profile }) {
+    const navRight = document.getElementById('navRight');
+    const navLinks = document.getElementById('navLinks');
+    if (!navRight || !navLinks) return;
+
+    const isEmployer = profile?.userType === 'employer';
+    const links = user && profile ? `
+        <li><a href="#/jobs" class="nav-link ${this.currentRoute === 'jobs' ? 'active' : ''}"><span class="nav-icon">💼</span> İş elanları</a></li>
+        <li><a href="#/map" class="nav-link ${this.currentRoute === 'map' ? 'active' : ''}"><span class="nav-icon">🗺️</span> Xəritə</a></li>
+        ${isEmployer ? `
+            <li><a href="#/create-job" class="nav-link ${this.currentRoute === 'create-job' ? 'active' : ''}"><span class="nav-icon">➕</span> Elan yerləşdir</a></li>
+            <li><a href="#/my-jobs" class="nav-link ${this.currentRoute === 'my-jobs' ? 'active' : ''}"><span class="nav-icon">📋</span> İlanlarım</a></li>
+        ` : `
+            <li><a href="#/applications" class="nav-link ${this.currentRoute === 'applications' ? 'active' : ''}"><span class="nav-icon">📝</span> Müraciətlərim</a></li>
+            <li><a href="#/saved-jobs" class="nav-link ${this.currentRoute === 'saved-jobs' ? 'active' : ''}"><span class="nav-icon">⭐</span> Saxlanılanlar</a></li>
+        `}
+        <li><a href="#/chat" class="nav-link ${this.currentRoute === 'chat' ? 'active' : ''}"><span class="nav-icon">💬</span> Mesajlar</a></li>
+    ` : `
+        <li><a href="#/jobs" class="nav-link ${this.currentRoute === 'jobs' ? 'active' : ''}"><span class="nav-icon">💼</span> İş elanları</a></li>
+        <li><a href="#/map" class="nav-link ${this.currentRoute === 'map' ? 'active' : ''}"><span class="nav-icon">🗺️</span> Xəritə</a></li>
+    `;
+    navLinks.innerHTML = links;
+
+    if (user && profile) {
+        const avatarSrc = profile.photoUrl || profile.avatarUrl || 'Logo.png';
+        navRight.innerHTML = `
+            <a href="#/profile" class="nav-profile-link">
+                <img src="${escapeHTML(avatarSrc)}" class="nav-avatar" alt="Profil şəkli" onerror="this.src='Logo.png'">
+                <span>${escapeHTML(profile.fullName || profile.companyName || 'Profil')}</span>
+            </a>
+            <button id="logoutBtn" class="btn btn-secondary btn-sm">Çıxış</button>
+        `;
+        document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+            await AuthModule.logout();
+            this.showToast('Hesabdan çıxış edildi', 'info');
+            window.location.hash = '#/login';
+        });
+    } else {
+        navRight.innerHTML = '<a href="#/login" class="nav-auth-btn secondary">Giriş</a><a href="#/register" class="nav-auth-btn">Qeydiyyat</a>';
+    }
+
+    let toggle = document.getElementById('navToggle');
+    if (!toggle) {
+        toggle = document.createElement('button');
+        toggle.id = 'navToggle';
+        toggle.className = 'nav-toggle';
+        toggle.type = 'button';
+        toggle.setAttribute('aria-label', 'Menyunu aç');
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.textContent = '☰';
+        document.querySelector('.nav-inner')?.appendChild(toggle);
+    }
+    toggle.onclick = () => {
+        const open = navLinks.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', String(open));
+        toggle.textContent = open ? '✕' : '☰';
+    };
+    navLinks.querySelectorAll('a').forEach(link => link.addEventListener('click', () => navLinks.classList.remove('open')));
+
+    // Render / update mobile bottom tab bar
+    this.renderMobileNav({ user, profile });
+};
+
+App.renderMobileNav = function({ user, profile }) {
+    let mobileNav = document.getElementById('mobileBottomNav');
+    if (!mobileNav) {
+        mobileNav = document.createElement('nav');
+        mobileNav.id = 'mobileBottomNav';
+        mobileNav.className = 'mobile-bottom-nav';
+        mobileNav.setAttribute('aria-label', 'Mobil naviqasiya');
+        document.body.appendChild(mobileNav);
+    }
+
+    const route = this.currentRoute || 'jobs';
+    const isEmployer = profile?.userType === 'employer';
+
+    if (user && profile) {
+        if (isEmployer) {
+            mobileNav.innerHTML = `
+                <a href="#/jobs" class="mobile-nav-item ${route === 'jobs' ? 'active' : ''}">
+                    <span class="mobile-icon">💼</span>
+                    <span>Elanlar</span>
+                </a>
+                <a href="#/my-jobs" class="mobile-nav-item ${route === 'my-jobs' ? 'active' : ''}">
+                    <span class="mobile-icon">📋</span>
+                    <span>İlanlarım</span>
+                </a>
+                <a href="#/create-job" class="mobile-nav-item ${route === 'create-job' ? 'active' : ''}">
+                    <span class="mobile-icon">➕</span>
+                    <span>İlan Ver</span>
+                </a>
+                <a href="#/chat" class="mobile-nav-item ${route === 'chat' ? 'active' : ''}">
+                    <span class="mobile-icon">💬</span>
+                    <span>Çat</span>
+                </a>
+                <a href="#/profile" class="mobile-nav-item ${route === 'profile' ? 'active' : ''}">
+                    <span class="mobile-icon">👤</span>
+                    <span>Profil</span>
+                </a>
+            `;
+        } else {
+            mobileNav.innerHTML = `
+                <a href="#/jobs" class="mobile-nav-item ${route === 'jobs' ? 'active' : ''}">
+                    <span class="mobile-icon">💼</span>
+                    <span>Elanlar</span>
+                </a>
+                <a href="#/applications" class="mobile-nav-item ${route === 'applications' ? 'active' : ''}">
+                    <span class="mobile-icon">📝</span>
+                    <span>Müraciətlər</span>
+                </a>
+                <a href="#/chat" class="mobile-nav-item ${route === 'chat' ? 'active' : ''}">
+                    <span class="mobile-icon">💬</span>
+                    <span>Çat</span>
+                </a>
+                <a href="#/saved-jobs" class="mobile-nav-item ${route === 'saved-jobs' ? 'active' : ''}">
+                    <span class="mobile-icon">⭐</span>
+                    <span>Saxlananlar</span>
+                </a>
+                <a href="#/profile" class="mobile-nav-item ${route === 'profile' ? 'active' : ''}">
+                    <span class="mobile-icon">👤</span>
+                    <span>Profil</span>
+                </a>
+            `;
+        }
+    } else {
+        mobileNav.innerHTML = `
+            <a href="#/jobs" class="mobile-nav-item ${route === 'jobs' ? 'active' : ''}">
+                <span class="mobile-icon">💼</span>
+                <span>Elanlar</span>
+            </a>
+            <a href="#/map" class="mobile-nav-item ${route === 'map' ? 'active' : ''}">
+                <span class="mobile-icon">🗺️</span>
+                <span>Xəritə</span>
+            </a>
+            <a href="#/login" class="mobile-nav-item ${route === 'login' ? 'active' : ''}">
+                <span class="mobile-icon">🔑</span>
+                <span>Giriş</span>
+            </a>
+            <a href="#/register" class="mobile-nav-item ${route === 'register' ? 'active' : ''}">
+                <span class="mobile-icon">📝</span>
+                <span>Qeydiyyat</span>
+            </a>
+        `;
+    }
+};
+
+App.renderJobsList = function(container) {
+    const app = this;
+    const urlFilters = new URLSearchParams(window.location.search);
+    const filterState = {
+        categoryId: urlFilters.get('category') || 'all',
+        city: urlFilters.get('city') || 'all',
+        jobType: urlFilters.get('type') || 'all',
+        minSalary: urlFilters.get('minSalary') || '',
+        maxSalary: urlFilters.get('maxSalary') || '',
+        searchQuery: urlFilters.get('q') || '',
+        sortBy: urlFilters.get('sort') || 'newest'
+    };
+
+    container.innerHTML = `
+        <div class="app-container">
+            <section class="jobs-hero" aria-labelledby="jobs-heading">
+                <div>
+                    <p class="eyebrow">AZƏRBAYCAN ÜZRƏ AKTUAL VAKANSİYALAR VƏ İŞ ELANLARI</p>
+                    <h1 id="jobs-heading" class="page-title">Azərbaycanda İş Elanları və Vakansiyalar 2026</h1>
+                    <p class="page-subtitle">Bakı, Sumqayıt, Gəncə və bütün regionlarda ən yeni iş elanları. Peşə, şəhər, iş rejimi və maaşa görə filtrləyin, birbaşa müraciət edin.</p>
+                </div>
+                ${AuthModule.userProfile?.userType === 'employer' ? '<a href="#/create-job" class="btn btn-primary">➕ İş elanı yerləşdir</a>' : '<a href="#/register" class="btn btn-primary">Pulsuz hesab yarat</a>'}
+            </section>
+
+            <!-- BOSS.AZ STYLE CATEGORY CARDS GRID -->
+            <div class="categories-grid" id="categoriesGrid" aria-label="Klassik iş kateqoriyaları">
+                ${CATEGORIES.map(c => `
+                    <div class="category-card ${filterState.categoryId === c.id ? 'active' : ''}" data-category-id="${c.id}">
+                        <div class="category-card-icon">${c.icon}</div>
+                        <div class="category-card-name">${c.name}</div>
+                    </div>
+                `).join('')}
+            </div>
+
+            <nav class="quick-filter-links" aria-label="Populyar axtarışlar">
+                <span>Populyar axtarışlar:</span>
+                <button type="button" data-category="it">💻 İT vakansiyaları</button>
+                <button type="button" data-category="sales">🛍️ Satış mütəxəssisi</button>
+                <button type="button" data-category="driver">🚗 Sürücü işi</button>
+                <button type="button" data-category="service">🍽️ Ofisant & Barista</button>
+                <button type="button" data-city="Bakı">📍 Bakı iş elanları</button>
+                <button type="button" data-city="Gəncə">📍 Gəncə vakansiyaları</button>
+            </nav>
+
+            <section class="filters-panel" aria-label="Vakansiya filtrləri">
+                <div class="search-input-wrap">
+                    <span class="search-icon">🔍</span>
+                    <input type="search" id="searchInput" value="${escapeHTML(filterState.searchQuery)}" placeholder="Peşə, şirkət, şəhər və ya açar söz yazın (məs: sürücü, proqramçı, kassir)" autocomplete="off">
+                </div>
+                <div class="filter-row">
+                    <label>Kateqoriya
+                        <select id="categoryFilter" class="filter-select">${CATEGORIES.map(c => `<option value="${c.id}" ${filterState.categoryId === c.id ? 'selected' : ''}>${c.icon} ${c.name}</option>`).join('')}</select>
+                    </label>
+                    <label>Şəhər
+                        <select id="cityFilter" class="filter-select"><option value="all">📍 Bütün şəhərlər</option>${CITIES.map(c => `<option value="${c}" ${filterState.city === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
+                    </label>
+                    <label>İş rejimi
+                        <select id="jobTypeFilter" class="filter-select">
+                            <option value="all">⏱️ Bütün rejimlər</option>
+                            <option value="fullTime" ${filterState.jobType === 'fullTime' ? 'selected' : ''}>Tam iş günü</option>
+                            <option value="partTime" ${filterState.jobType === 'partTime' ? 'selected' : ''}>Yarım gün (Part-time)</option>
+                            <option value="daily" ${filterState.jobType === 'daily' ? 'selected' : ''}>Gündəlik iş</option>
+                            <option value="hourly" ${filterState.jobType === 'hourly' ? 'selected' : ''}>Saatlıq iş</option>
+                            <option value="freelance" ${filterState.jobType === 'freelance' ? 'selected' : ''}>Freelance / Distant</option>
+                        </select>
+                    </label>
+                    <label>Maaş (AZN)
+                        <div class="salary-inputs"><input type="number" min="0" id="minSalaryFilter" value="${escapeHTML(filterState.minSalary)}" placeholder="Min ₼"><input type="number" min="0" id="maxSalaryFilter" value="${escapeHTML(filterState.maxSalary)}" placeholder="Max ₼"></div>
+                    </label>
+                    <label>Sıralama
+                        <select id="sortFilter" class="filter-select"><option value="newest">Ən yeni</option><option value="highestPay" ${filterState.sortBy === 'highestPay' ? 'selected' : ''}>Yüksək maaş</option><option value="lowestPay" ${filterState.sortBy === 'lowestPay' ? 'selected' : ''}>Aşağı maaş</option></select>
+                    </label>
+                    <button type="button" id="clearFiltersBtn" class="btn btn-secondary btn-sm clear-filters">Filtrləri təmizlə</button>
+                </div>
+            </section>
+
+            <div class="results-heading"><h2>Aktual Vakansiyalar</h2><span id="jobsCount" aria-live="polite">Axtarılır…</span></div>
+            <div id="jobsGridContainer"><div class="loading-spinner"><div class="spinner"></div></div></div>
+
+            <section class="seo-content" aria-label="İş Tap AI haqqında SEO məlumatı">
+                <h2>Azərbaycanda İş Elanları və Vakansiyalar Platforması</h2>
+                <p>İş Tap AI iş axtaranları və işəgötürənləri Azərbaycanda bir araya gətirən müasir vakansiya portalıdır. Elanları Bakı, Gəncə, Sumqayıt və digər şəhərlərə; İT, mühasibatlıq, xidmət, satış, sürücülük, aşpazlıq və başqa sahələrə görə Boss.az üslubunda filtrləyin.</p>
+                <div class="seo-faq-grid">
+                    <article>
+                        <h3>İş axtaranlar üçün necə iş tapmaq olar?</h3>
+                        <p>Kateqoriyalar bölməsindən maraqlandığınız peşəni seçin, maaş və şəhər filtrini tətbiq edin. Qeydiyyatdan keçərək 1 kliklə müraciət edin və işəgötürənlə dərhal çatda yazışın.</p>
+                    </article>
+                    <article>
+                        <h3>İşəgötürənlər üçün elan yerləşdirmək</h3>
+                        <p>Hesab yaradın, vakansiya tələblərini daxil edin və pulsuz elan yerləşdirin. Namizədlərin müraciətlərini "İlanlarım" bölməsindən idarə edin və uyğun şəxslərlə birbaşa əlaqə saxlayın.</p>
+                    </article>
+                </div>
+            </section>
+        </div>`;
+
+    let searchTimer;
+    const syncUrl = () => {
+        const params = new URLSearchParams();
+        if (filterState.searchQuery) params.set('q', filterState.searchQuery);
+        if (filterState.categoryId !== 'all') params.set('category', filterState.categoryId);
+        if (filterState.city !== 'all') params.set('city', filterState.city);
+        if (filterState.jobType !== 'all') params.set('type', filterState.jobType);
+        if (filterState.minSalary) params.set('minSalary', filterState.minSalary);
+        if (filterState.maxSalary) params.set('maxSalary', filterState.maxSalary);
+        if (filterState.sortBy !== 'newest') params.set('sort', filterState.sortBy);
+        const nextUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}#/jobs`;
+        window.history.replaceState({}, '', nextUrl);
+    };
+
+    const updateJobs = () => {
+        JobsModule.listenToJobs(filterState, (jobs) => {
+            const grid = document.getElementById('jobsGridContainer');
+            const count = document.getElementById('jobsCount');
+            if (!grid) return;
+            if (count) count.textContent = `${jobs.length} elan tapıldı`;
+            if (!jobs.length) {
+                grid.innerHTML = '<div class="empty-state card"><div class="empty-icon">🔎</div><div class="empty-title">Uyğun elan tapılmadı</div><div class="empty-desc">Açar sözü və ya filtr seçimlərinizi dəyişib yenidən yoxlayın.</div></div>';
+                return;
+            }
+            grid.innerHTML = `<div class="job-grid stagger">${jobs.map(job => app.createJobCardHTML(job)).join('')}</div>`;
+            grid.querySelectorAll('.job-card').forEach(card => card.addEventListener('click', () => window.location.hash = `#/jobs/${card.dataset.id}`));
+        });
+
+        // Highlight active category card in grid
+        document.querySelectorAll('.category-card').forEach(card => {
+            card.classList.toggle('active', card.dataset.categoryId === filterState.categoryId);
+        });
+
+        syncUrl();
+    };
+
+    // Category Grid click handler
+    document.querySelectorAll('.category-card').forEach(card => {
+        card.addEventListener('click', () => {
+            filterState.categoryId = card.dataset.categoryId;
+            const catSelect = document.getElementById('categoryFilter');
+            if (catSelect) catSelect.value = filterState.categoryId;
+            updateJobs();
+        });
+    });
+
+    const bindFilter = (id, key, delayed = false) => document.getElementById(id)?.addEventListener('input', event => {
+        filterState[key] = event.target.value;
+        if (delayed) { clearTimeout(searchTimer); searchTimer = setTimeout(updateJobs, 220); } else updateJobs();
+    });
+    bindFilter('searchInput', 'searchQuery', true);
+    ['categoryFilter', 'cityFilter', 'jobTypeFilter', 'sortFilter'].forEach((id) => document.getElementById(id)?.addEventListener('change', event => {
+        filterState[id === 'categoryFilter' ? 'categoryId' : id === 'cityFilter' ? 'city' : id === 'jobTypeFilter' ? 'jobType' : 'sortBy'] = event.target.value;
+        updateJobs();
+    }));
+    bindFilter('minSalaryFilter', 'minSalary', true);
+    bindFilter('maxSalaryFilter', 'maxSalary', true);
+    document.querySelectorAll('.quick-filter-links button').forEach(button => button.addEventListener('click', () => {
+        if (button.dataset.category) {
+            filterState.categoryId = button.dataset.category;
+            const catSelect = document.getElementById('categoryFilter');
+            if (catSelect) catSelect.value = filterState.categoryId;
+        }
+        if (button.dataset.city) {
+            filterState.city = button.dataset.city;
+            const citySelect = document.getElementById('cityFilter');
+            if (citySelect) citySelect.value = filterState.city;
+        }
+        updateJobs();
+    }));
+    document.getElementById('clearFiltersBtn')?.addEventListener('click', () => {
+        Object.assign(filterState, { categoryId: 'all', city: 'all', jobType: 'all', minSalary: '', maxSalary: '', searchQuery: '', sortBy: 'newest' });
+        ['searchInput', 'minSalaryFilter', 'maxSalaryFilter'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        document.getElementById('categoryFilter').value = 'all';
+        document.getElementById('cityFilter').value = 'all';
+        document.getElementById('jobTypeFilter').value = 'all';
+        document.getElementById('sortFilter').value = 'newest';
+        updateJobs();
+    });
+    updateJobs();
+};
+
+App.renderMyApplications = async function(container) {
+    const user = AuthModule.currentUser;
+    const profile = AuthModule.userProfile;
+    if (!user || profile?.userType === 'employer') { window.location.hash = '#/login'; return; }
+    container.innerHTML = '<div class="app-container"><div class="page-header"><h1 class="page-title">Mənim Müraciətlərim</h1><p class="page-subtitle">Göndərdiyiniz müraciətlərin vəziyyəti və işəgötürən mesajları</p></div><div id="myAppsContainer" class="loading-spinner"><div class="spinner"></div></div></div>';
+    const apps = await ApplicationsModule.getMyApplications(user.uid);
+    const list = document.getElementById('myAppsContainer');
+    if (!list) return;
+    if (!apps.length) {
+        list.innerHTML = '<div class="empty-state card"><div class="empty-icon">📝</div><div class="empty-title">Hələ müraciətiniz yoxdur</div><div class="empty-desc">Uyğun vakansiyanı seçib bir neçə addımda müraciət edin.</div><a href="#/jobs" class="btn btn-primary">Elanlara bax</a></div>';
+        return;
+    }
+    const statusText = { accepted: '🎉 Qəbul Edildi', rejected: '❌ Rədd Edildi', pending: '⏳ Gözləmədə' };
+    list.innerHTML = `<div class="d-grid gap-16 stagger">${apps.map(appItem => `<article class="card card-body application-card"><div><h2>${escapeHTML(appItem.jobTitle)}</h2><p class="text-gray text-sm mt-8">🏢 ${escapeHTML(appItem.companyName)} · ${app.formatTimeAgo(appItem.createdAt)}</p></div><div class="application-actions"><span class="application-status ${appItem.status || 'pending'}">${statusText[appItem.status] || statusText.pending}</span><a href="#/jobs/${encodeURIComponent(appItem.jobId)}" class="btn btn-secondary btn-sm">Elana bax</a><button type="button" class="btn btn-primary btn-sm application-chat-btn" data-employer-id="${escapeHTML(appItem.employerId)}" data-employer-name="${escapeHTML(appItem.companyName)}" data-job-id="${escapeHTML(appItem.jobId)}" data-job-title="${escapeHTML(appItem.jobTitle)}">💬 Mesaj yaz</button></div></article>`).join('')}</div>`;
+    list.querySelectorAll('.application-chat-btn').forEach(button => button.addEventListener('click', async () => {
+        const result = await ChatModule.getOrCreateChat({ employerId: button.dataset.employerId, employerName: button.dataset.employerName, jobSeekerId: user.uid, jobSeekerName: profile.fullName, jobId: button.dataset.jobId, jobTitle: button.dataset.jobTitle });
+        if (result.success) window.location.hash = `#/chat/${result.chatId}`;
+        else app.showToast('Mesajlaşma başladılarkən xəta baş verdi.', 'error');
+    }));
 };
 
 // Safe initialization
