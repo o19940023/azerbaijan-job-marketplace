@@ -1,4 +1,4 @@
-﻿/**
+/**
  * İş Tap AI — Web App Main Bundle & SPA Controller
  * Qaf Studio © 2026
  * Cross-Platform Web Client sharing Firebase backend with Flutter Mobile App
@@ -303,6 +303,18 @@ const JobsModule = {
 
             onUpdate(jobs);
         };
+
+        const isBot = /Googlebot|bingbot|Baiduspider|DuckDuckBot|YandexBot|facebot|ia_archiver|Lighthouse/i.test(navigator.userAgent);
+
+        if (isBot) {
+            query.get().then(snapshot => {
+                processDocs(snapshot.docs);
+            }).catch(err => {
+                console.error('Bot query.get() error:', err);
+                if (!hasReceivedData) onUpdate([]);
+            });
+            return () => {};
+        }
 
         // Safety fallback timer if onSnapshot hangs on initial load
         setTimeout(async () => {
@@ -2707,5 +2719,6 @@ if (document.readyState === 'loading') {
 } else {
     App.init();
 }
+
 
 
