@@ -1,4 +1,4 @@
-/**
+﻿/**
  * İş Tap AI — AI Assistant Module
  * Floating Gemini Career & Job Assistant
  */
@@ -84,3 +84,4 @@ export const AIAssistantModule = {
         return `Təşəkkür edirəm! "${prompt}" sualınızla bağlı: İş Tap AI platformasında ən aktual vakansiyaları araşdıra, profilinizi yeniləyə və işəgötürənlərlə birbaşa əlaqə saxlaya bilərsiniz. Sizə başqa necə kömək edə bilərəm?`;
     }
 };
+

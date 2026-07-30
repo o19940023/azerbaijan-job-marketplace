@@ -1,4 +1,4 @@
-/**
+﻿/**
  * İş Tap AI — Applications Module
  * Job Applications Management (Submit, View status, Accept/Reject)
  * Optimized for Firestore single-field queries without composite index requirements
@@ -132,3 +132,4 @@ export const ApplicationsModule = {
         }
     }
 };
+

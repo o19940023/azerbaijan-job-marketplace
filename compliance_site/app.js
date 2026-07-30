@@ -1,4 +1,4 @@
-/**
+﻿/**
  * İş Tap AI — Web App Main Bundle & SPA Controller
  * Qaf Studio © 2026
  * Cross-Platform Web Client sharing Firebase backend with Flutter Mobile App
@@ -2707,3 +2707,4 @@ if (document.readyState === 'loading') {
 } else {
     App.init();
 }
+

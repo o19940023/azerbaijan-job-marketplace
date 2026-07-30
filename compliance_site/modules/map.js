@@ -1,4 +1,4 @@
-/**
+﻿/**
  * İş Tap AI — Map Module
  * Interactive OpenStreetMap (Leaflet) view for jobs
  */
@@ -91,3 +91,4 @@ export const MapModule = {
         }
     }
 };
+

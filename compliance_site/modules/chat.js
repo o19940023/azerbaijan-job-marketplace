@@ -1,4 +1,4 @@
-/**
+﻿/**
  * İş Tap AI — Chat Module
  * Realtime Chat & Messaging System
  * Optimized for Firestore single-field queries without composite index requirements
@@ -162,3 +162,4 @@ export const ChatModule = {
         }
     }
 };
+

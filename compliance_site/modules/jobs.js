@@ -1,4 +1,4 @@
-/**
+﻿/**
  * İş Tap AI — Jobs Module
  * Jobs Listing, Search, Filters, Detail, Posting, and Saved Jobs
  * Matching Flutter Mobile App Logic (Client-side filtering to avoid Firestore Index errors)
@@ -227,3 +227,4 @@ export const JobsModule = {
         }
     }
 };
+

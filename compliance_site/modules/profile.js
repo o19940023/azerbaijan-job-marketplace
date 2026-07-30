@@ -1,4 +1,4 @@
-/**
+﻿/**
  * İş Tap AI — Profile Module
  * User Profile View & Edit Management
  */
@@ -57,3 +57,4 @@ export const ProfileModule = {
         }
     }
 };
+

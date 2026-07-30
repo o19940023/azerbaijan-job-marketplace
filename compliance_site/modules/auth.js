@@ -1,4 +1,4 @@
-/**
+﻿/**
  * İş Tap AI — Auth Module
  * Firebase Auth & User Profile Management
  */
@@ -177,3 +177,4 @@ export const AuthModule = {
         }
     }
 };
+
