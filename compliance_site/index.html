@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <!-- Aggressive SEO Metadata for Azerbaijan Search Intent -->
-    <title>İş Elanları, Vakansiyalar 2026 Azərbaycanda | İş Tap AI Portalı</title>
-    <meta name="description" content="Azərbaycanda ən son iş elanları və vakansiyalar: Bakı, Sumqayıt, Gəncə, Naxçıvan. Peşə, şəhər, maaş və iş rejiminə görə filtrləyin, pulsuz elan yerləşdirin və müraciət edin.">
+    <title>İş Tap AI — Azərbaycanda İş Elanları və Vakansiyalar 2026</title>
+    <meta name="description" content="🔥 Azərbaycanda №1 AI iş axtarış platforması. Bakı, Gəncə, Sumqayıt və bütün regionlarda minlərlə vakansiya. Pulsuz CV yarat, 1 kliklə müraciət et!">
     <meta name="keywords" content="bana iş ara, iş elanları, vakansiyalar, Bakıda iş elanları, iş axtarıram, vakansiya 2026, iş tap, boss.az alternativi, tap.az vakansiyalar, iş elanı ver, kuryer işi, sürücü vakansiyaları, kassir işləri, it vakansiyaları, part time iş elanları, tələbələr üçün iş, xidmət işləri">
-    <meta name="author" content="Qaf Studio">
+    <meta name="author" content="İş Tap AI">
+    <meta name="application-name" content="İş Tap AI">
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
     <meta name="googlebot" content="index, follow">
     <meta name="language" content="Azerbaijani">
@@ -25,8 +26,8 @@
     <!-- OPEN GRAPH (Facebook, WhatsApp, Telegram, LinkedIn) -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://istapai.az/">
-    <meta property="og:title" content="İş Elanları və Vakansiyalar Azərbaycanda 2026 – İş Tap AI">
-    <meta property="og:description" content="Bakı, Gəncə, Sumqayıt və bütün regionlarda iş axtarın, vakansiyalara müraciət edin. AI dəstəkli ən böyük iş portalı.">
+    <meta property="og:title" content="İş Tap AI — Azərbaycanda İş Elanları və Vakansiyalar 2026">
+    <meta property="og:description" content="🔥 Azərbaycanda №1 AI iş axtarış platforması. Bakı, Gəncə, Sumqayıt və bütün regionlarda minlərlə vakansiya. Pulsuz CV yarat, 1 kliklə müraciət et!">
     <meta property="og:image" content="https://istapai.az/og-image.jpg">
     <meta property="og:site_name" content="İş Tap AI">
     <meta property="og:locale" content="az_AZ">
@@ -47,24 +48,72 @@
           "@type": "Organization",
           "@id": "https://istapai.az/#organization",
           "name": "İş Tap AI",
+          "alternateName": "İşTap",
           "url": "https://istapai.az/",
-          "logo": "https://istapai.az/Logo.png",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://istapai.az/Logo.png",
+            "width": 512,
+            "height": 512
+          },
+          "description": "Azərbaycanda AI dəstəkli iş axtarış platforması. Bakı, Gəncə, Sumqayıt və bütün regionlarda vakansiyalar.",
+          "foundingDate": "2024",
+          "areaServed": { "@type": "Country", "name": "Azerbaijan" },
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "contactType": "customer support",
+            "areaServed": "AZ",
+            "availableLanguage": ["Azerbaijani", "Russian"]
+          },
           "sameAs": [
-            "https://istapai.az/"
-          ],
-          "areaServed": { "@type": "Country", "name": "Azerbaijan" }
+            "https://play.google.com/store/apps/details?id=com.is.tap",
+            "https://apps.apple.com/us/app/i-%C5%9F-tap-ai-i-%C5%9F-elanlar%C4%B1-cv/id6760608748"
+          ]
         },
         {
           "@type": "WebSite",
           "@id": "https://istapai.az/#website",
           "url": "https://istapai.az/",
-          "name": "İş Tap AI – Azərbaycanda İş Elanları və Vakansiyalar",
+          "name": "İş Tap AI",
+          "description": "Azərbaycanda №1 AI iş axtarış platforması",
           "inLanguage": "az",
+          "publisher": { "@id": "https://istapai.az/#organization" },
           "potentialAction": {
             "@type": "SearchAction",
-            "target": "https://istapai.az/?q={search_term_string}#/jobs",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://istapai.az/?q={search_term_string}#/jobs"
+            },
             "query-input": "required name=search_term_string"
           }
+        },
+        {
+          "@type": "WebPage",
+          "@id": "https://istapai.az/#webpage",
+          "url": "https://istapai.az/",
+          "name": "İş Tap AI — Azərbaycanda İş Elanları və Vakansiyalar 2026",
+          "isPartOf": { "@id": "https://istapai.az/#website" },
+          "about": { "@id": "https://istapai.az/#organization" },
+          "description": "Azərbaycanda ən sürətli iş axtarış platforması. AI ilə peşəkar CV yarat, Bakı, Gəncə, Sumqayıt və bütün regionlarda minlərlə vakansiya tap!",
+          "breadcrumb": { "@id": "https://istapai.az/#breadcrumb" }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "@id": "https://istapai.az/#breadcrumb",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "İş Tap AI",
+              "item": "https://istapai.az/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "İş Elanları",
+              "item": "https://istapai.az/#/jobs"
+            }
+          ]
         },
         {
           "@type": "FAQPage",
@@ -83,6 +132,16 @@
               "@type": "Question",
               "name": "İşəgötürən və ya namizədlə necə çatda yazışmaq olar?",
               "acceptedAnswer": { "@type": "Answer", "text": "Müraciət etdikdən və ya elana gələn namizədi qəbul etdikdən sonra platforma daxilində real-vaxt rejimində birbaşa Mesajlar bölməsindən çatlaşa bilərsiniz." }
+            },
+            {
+              "@type": "Question",
+              "name": "İş Tap AI tətbiqini haradan yükləmək olar?",
+              "acceptedAnswer": { "@type": "Answer", "text": "Android cihazlar üçün Google Play Store-dan, iPhone/iPad üçün isə Apple App Store-dan 'İş Tap AI' tətbiqini pulsuz yükləyə bilərsiniz." }
+            },
+            {
+              "@type": "Question",
+              "name": "Boss.az ilə müqayisədə İş Tap AI-nin üstünlükləri nələrdir?",
+              "acceptedAnswer": { "@type": "Answer", "text": "İş Tap AI AI dəstəkli CV yaratma, real vaxt çat, 1 kliklə müraciət və mobil tətbiq imkanları təqdim edir. Həm işəgötürənlər, həm də iş axtaranlar üçün tamamilə pulsuzdur." }
             }
           ]
         },
@@ -96,6 +155,7 @@
           "hiringOrganization": {
             "@type": "Organization",
             "name": "İş Tap AI Partnyorları",
+            "sameAs": "https://istapai.az/",
             "logo": "https://istapai.az/Logo.png"
           },
           "jobLocation": {
@@ -103,6 +163,7 @@
             "address": {
               "@type": "PostalAddress",
               "addressLocality": "Baku",
+              "addressRegion": "Baku",
               "addressCountry": "AZ"
             }
           },
