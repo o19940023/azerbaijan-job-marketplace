@@ -4,120 +4,121 @@
 
     <!-- Azerbaijani Pages -->
     <url>
-        <loc>https://istapai.netlify.app/</loc>
+        <loc>https://istapapp.netlify.app/</loc>
         <lastmod>2026-07-30T00:00:00+00:00</lastmod>
         <changefreq>weekly</changefreq>
         <priority>1.0</priority>
-        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.netlify.app/" />
-        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.netlify.app/index-ru.html" />
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapapp.netlify.app/" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapapp.netlify.app/index-ru.html" />
     </url>
     <url>
-        <loc>https://istapai.netlify.app/privacy.html</loc>
+        <loc>https://istapapp.netlify.app/privacy.html</loc>
         <lastmod>2026-03-25T00:00:00+00:00</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
-        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.netlify.app/privacy.html" />
-        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.netlify.app/privacy-ru.html" />
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapapp.netlify.app/privacy.html" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapapp.netlify.app/privacy-ru.html" />
     </url>
     <url>
-        <loc>https://istapai.netlify.app/terms.html</loc>
+        <loc>https://istapapp.netlify.app/terms.html</loc>
         <lastmod>2026-03-25T00:00:00+00:00</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
-        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.netlify.app/terms.html" />
-        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.netlify.app/terms-ru.html" />
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapapp.netlify.app/terms.html" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapapp.netlify.app/terms-ru.html" />
     </url>
     <url>
-        <loc>https://istapai.netlify.app/support.html</loc>
+        <loc>https://istapapp.netlify.app/support.html</loc>
         <lastmod>2026-03-25T00:00:00+00:00</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.8</priority>
-        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.netlify.app/support.html" />
-        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.netlify.app/support-ru.html" />
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapapp.netlify.app/support.html" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapapp.netlify.app/support-ru.html" />
     </url>
 
     <!-- Russian Pages -->
     <url>
-        <loc>https://istapai.netlify.app/index-ru.html</loc>
+        <loc>https://istapapp.netlify.app/index-ru.html</loc>
         <lastmod>2026-03-25T00:00:00+00:00</lastmod>
         <changefreq>weekly</changefreq>
         <priority>1.0</priority>
-        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.netlify.app/" />
-        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.netlify.app/index-ru.html" />
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapapp.netlify.app/" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapapp.netlify.app/index-ru.html" />
     </url>
     <url>
-        <loc>https://istapai.netlify.app/privacy-ru.html</loc>
+        <loc>https://istapapp.netlify.app/privacy-ru.html</loc>
         <lastmod>2026-03-25T00:00:00+00:00</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
-        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.netlify.app/privacy.html" />
-        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.netlify.app/privacy-ru.html" />
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapapp.netlify.app/privacy.html" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapapp.netlify.app/privacy-ru.html" />
     </url>
     <url>
-        <loc>https://istapai.netlify.app/terms-ru.html</loc>
+        <loc>https://istapapp.netlify.app/terms-ru.html</loc>
         <lastmod>2026-03-25T00:00:00+00:00</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
-        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.netlify.app/terms.html" />
-        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.netlify.app/terms-ru.html" />
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapapp.netlify.app/terms.html" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapapp.netlify.app/terms-ru.html" />
     </url>
     <url>
-        <loc>https://istapai.netlify.app/support-ru.html</loc>
+        <loc>https://istapapp.netlify.app/support-ru.html</loc>
         <lastmod>2026-03-25T00:00:00+00:00</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.8</priority>
-        <xhtml:link rel="alternate" hreflang="az" href="https://istapai.netlify.app/support.html" />
-        <xhtml:link rel="alternate" hreflang="ru" href="https://istapai.netlify.app/support-ru.html" />
+        <xhtml:link rel="alternate" hreflang="az" href="https://istapapp.netlify.app/support.html" />
+        <xhtml:link rel="alternate" hreflang="ru" href="https://istapapp.netlify.app/support-ru.html" />
     </url>
 
     <!-- Popular Category Landing URLs for SEO Indexing -->
     <url>
-        <loc>https://istapai.netlify.app/?category=it#/jobs</loc>
+        <loc>https://istapapp.netlify.app/?category=it#/jobs</loc>
         <lastmod>2026-07-30T00:00:00+00:00</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.9</priority>
     </url>
     <url>
-        <loc>https://istapai.netlify.app/?category=finance#/jobs</loc>
+        <loc>https://istapapp.netlify.app/?category=finance#/jobs</loc>
         <lastmod>2026-07-30T00:00:00+00:00</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.9</priority>
     </url>
     <url>
-        <loc>https://istapai.netlify.app/?category=sales#/jobs</loc>
+        <loc>https://istapapp.netlify.app/?category=sales#/jobs</loc>
         <lastmod>2026-07-30T00:00:00+00:00</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.9</priority>
     </url>
     <url>
-        <loc>https://istapai.netlify.app/?category=service#/jobs</loc>
+        <loc>https://istapapp.netlify.app/?category=service#/jobs</loc>
         <lastmod>2026-07-30T00:00:00+00:00</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.9</priority>
     </url>
     <url>
-        <loc>https://istapai.netlify.app/?category=driver#/jobs</loc>
+        <loc>https://istapapp.netlify.app/?category=driver#/jobs</loc>
         <lastmod>2026-07-30T00:00:00+00:00</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.9</priority>
     </url>
     <url>
-        <loc>https://istapai.netlify.app/?city=Bak%C4%B1#/jobs</loc>
+        <loc>https://istapapp.netlify.app/?city=Bak%C4%B1#/jobs</loc>
         <lastmod>2026-07-30T00:00:00+00:00</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.95</priority>
     </url>
     <url>
-        <loc>https://istapai.netlify.app/?city=G%C9%99nc%C9%99#/jobs</loc>
+        <loc>https://istapapp.netlify.app/?city=G%C9%99nc%C9%99#/jobs</loc>
         <lastmod>2026-07-30T00:00:00+00:00</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.9</priority>
     </url>
     <url>
-        <loc>https://istapai.netlify.app/?city=Sumqay%C4%B1t#/jobs</loc>
+        <loc>https://istapapp.netlify.app/?city=Sumqay%C4%B1t#/jobs</loc>
         <lastmod>2026-07-30T00:00:00+00:00</lastmod>
         <changefreq>daily</changefreq>
         <priority>0.9</priority>
     </url>
 </urlset>
+
 
